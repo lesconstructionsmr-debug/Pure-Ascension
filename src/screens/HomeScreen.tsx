@@ -7,10 +7,12 @@ import { Badge }    from '../components/Badge';
 import { Card }     from '../components/Card';
 import { Progress } from '../components/Progress';
 import { Ring }     from '../components/Ring';
-import { mockUser, mockProgram, mockWorkouts } from '../data';
 import { useDailyProgress } from '../context/DailyProgressContext';
 import { useStreak } from '../hooks/useStreak';
 import { FeedbackButton } from '../components/FeedbackButton';
+import { EmptyState } from '../components/EmptyState';
+import { useProgramStore } from '../store/useProgramStore';
+import { getProgramProgress, getTodaySession } from '../services/programService';
 
 function getGreeting(name: string): string {
   const h = new Date().getHours();
@@ -40,20 +42,34 @@ const RingItem: React.FC<{label:string;sublabel:string;value:number;fill:string;
 );
 
 export const HomeScreen: React.FC<{ userName?: string }> = ({ userName }) => {
-  const user = mockUser, program = mockProgram, next = mockWorkouts[0];
+  const program = useProgramStore(s => s.program);
   const { mealsPct, mealsCount, workoutPct, waterPct, waterGlasses, addWater, removeWater } = useDailyProgress();
   const { streak } = useStreak();
 
-  const isNewUser   = !!userName;
-  const displayName = userName || user.firstName;
+  const displayName = userName || 'toi';
   const greeting    = getGreeting(displayName);
 
-  const displayProgram = isNewUser ? {
-    eyebrow: 'TON PROGRAMME',
-    currentDay: 1, currentWeek: 1, totalWeeks: 8,
-    tagline: 'On démarre !',
-    completionPct: 0,
-  } : program;
+  // Aucun programme réel → jamais de données factices
+  if (!program) {
+    return (
+      <SafeAreaView style={s.safe}>
+        <View style={{ flex:1, justifyContent:'center', paddingHorizontal:spacing[5] }}>
+          <EmptyState />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const progress = getProgramProgress(program);
+  const today    = getTodaySession(program);
+  const displayProgram = {
+    eyebrow: `PROGRAMME ${program.name.toUpperCase()}`,
+    currentDay: progress.day,
+    currentWeek: progress.week,
+    totalWeeks: progress.totalWeeks,
+    tagline: progress.week === 1 ? 'on démarre !' : 'tu avances bien.',
+    completionPct: progress.completionPct,
+  };
 
   return (
     <View style={{ flex:1 }}>
@@ -65,7 +81,7 @@ export const HomeScreen: React.FC<{ userName?: string }> = ({ userName }) => {
           <View style={{ flex:1, marginRight:spacing[4] }}>
             <Text style={s.greeting} accessibilityRole="header">{greeting}</Text>
             <Text style={s.subgreeting}>
-              {streak > 1 ? `🔥 ${streak} jours de série` : isNewUser ? 'Bienvenue ! C\'est parti 🌿' : 'Voici ton tableau de bord.'}
+              {streak > 1 ? `🔥 ${streak} jours de série` : progress.day <= 1 ? 'Bienvenue ! C\'est parti 🌿' : 'Voici ton tableau de bord.'}
             </Text>
           </View>
           <Avatar name={displayName} size={44} ring />
@@ -114,21 +130,25 @@ export const HomeScreen: React.FC<{ userName?: string }> = ({ userName }) => {
         </Card>
 
         {/* Prochaine séance */}
-        <SectionHeader title="Prochaine séance" action="Voir tout" onAction={()=>{}} />
-        <Pressable onPress={()=>{}} accessibilityRole="button">
-          <Card elevation="sm" padding={spacing[5]}>
-            <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[4] }}>
-              <View style={{ width:44, height:44, borderRadius:22, backgroundColor:colors.clay[100], alignItems:'center', justifyContent:'center' }}>
-                <Activity size={20} color={colors.clay[500]} strokeWidth={2} />
-              </View>
-              <View style={{ flex:1 }}>
-                <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:colors.ink[900], marginBottom:spacing[0.5] }}>{next.title}</Text>
-                <Text style={{ fontFamily:fontFamily.hanken.regular,  fontSize:fontSize.sm,   color:colors.ink[600] }}>{next.duration} min · {next.exerciseCount} exercices</Text>
-              </View>
-              <ChevronRight size={20} color={colors.ink[500]} strokeWidth={2} />
-            </View>
-          </Card>
-        </Pressable>
+        {today && (
+          <>
+            <SectionHeader title={today.isToday ? 'Séance du jour' : 'Prochaine séance'} />
+            <Pressable onPress={()=>{}} accessibilityRole="button">
+              <Card elevation="sm" padding={spacing[5]}>
+                <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[4] }}>
+                  <View style={{ width:44, height:44, borderRadius:22, backgroundColor:colors.clay[100], alignItems:'center', justifyContent:'center' }}>
+                    <Activity size={20} color={colors.clay[500]} strokeWidth={2} />
+                  </View>
+                  <View style={{ flex:1 }}>
+                    <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:colors.ink[900], marginBottom:spacing[0.5] }}>{today.session.title}</Text>
+                    <Text style={{ fontFamily:fontFamily.hanken.regular,  fontSize:fontSize.sm,   color:colors.ink[600] }}>{today.session.day} · {today.session.duration} min · {today.session.exerciseCount} exercices</Text>
+                  </View>
+                  <ChevronRight size={20} color={colors.ink[500]} strokeWidth={2} />
+                </View>
+              </Card>
+            </Pressable>
+          </>
+        )}
 
         <View style={{ height:spacing[10] }} />
       </ScrollView>

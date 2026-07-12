@@ -20,74 +20,13 @@ import {
 } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 import { UserProfile } from '../data';
+// Générateur unique — le même que celui persisté dans Firestore (programService)
+import { getProgramName, getCalories, getMacros, getTrainingDays, getSessionType } from '../services/programService';
 
 /* ─── Props ──────────────────────────────────────────────────────────────── */
 interface Props {
   profile: UserProfile;
   onStart: () => void;
-}
-
-/* ─── Programme generator ────────────────────────────────────────────────── */
-
-/** Nom du programme selon objectif + expérience */
-function getProgramName(p: UserProfile): string {
-  const names: Record<UserProfile['mainGoal'], Record<UserProfile['experience'], string>> = {
-    muscle: { débutante: 'Force Fondation', intermédiaire: 'Force Avancée',    avancée: 'Force Élite'       },
-    gras:   { débutante: 'Brûle & Sculpt',  intermédiaire: 'Métabolisme Actif', avancée: 'Fat Burner Pro'    },
-    tone:   { débutante: 'Corps Léger',     intermédiaire: 'Corps Sculpté',     avancée: 'Corps Athlétique'  },
-    force:  { débutante: 'Puissance I',     intermédiaire: 'Puissance II',      avancée: 'Puissance Élite'   },
-  };
-  return names[p.mainGoal][p.experience];
-}
-
-/** Calories cibles (simplifiées — sans âge exact) */
-function getCalories(p: UserProfile): number {
-  // BMR femme estimé (Mifflin-St Jeor, âge estimé 28 ans)
-  const bmr = 10 * p.currentWeightKg + 6.25 * p.heightCm - 5 * 28 - 161;
-  const activityFactor = p.frequency === 3 ? 1.375 : p.frequency === 4 ? 1.55 : 1.725;
-  const tdee = bmr * activityFactor;
-  const adjustments: Record<UserProfile['mainGoal'], number> = {
-    muscle: 220, gras: -420, tone: -180, force: 150,
-  };
-  return Math.round((tdee + adjustments[p.mainGoal]) / 10) * 10;
-}
-
-/** Macros en grammes depuis les calories */
-function getMacros(calories: number, goal: UserProfile['mainGoal']) {
-  const splits: Record<UserProfile['mainGoal'], { p: number; c: number; f: number }> = {
-    muscle: { p: 0.30, c: 0.45, f: 0.25 },
-    gras:   { p: 0.35, c: 0.35, f: 0.30 },
-    tone:   { p: 0.32, c: 0.40, f: 0.28 },
-    force:  { p: 0.28, c: 0.48, f: 0.24 },
-  };
-  const s = splits[goal];
-  return {
-    protein: Math.round((calories * s.p) / 4),
-    carbs:   Math.round((calories * s.c) / 4),
-    fat:     Math.round((calories * s.f) / 9),
-  };
-}
-
-/** Jours d'entraînement selon fréquence */
-function getTrainingDays(freq: UserProfile['frequency']): string[] {
-  const options = {
-    3: ['Lundi', 'Mercredi', 'Vendredi'],
-    4: ['Lundi', 'Mardi', 'Jeudi', 'Samedi'],
-    5: ['Lundi', 'Mardi', 'Mercredi', 'Vendredi', 'Samedi'],
-  };
-  return options[freq];
-}
-
-/** Description de la séance selon objectif + jour */
-function getSessionType(goal: UserProfile['mainGoal'], dayIdx: number): string {
-  const types: Record<UserProfile['mainGoal'], string[]> = {
-    muscle: ['Haut du corps — Push', 'Bas du corps', 'Haut du corps — Pull', 'Full Body', 'Cardio HIIT'],
-    gras:   ['Circuit training', 'Cardio HIIT', 'Musculation métabolique', 'Cardio steady-state', 'Full Body brûle-graisses'],
-    tone:   ['Fessiers & Abdos', 'Haut du corps léger', 'Circuit cardio', 'Bas du corps', 'Pilates fonctionnel'],
-    force:  ['Squat & Deadlift', 'Bench & Rows', 'Overhead & Core', 'Squat volume', 'Accessoires & mobilité'],
-  };
-  const list = types[goal];
-  return list[dayIdx % list.length];
 }
 
 const GOAL_LABELS: Record<UserProfile['mainGoal'], string> = {

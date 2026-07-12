@@ -12,16 +12,22 @@ import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows, dur
 import { Button } from '../components/Button';
 import { Progress } from '../components/Progress';
 import { Badge }   from '../components/Badge';
-import { mockWorkoutSession, mockExercises } from '../data';
 import { useDailyProgress } from '../context/DailyProgressContext';
+import { EmptyState } from '../components/EmptyState';
+import { useProgramStore } from '../store/useProgramStore';
+import { getTodaySession } from '../services/programService';
 
 interface Props { onClose: () => void; }
 
 const REST_DURATION = 60; // seconds
 
 export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
-  const session   = mockWorkoutSession;
-  const exercises = mockExercises;
+  const program         = useProgramStore(st => st.program);
+  const activeSessionId = useProgramStore(st => st.activeSessionId);
+  const session =
+    program?.sessions.find(sess => sess.id === activeSessionId)
+    ?? (program ? getTodaySession(program)?.session ?? null : null);
+  const exercises = session?.exercises ?? [];
   const { completeWorkout } = useDailyProgress();
 
   const [currentExerciseIdx, setCurrentExerciseIdx] = useState(0);
@@ -40,7 +46,7 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
   const celebrateAnim  = useRef(new Animated.Value(0)).current;
 
   const exercise = exercises[currentExerciseIdx];
-  const totalSets = (exercise?.sets ?? 0) * exercises.length;
+  const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
   const doneSets  = completedSets.size;
   const progress  = totalSets > 0 ? doneSets / totalSets : 0;
 
@@ -123,6 +129,22 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
   };
 
   const restPercent = restTime / REST_DURATION;
+
+  // Aucune séance réelle → jamais de données factices
+  if (!session) {
+    return (
+      <SafeAreaView style={s.safe}>
+        <View style={{ flex:1, justifyContent:'center', padding:spacing[5] }}>
+          <EmptyState
+            title="Aucune séance active"
+            message="Complète ton diagnostic pour recevoir ton plan d'entraînement."
+            ctaLabel="Retour"
+            onCta={onClose}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safe}>

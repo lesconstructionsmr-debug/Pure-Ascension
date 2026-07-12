@@ -229,7 +229,7 @@ const s = StyleSheet.create({
   disciplineBox: {
     backgroundColor: colors.info[50], borderRadius:radius.lg,
     padding:spacing[4], marginBottom:spacing[4], gap:spacing[3],
-    borderWidth:1, borderColor:colors.info[200],
+    borderWidth:1, borderColor:colors.info[100],
   },
   disciplineTitle: { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:colors.ink[900] },
   disciplineSub:   { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600] },

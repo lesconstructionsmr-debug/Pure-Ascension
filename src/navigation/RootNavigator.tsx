@@ -20,7 +20,6 @@ import { HomeScreen }             from '../screens/HomeScreen';
 import { MealsScreen }            from '../screens/MealsScreen';
 import { WorkoutsScreen }         from '../screens/WorkoutsScreen';
 import { ProfileScreen }          from '../screens/ProfileScreen';
-import { MealDetailScreen }       from '../screens/MealDetailScreen';
 import { ActiveWorkoutScreen }    from '../screens/ActiveWorkoutScreen';
 import { ProfileGoalsScreen }     from '../screens/profile/ProfileGoalsScreen';
 import { ProfileHistoryScreen }   from '../screens/profile/ProfileHistoryScreen';
@@ -34,16 +33,18 @@ import { ProgramGenerationScreen }       from '../screens/ProgramGenerationScree
 import { ProgramReadyScreen }            from '../screens/ProgramReadyScreen';
 import { EquilibreScreen }              from '../screens/EquilibreScreen';
 
-import { mockMealDay, UserProfile } from '../data';
+import { UserProfile } from '../data';
 import { DailyProgressProvider } from '../context/DailyProgressContext';
 import { CalorieProvider }      from '../context/CalorieContext';
 import { onAuthChange } from '../services/authService';
 import { saveUserProfile, getUserData } from '../services/dbService';
+import { generateProgram, saveProgram, GeneratedProgram } from '../services/programService';
+import { useProgramStore } from '../store/useProgramStore';
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 type AuthStack   = { Welcome:undefined; Login:undefined; Signup:undefined; Goal:undefined };
 type HomeStack   = { HomeMain:undefined };
-type MealsStack  = { MealsMain:undefined; MealDetail:{ mealId:string } };
+type MealsStack  = { MealsMain:undefined };
 type WorkoutsStack = { WorkoutsMain:undefined; ActiveWorkout:undefined };
 type ProfileStack  = { ProfileMain:undefined; Goals:{ isNewUser?: boolean }; History:{ isNewUser?: boolean }; Notifications:undefined; Rituals:undefined; EditProfile:undefined };
 type TabList     = { Accueil:undefined; Repas:undefined; Séances:undefined; Équilibre:undefined; Profil:undefined };
@@ -68,13 +69,6 @@ function MealsStackScreen() {
   return (
     <MealsSt.Navigator screenOptions={{ headerShown:false }}>
       <MealsSt.Screen name="MealsMain" component={MealsScreen} />
-      <MealsSt.Screen
-        name="MealDetail"
-        component={({ navigation, route }: any) => {
-          const meal = mockMealDay.meals.find(m => m.id === route.params?.mealId) ?? mockMealDay.meals[0];
-          return <MealDetailScreen meal={meal} onBack={() => navigation.goBack()} onMarkDone={() => {}} />;
-        }}
-      />
     </MealsSt.Navigator>
   );
 }
@@ -183,6 +177,7 @@ export const RootNavigator: React.FC = () => {
   const [userEmail,       setUserEmail]       = useState('');
   const [firebaseUid,     setFirebaseUid]     = useState<string | null>(null);
   const [sportDiscipline, setSportDiscipline] = useState<string | undefined>(undefined);
+  const storeProgram = useProgramStore(s => s.program);
 
   // Écoute Firebase Auth — restaure la session au reload
   // et vérifie si l'utilisateur a complété son diagnostic (profil Firestore)
@@ -192,13 +187,16 @@ export const RootNavigator: React.FC = () => {
         setFirebaseUid(user.uid);
         setUserName(user.displayName ?? '');
         setUserEmail(user.email ?? '');
-        // Sans profil Firestore → onboarding forcé, jamais le dashboard
+        // Sans profil ET programme Firestore → onboarding forcé, jamais le dashboard
         try {
           const data = await getUserData(user.uid);
-          setHasProfile(!!(data && data.profile));
+          const ok = !!(data && data.profile && data.program);
+          setHasProfile(ok);
           if (data?.profile) setProfile(data.profile as UserProfile);
+          useProgramStore.getState().setProgram(ok ? (data!.program as GeneratedProgram) : null);
         } catch {
           setHasProfile(false);
+          useProgramStore.getState().clear();
         }
         setAuthed(true);
       } else {
@@ -206,6 +204,7 @@ export const RootNavigator: React.FC = () => {
         setAuthed(false);
         setHasProfile(null);
         setScreen('slides');
+        useProgramStore.getState().clear();
       }
       setAuthReady(true);
     });
@@ -224,8 +223,12 @@ export const RootNavigator: React.FC = () => {
           initialProfile={sportDiscipline ? { sportDiscipline } : {}}
           onComplete={async (p) => {
             setProfile(p);
+            // Génération du programme réel + persistance Firestore
+            const prog = generateProgram(p);
+            useProgramStore.getState().setProgram(prog);
             if (firebaseUid) {
               await saveUserProfile(firebaseUid, p, p.mainGoal || 'muscle').catch(() => {});
+              await saveProgram(firebaseUid, prog).catch(() => {});
             }
             setScreen('generating');
           }}
@@ -325,9 +328,12 @@ export const RootNavigator: React.FC = () => {
           initialProfile={sportDiscipline ? { sportDiscipline } : {}}
           onComplete={async (p) => {
             setProfile(p);
-            // Sauvegarde dans Firestore si l'utilisateur est connecté
+            // Génération du programme réel + persistance Firestore
+            const prog = generateProgram(p);
+            useProgramStore.getState().setProgram(prog);
             if (firebaseUid) {
               await saveUserProfile(firebaseUid, p, p.mainGoal || 'muscle').catch(() => {});
+              await saveProgram(firebaseUid, prog).catch(() => {});
             }
             setScreen('generating');
           }}
@@ -355,7 +361,11 @@ export const RootNavigator: React.FC = () => {
 
   return (
     <DailyProgressProvider>
-      <CalorieProvider initialGoal={1800}>
+      {/* Objectif calorique réel issu du diagnostic — plus de valeur hardcodée */}
+      <CalorieProvider
+        key={storeProgram?.id ?? 'no-program'}
+        initialGoal={storeProgram?.calories ?? 1800}
+      >
         <MainTabs userName={userName} userEmail={userEmail} />
       </CalorieProvider>
     </DailyProgressProvider>

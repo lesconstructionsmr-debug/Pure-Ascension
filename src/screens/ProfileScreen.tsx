@@ -5,7 +5,8 @@ import { colors, fontFamily, fontSize, lineHeight, spacing } from '../theme/them
 import { Avatar } from '../components/Avatar';
 import { Card }   from '../components/Card';
 import { Stat }   from '../components/Stat';
-import { mockUser } from '../data';
+import { useProgramStore } from '../store/useProgramStore';
+import { useStreak } from '../hooks/useStreak';
 
 const SETTINGS = [
   { id:'s-0', route:'EditProfile',   icon:<ClipboardList size={20} color={colors.clay[500]}  strokeWidth={2}/>, label:'Mon programme & profil' },
@@ -24,19 +25,15 @@ const BetaBadge: React.FC = () => (
 );
 
 export const ProfileScreen: React.FC<{ navigation?: any; userName?: string; userEmail?: string }> = ({ navigation, userName, userEmail }) => {
-  const user = mockUser;
-  const isNewUser    = !!userName; // vrai compte créé → données vierges
-  const displayName  = userName  || `${user.firstName} ${user.lastName}`;
+  const program = useProgramStore(s => s.program);
+  const { streak } = useStreak();
+  const isNewUser    = true; // plus de compte démo — toujours des données réelles
+  const displayName  = userName  || 'Mon profil';
   const displayEmail = userEmail || '';
 
-  // Stats : 0 pour un nouveau compte, données mock pour la démo
-  const streak   = isNewUser ? 0       : user.stats.streakDays;
-  const sessions = isNewUser ? 0       : user.stats.totalSessions;
-  const wLabel   = isNewUser ? '— kg'  : (
-    user.stats.weightChange < 0
-      ? `${String(user.stats.weightChange).replace('.',',')} kg`
-      : `+${String(user.stats.weightChange).replace('.',',')} kg`
-  );
+  // Stats réelles uniquement — l'historique complet arrivera avec le suivi Firestore
+  const sessions = 0;
+  const wLabel   = '— kg';
 
   return (
     <SafeAreaView style={s.safe}>
@@ -48,7 +45,7 @@ export const ProfileScreen: React.FC<{ navigation?: any; userName?: string; user
             <View style={{ flex:1, gap:spacing[1] }}>
               <Text style={{ fontFamily:fontFamily.spectral.medium, fontSize:fontSize.xl, color:colors.ink[900], lineHeight:fontSize.xl*lineHeight.snug }}>{displayName}</Text>
               <Text style={{ fontFamily:fontFamily.hanken.regular,  fontSize:fontSize.sm, color:colors.ink[600] }}>
-                {displayEmail || `Programme ${user.programName} · Membre ${user.memberTier}`}
+                {displayEmail || (program ? `Programme ${program.name}` : 'Diagnostic à compléter')}
               </Text>
             </View>
           </View>

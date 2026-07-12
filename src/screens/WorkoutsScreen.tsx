@@ -6,7 +6,10 @@ import { Badge }    from '../components/Badge';
 import { Button }   from '../components/Button';
 import { Card }     from '../components/Card';
 import { Progress } from '../components/Progress';
-import { mockWorkouts, type Exercise } from '../data';
+import { type Exercise } from '../data';
+import { EmptyState } from '../components/EmptyState';
+import { useProgramStore } from '../store/useProgramStore';
+import { getTodaySession } from '../services/programService';
 
 const Hero: React.FC = () => (
   <View style={{ width:'100%', height:220, backgroundColor:colors.sage[800], alignItems:'center', justifyContent:'center', gap:spacing[2] }}>
@@ -27,12 +30,33 @@ const ExRow: React.FC<{ex:Exercise;onToggle:(id:string)=>void}> = ({ex,onToggle}
 );
 
 export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
-  const session = mockWorkouts[0];
-  const [exercises, setExercises] = useState(session.exercises);
+  const program          = useProgramStore(s => s.program);
+  const setActiveSession = useProgramStore(s => s.setActiveSession);
+  const today   = program ? getTodaySession(program) : null;
+  const session = today?.session ?? null;
+  const [exercises, setExercises] = useState<Exercise[]>(session?.exercises ?? []);
+
+  // Aucun programme réel → jamais de données factices
+  if (!program || !today || !session) {
+    return (
+      <SafeAreaView style={s.safe}>
+        <View style={{ flex:1, justifyContent:'center', paddingHorizontal:spacing[5] }}>
+          <EmptyState
+            title="Aucune séance trouvée"
+            message="Complète ton diagnostic pour recevoir ton plan d'entraînement personnalisé."
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const done=exercises.filter(e=>e.done).length, total=exercises.length;
-  const pct=Math.round((done/total)*100);
+  const pct=total>0?Math.round((done/total)*100):0;
   const toggle=(id:string)=>setExercises(p=>p.map(e=>e.id===id?{...e,done:!e.done}:e));
-  const startSession = () => navigation?.navigate('ActiveWorkout');
+  const startSession = () => {
+    setActiveSession(session.id);
+    navigation?.navigate('ActiveWorkout');
+  };
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
@@ -40,7 +64,7 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
         <View style={s.inner}>
           <Card elevation="sm" padding={spacing[5]}>
             <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[3], marginBottom:spacing[3] }}>
-              {session.badgeLabel && <Badge label={session.badgeLabel} variant="clay" />}
+              <Badge label={today.isToday ? 'Séance du jour' : session.day ?? 'À venir'} variant="clay" />
               <Text style={{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600] }}>{session.duration} min · {session.exerciseCount} exercices</Text>
             </View>
             <Text style={{ fontFamily:fontFamily.spectral.medium, fontSize:fontSize.xl, color:colors.ink[900], lineHeight:fontSize.xl*lineHeight.snug, marginBottom:spacing[5] }} accessibilityRole="header">{session.title}</Text>

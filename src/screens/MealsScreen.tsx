@@ -1,64 +1,17 @@
 import React, { useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Check, Plus, Trash2 } from 'lucide-react-native';
-import * as Haptics from '../utils/haptics';
-import { colors, fontFamily, fontSize, lineHeight, letterSpacing, spacing, radius, shadows } from '../theme/theme';
-import { Card } from '../components/Card';
+import { Plus, Sparkles, Trash2 } from 'lucide-react-native';
+import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
+import { formatNumber } from '../data';
 import { Ring } from '../components/Ring';
-import { mockMealDay, WEEKDAYS, formatNumber, type Meal } from '../data';
-import { useDailyProgress } from '../context/DailyProgressContext';
 import { useCalorie } from '../context/CalorieContext';
 import { AddFoodModal } from '../components/AddFoodModal';
-
-const ML = [{ key:'proteins' as const, label:'P', color:colors.sage[500] }, { key:'carbs' as const, label:'G', color:colors.clay[500] }, { key:'fats' as const, label:'L', color:colors.status.info }];
-
-const MealRow: React.FC<{meal:Meal;onToggle:(id:string)=>void;onPress:(id:string)=>void}> = ({meal,onToggle,onPress}) => (
-  <Pressable onPress={()=>onPress(meal.id)} style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:spacing[4], gap:spacing[3] }}>
-    <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[3], flex:1 }}>
-      <Pressable onPress={()=>onToggle(meal.id)} accessibilityRole="checkbox" accessibilityState={{checked:meal.done}}
-        style={[{ width:36, height:36, borderRadius:18, borderWidth:1.5, borderColor:colors.ink[200], alignItems:'center', justifyContent:'center', backgroundColor:colors.white }, meal.done&&{ backgroundColor:colors.sage[500], borderColor:colors.sage[500] }]}>
-        {meal.done ? <Check size={14} color={colors.white} strokeWidth={2.5} /> : <Plus size={14} color={colors.ink[500]} strokeWidth={2} />}
-      </Pressable>
-      <View>
-        <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:meal.done?colors.ink[500]:colors.ink[900], textDecorationLine:meal.done?'line-through':'none' }}>{meal.name}</Text>
-        <Text style={{ fontFamily:fontFamily.hanken.regular,  fontSize:fontSize.xs,   color:colors.ink[600] }}>{meal.time}</Text>
-      </View>
-    </View>
-    <View style={{ alignItems:'flex-end', gap:spacing[1] }}>
-      <View style={{ flexDirection:'row', gap:spacing[2] }}>
-        {ML.map(({key,label,color})=>(
-          <View key={key} style={{ flexDirection:'row', alignItems:'center', gap:spacing[0.5] }}>
-            <View style={{ width:5, height:5, borderRadius:3, backgroundColor:color }} />
-            <Text style={{ fontFamily:fontFamily.hanken.regular, fontSize:8, color:colors.ink[600] }}>{label} {meal.macros[key]}g</Text>
-          </View>
-        ))}
-      </View>
-      <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[900] }}>{meal.calories} kcal</Text>
-    </View>
-  </Pressable>
-);
+import { useProgramStore } from '../store/useProgramStore';
 
 export const MealsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
-  const today = new Date().getDay();
-  const [activeDay, setActiveDay] = useState(today===0?6:today-1);
-  const [meals, setMeals] = useState<Meal[]>(mockMealDay.meals);
   const [modalOpen, setModalOpen] = useState(false);
-  const { checkMeal, uncheckMeal } = useDailyProgress();
+  const program = useProgramStore(st => st.program);
   const { totalKcal, goalKcal, remainingKcal, pct, totalProteins, totalCarbs, totalFats, entries, removeEntry } = useCalorie();
-
-  const handleToggle = (id: string) => {
-    const meal = meals.find(m => m.id === id);
-    if (!meal) return;
-    const nextDone = !meal.done;
-    setMeals(p => p.map(m => m.id === id ? { ...m, done: nextDone } : m));
-    if (nextDone) {
-      checkMeal(id);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else {
-      uncheckMeal(id);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
 
   const overGoal = totalKcal > goalKcal;
 
@@ -106,17 +59,19 @@ export const MealsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             ]} />
           </View>
 
-          {/* Macros totaux */}
+          {/* Macros consommées vs cibles du programme */}
           <View style={s.macroRow}>
             {[
-              { label:'Prot.', val: totalProteins, color: colors.sage[400] },
-              { label:'Gluc.', val: totalCarbs,    color: colors.clay[400] },
-              { label:'Lip.',  val: totalFats,     color: colors.info[500] },
+              { label:'Prot.', val: totalProteins, target: program?.macros.protein, color: colors.sage[400] },
+              { label:'Gluc.', val: totalCarbs,    target: program?.macros.carbs,   color: colors.clay[400] },
+              { label:'Lip.',  val: totalFats,     target: program?.macros.fat,     color: colors.info[500] },
             ].map(m => (
               <View key={m.label} style={s.macroItem}>
                 <View style={[s.macroDot, { backgroundColor: m.color }]} />
                 <Text style={s.macroLabel}>{m.label}</Text>
-                <Text style={s.macroVal}>{Math.round(m.val)}g</Text>
+                <Text style={s.macroVal}>
+                  {Math.round(m.val)}g{m.target ? ` / ${m.target}g` : ''}
+                </Text>
               </View>
             ))}
           </View>
@@ -158,33 +113,27 @@ export const MealsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           </Pressable>
         )}
 
-        {/* ── Séparateur ── */}
-        <View style={{ height: 1, backgroundColor: colors.ink[200] }} />
-
-        {/* ── Repas suggérés (plan) ── */}
-        <View style={s.weekBand}>
-          {WEEKDAYS.map((d,i)=>(
-            <Pressable key={i} onPress={()=>setActiveDay(i)} accessibilityRole="button" accessibilityState={{selected:i===activeDay}}
-              style={[s.dayBtn, i===activeDay&&s.dayBtnActive]}>
-              <Text style={[s.dayText, i===activeDay&&s.dayTextActive]}>{d}</Text>
-            </Pressable>
-          ))}
-        </View>
-        <View style={{ gap:spacing[3] }}>
-          <Text style={s.sectionTitle}>Plan de la journée</Text>
-          <Card elevation="sm" padding={0} style={{ overflow:'hidden' }}>
-            {[...meals].sort((a,b)=>a.order-b.order).map((meal,idx,arr)=>(
-              <View key={meal.id}>
-                <MealRow
-                  meal={meal}
-                  onToggle={handleToggle}
-                  onPress={id=>navigation?.navigate('MealDetail', { mealId:id })}
-                />
-                {idx<arr.length-1 && <View style={{ height:1, backgroundColor:colors.ink[200], marginHorizontal:spacing[4] }} />}
-              </View>
-            ))}
-          </Card>
-        </View>
+        {/* ── Cibles du programme ── */}
+        {program ? (
+          <View style={s.planCard}>
+            <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[2] }}>
+              <Sparkles size={16} color={colors.sage[600]} strokeWidth={2} />
+              <Text style={s.planTitle}>Tes cibles — {program.name}</Text>
+            </View>
+            <Text style={s.planText}>
+              {formatNumber(program.calories)} kcal / jour · P {program.macros.protein}g · G {program.macros.carbs}g · L {program.macros.fat}g
+            </Text>
+            <Text style={s.planHint}>
+              Ton plan repas détaillé (recettes personnalisées selon tes restrictions) arrive bientôt.
+              En attendant, vise tes cibles avec le suivi ci-dessus. 🌿
+            </Text>
+          </View>
+        ) : (
+          <View style={s.planCard}>
+            <Text style={s.planTitle}>Aucun plan trouvé</Text>
+            <Text style={s.planHint}>Complète ton diagnostic pour recevoir tes cibles caloriques personnalisées.</Text>
+          </View>
+        )}
 
         <View style={{ height:spacing[10] }} />
       </ScrollView>
@@ -203,14 +152,14 @@ const s = StyleSheet.create({
   addFab:      { flexDirection:'row', alignItems:'center', gap:spacing[2], backgroundColor:colors.clay[500], borderRadius:radius.pill, paddingHorizontal:spacing[4], paddingVertical:spacing[2] },
   addFabLabel: { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:'#fff' },
 
-  trackerCard:     { backgroundColor:colors.clay[800], borderRadius:radius.xl, padding:spacing[5], gap:spacing[4] },
+  trackerCard:     { backgroundColor:colors.clay[700], borderRadius:radius.xl, padding:spacing[5], gap:spacing[4] },
   trackerCardOver: { backgroundColor:'#5c1a0e' },
   trackerTop:      { flexDirection:'row', alignItems:'center' },
   trackerEyebrow:  { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.xs, color:colors.clay[300], letterSpacing:0.6 },
   trackerMain:     { fontFamily:fontFamily.spectral.medium, fontSize:fontSize['2xl'], color:'#fff', lineHeight:fontSize['2xl']*lineHeight.snug },
   trackerGoal:     { fontFamily:fontFamily.spectral.regular, fontSize:fontSize.lg, color:colors.clay[300] },
   trackerRemaining:{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.clay[200] },
-  trackerTrack:    { height:6, borderRadius:3, backgroundColor:colors.clay[700], overflow:'hidden' },
+  trackerTrack:    { height:6, borderRadius:3, backgroundColor:'rgba(0,0,0,0.25)', overflow:'hidden' },
   trackerFill:     { height:'100%' as any, borderRadius:3, backgroundColor:colors.clay[400] },
 
   macroRow:  { flexDirection:'row', justifyContent:'space-between' },
@@ -232,10 +181,9 @@ const s = StyleSheet.create({
   emptyTracker: { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:spacing[3], padding:spacing[5], borderRadius:radius.xl, borderWidth:2, borderColor:colors.clay[200], borderStyle:'dashed' },
   emptyTrackerText: { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:colors.clay[500] },
 
-  weekBand:    { flexDirection:'row', justifyContent:'space-between', backgroundColor:colors.sand[100], borderRadius:radius.card, padding:spacing[1] },
-  dayBtn:      { flex:1, alignItems:'center', paddingVertical:spacing[2], borderRadius:radius.xl, minHeight:40, justifyContent:'center' },
-  dayBtnActive:{ backgroundColor:colors.sage[500] },
-  dayText:     { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[600] },
-  dayTextActive:{ color:colors.white },
+  planCard: { backgroundColor:colors.sage[50], borderRadius:radius.xl, padding:spacing[5], gap:spacing[2], borderWidth:1, borderColor:colors.sage[200] },
+  planTitle:{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:colors.sage[700] },
+  planText: { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[900] },
+  planHint: { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600], lineHeight:fontSize.sm*lineHeight.relaxed },
 });
 export default MealsScreen;
