@@ -9,10 +9,15 @@ import { Button } from '../components/Button';
 import { Input }  from '../components/Input';
 import { signUp } from '../services/authService';
 
-interface Props { onBack: () => void; onSuccess: (name: string, email: string) => void; }
+interface Props {
+  onBack: () => void;
+  onSuccess: (name: string, email: string) => void;
+  /** Prénom déjà collecté au diagnostic → signup minimal (email + mot de passe) */
+  initialName?: string;
+}
 
-export const SignupScreen: React.FC<Props> = ({ onBack, onSuccess }) => {
-  const [name, setName]         = useState('');
+export const SignupScreen: React.FC<Props> = ({ onBack, onSuccess, initialName }) => {
+  const [name, setName]         = useState(initialName ?? '');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
@@ -58,32 +63,31 @@ export const SignupScreen: React.FC<Props> = ({ onBack, onSuccess }) => {
           </Pressable>
 
           <View style={s.header}>
-            <Text style={s.title}>Crée ton{'\n'}<Text style={s.titleItalic}>espace personnel.</Text></Text>
-            <Text style={s.sub}>Quelques secondes pour commencer ton parcours.</Text>
-          </View>
-
-          {/* Progress steps */}
-          <View style={s.stepsRow}>
-            {['Compte','Objectif','Programme'].map((step, i) => (
-              <View key={step} style={s.stepItem}>
-                <View style={[s.stepDot, i === 0 && s.stepDotActive]}>
-                  <Text style={[s.stepNum, i === 0 && s.stepNumActive]}>{i + 1}</Text>
-                </View>
-                <Text style={[s.stepLabel, i === 0 && s.stepLabelActive]}>{step}</Text>
-              </View>
-            ))}
+            {initialName ? (
+              <>
+                <Text style={s.title}>Dernière étape,{'\n'}<Text style={s.titleItalic}>{initialName}.</Text></Text>
+                <Text style={s.sub}>Ton programme est prêt — crée ton compte pour y accéder.</Text>
+              </>
+            ) : (
+              <>
+                <Text style={s.title}>Crée ton{'\n'}<Text style={s.titleItalic}>espace personnel.</Text></Text>
+                <Text style={s.sub}>Quelques secondes pour commencer ton parcours.</Text>
+              </>
+            )}
           </View>
 
           <View style={s.form}>
-            <Input
-              label="Prénom"
-              placeholder="Sophie"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-              iconLeft={<UserIcon size={18} color={colors.ink[400]} strokeWidth={1.5}/>}
-              error={errors.name}
-            />
+            {!initialName && (
+              <Input
+                label="Prénom"
+                placeholder="Sophie"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                iconLeft={<UserIcon size={18} color={colors.ink[400]} strokeWidth={1.5}/>}
+                error={errors.name}
+              />
+            )}
             <Input
               label="Adresse e-mail"
               placeholder="sophie@exemple.com"

@@ -40,10 +40,22 @@ export function getProgramName(p: UserProfile): string {
   return names[p.mainGoal][p.experience];
 }
 
-/* ─── Calories cibles (Mifflin-St Jeor, âge estimé 28 ans) ──────────────── */
+/* ─── Calories cibles (Mifflin-St Jeor — sexe, âge et activité réels) ───── */
 export function getCalories(p: UserProfile): number {
-  const bmr = 10 * p.currentWeightKg + 6.25 * p.heightCm - 5 * 28 - 161;
-  const activityFactor = p.frequency === 3 ? 1.375 : p.frequency === 4 ? 1.55 : 1.725;
+  const age = p.age ?? 28;
+  // Constante Mifflin : homme +5, femme −161, non précisé → moyenne
+  const sexConst = p.sex === 'homme' ? 5 : p.sex === 'femme' ? -161 : -78;
+  const bmr = 10 * p.currentWeightKg + 6.25 * p.heightCm - 5 * age + sexConst;
+
+  // Facteur d'activité : NEAT quotidien + volume d'entraînement prévu
+  const base: Record<NonNullable<UserProfile['activityLevel']>, number> = {
+    sedentaire: 1.2, leger: 1.375, actif: 1.55, 'tres-actif': 1.725,
+  };
+  const activityFactor = Math.min(
+    1.9,
+    base[p.activityLevel ?? 'leger'] + Math.max(0, p.frequency - 3) * 0.03,
+  );
+
   const tdee = bmr * activityFactor;
   const adjustments: Record<UserProfile['mainGoal'], number> = {
     muscle: 220, gras: -420, tone: -180, force: 150,
@@ -51,28 +63,38 @@ export function getCalories(p: UserProfile): number {
   return Math.round((tdee + adjustments[p.mainGoal]) / 10) * 10;
 }
 
-/* ─── Macros en grammes depuis les calories ─────────────────────────────── */
-export function getMacros(calories: number, goal: UserProfile['mainGoal']): ProgramMacros {
+/* ─── Macros en grammes depuis les calories (ajustées au morphotype) ────── */
+export function getMacros(
+  calories: number,
+  goal: UserProfile['mainGoal'],
+  morphotype?: UserProfile['morphotype'],
+): ProgramMacros {
   const splits: Record<UserProfile['mainGoal'], { p: number; c: number; f: number }> = {
     muscle: { p: 0.30, c: 0.45, f: 0.25 },
     gras:   { p: 0.35, c: 0.35, f: 0.30 },
     tone:   { p: 0.32, c: 0.40, f: 0.28 },
     force:  { p: 0.28, c: 0.48, f: 0.24 },
   };
-  const s = splits[goal];
+  let { p, c, f } = splits[goal];
+  // Ectomorphe : métabolise vite → plus de glucides. Endomorphe : sensibilité
+  // insulinique plus faible → moins de glucides, plus de protéines/lipides.
+  if (morphotype === 'ectomorphe')  { c += 0.05; f -= 0.03; p -= 0.02; }
+  if (morphotype === 'endomorphe')  { c -= 0.07; p += 0.04; f += 0.03; }
   return {
-    protein: Math.round((calories * s.p) / 4),
-    carbs:   Math.round((calories * s.c) / 4),
-    fat:     Math.round((calories * s.f) / 9),
+    protein: Math.round((calories * p) / 4),
+    carbs:   Math.round((calories * c) / 4),
+    fat:     Math.round((calories * f) / 9),
   };
 }
 
 /* ─── Jours d'entraînement selon fréquence ──────────────────────────────── */
 export function getTrainingDays(freq: UserProfile['frequency']): string[] {
-  const options = {
+  const options: Record<UserProfile['frequency'], string[]> = {
+    2: ['Lundi', 'Jeudi'],
     3: ['Lundi', 'Mercredi', 'Vendredi'],
     4: ['Lundi', 'Mardi', 'Jeudi', 'Samedi'],
     5: ['Lundi', 'Mardi', 'Mercredi', 'Vendredi', 'Samedi'],
+    6: ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'],
   };
   return options[freq];
 }
@@ -372,7 +394,7 @@ export function generateProgram(p: UserProfile): GeneratedProgram {
     sessionDuration: p.sessionDuration,
     gymAccess:       p.gymAccess,
     calories,
-    macros:          getMacros(calories, p.mainGoal),
+    macros:          getMacros(calories, p.mainGoal, p.morphotype),
     trainingDays:    getTrainingDays(p.frequency),
     sessions:        buildSessions(p),
     totalWeeks:      8,

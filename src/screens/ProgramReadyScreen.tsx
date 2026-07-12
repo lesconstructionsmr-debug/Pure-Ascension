@@ -70,7 +70,7 @@ const FadeCard: React.FC<{ delay: number; children: React.ReactNode; style?: obj
 /* ─── Component ──────────────────────────────────────────────────────────── */
 export const ProgramReadyScreen: React.FC<Props> = ({ profile, onStart }) => {
   const calories     = getCalories(profile);
-  const macros       = getMacros(calories, profile.mainGoal);
+  const macros       = getMacros(calories, profile.mainGoal, profile.morphotype);
   const programName  = getProgramName(profile);
   const trainingDays = getTrainingDays(profile.frequency);
 

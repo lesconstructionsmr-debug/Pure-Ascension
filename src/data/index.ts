@@ -1,31 +1,44 @@
 // ─── Questionnaire types ────────────────────────────────────────────────────
 export type TrainingExperience = 'débutante' | 'intermédiaire' | 'avancée';
 export type MainGoal           = 'muscle' | 'gras' | 'tone' | 'force';
-export type TrainingFrequency  = 3 | 4 | 5;
+export type TrainingFrequency  = 2 | 3 | 4 | 5 | 6;
 export type GymAccess          = 'full' | 'limited' | 'home';
 export type SessionDuration    = 30 | 45 | 60;
+export type Sex                = 'homme' | 'femme' | 'nsp';
+export type ActivityLevel      = 'sedentaire' | 'leger' | 'actif' | 'tres-actif';
+export type Morphotype         = 'ectomorphe' | 'mesomorphe' | 'endomorphe';
+export type Equipment          = 'gym' | 'halteres' | 'poids-corps' | 'bandes';
 
 export type DietaryRestriction =
   | 'sans-gluten' | 'sans-lactose' | 'végétarien' | 'végétalien'
   | 'sans-noix'   | 'halal'        | 'casher'      | 'sans-porc';
 
 export interface UserProfile {
+  // Identité
+  firstName?:     string;
+  sex?:           Sex;
+  age?:           number;
   // Mesures
   heightCm:       number;
   currentWeightKg: number;
-  targetWeightKg:  number;
-  currentBFPct:   number;
-  targetBFPct:    number;
+  targetWeightKg?: number;
+  currentBFPct?:  number;
+  targetBFPct?:   number;
+  morphotype?:    Morphotype;
   // Entraînement
   experience:     TrainingExperience;
   mainGoal:       MainGoal;
+  goalLabel?:     string;          // libellé choisi (ex. "Bien-être général")
   frequency:      TrainingFrequency;
   gymAccess:      GymAccess;
+  equipment?:     Equipment[];
   sessionDuration: SessionDuration;
+  activityLevel?: ActivityLevel;
   // Sport & discipline (optionnel, pertinent si objectif = performance)
   sportDiscipline?:    string;
   // Santé & alimentation
   dietaryRestrictions: DietaryRestriction[];
+  allergies?:          string;
   healthConditions:    string;   // texte libre + options pré-def
   otherNotes?:         string;
 }

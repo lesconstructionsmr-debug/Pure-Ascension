@@ -9,53 +9,56 @@ import {
   SafeAreaView, StyleSheet, Text, View,
 } from 'react-native';
 import {
-  Leaf, UtensilsCrossed, Dumbbell, TrendingUp,
-  ChevronRight, Sparkles,
+  ClipboardList, BrainCircuit, LayoutDashboard, Sparkles,
+  ChevronRight,
 } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius } from '../theme/theme';
 import { Button } from '../components/Button';
 
-/* ─── Slide data ─────────────────────────────────────────────────────────── */
+/* ─── Slide data ─────────────────────────────────────────────────────────
+ * 1 phrase max par slide — on sette les attentes en 15 secondes.
+ * NOTE : les zones d'illustration sont des placeholders (icônes) en
+ * attendant les captures des sections de l'app fournies par l'équipe.   */
 const SLIDES = [
   {
     id: '1',
     bg:    colors.sage[800],
     accent:colors.sage[300],
-    icon:  Leaf,
-    tag:   'BIENVENUE',
-    title: 'Un programme pensé\npour toi,',
-    titleItalic: 'pas pour tout le monde.',
-    body:  'Pure Ascension adapte chaque plan à ton corps, ton niveau et tes objectifs — semaine après semaine.',
+    icon:  ClipboardList,
+    tag:   'ÉTAPE 1',
+    title: 'Réponds à',
+    titleItalic: '10 questions simples.',
+    body:  '2 minutes, pas plus.',
   },
   {
     id: '2',
-    bg:    colors.clay[700],
-    accent:colors.clay[200],
-    icon:  UtensilsCrossed,
-    tag:   'NUTRITION',
-    title: 'Des repas équilibrés',
-    titleItalic: 'que tu veux vraiment manger.',
-    body:  'Plan repas hebdomadaire, recettes détaillées, macros calculées automatiquement selon ton déficit ou surplus.',
+    bg:    colors.ink[900],
+    accent:colors.sage[400],
+    icon:  BrainCircuit,
+    tag:   'ÉTAPE 2',
+    title: 'Notre IA crée ton programme',
+    titleItalic: 'sur mesure.',
+    body:  'Entraînement, calories et macros calculés pour toi.',
   },
   {
     id: '3',
-    bg:    colors.ink[900],
-    accent:colors.sage[400],
-    icon:  Dumbbell,
-    tag:   'ENTRAÎNEMENT',
-    title: 'Des séances guidées',
-    titleItalic: 'à ton rythme.',
-    body:  'Programme de force ou cardio, timer de repos intégré, progression de charge automatique. 30 à 60 min par session.',
+    bg:    colors.clay[700],
+    accent:colors.clay[200],
+    icon:  LayoutDashboard,
+    tag:   'ÉTAPE 3',
+    title: 'Entraînement + nutrition + bien-être,',
+    titleItalic: 'tout au même endroit.',
+    body:  'Ton tableau de bord personnel, chaque jour.',
   },
   {
     id: '4',
     bg:    '#2D3F35',
     accent:colors.sage[200],
-    icon:  TrendingUp,
-    tag:   'SUIVI',
-    title: 'Vois tes progrès',
-    titleItalic: 'chaque semaine.',
-    body:  'Historique détaillé, graphes de progression, rituels de bien-être et bilan hebdomadaire pour rester motivé·e.',
+    icon:  Sparkles,
+    tag:   'À TOI',
+    title: 'Prêt·e ?',
+    titleItalic: 'Ton programme t\'attend.',
+    body:  '',
   },
 ] as const;
 
@@ -160,10 +163,10 @@ export const OnboardingSlidesScreen: React.FC<Props> = ({ onDone }) => {
           <Button
             variant="primary"
             size="lg"
-            label="Découvrir les plans"
+            label="C'est parti"
             fullWidth
             onPress={onDone}
-            iconRight={<Sparkles size={18} color="#fff" strokeWidth={2} />}
+            iconRight={<ChevronRight size={18} color="#fff" strokeWidth={2} />}
           />
         ) : (
           <View style={st.nextRow}>

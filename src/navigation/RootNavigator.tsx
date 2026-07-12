@@ -12,10 +12,9 @@ import { Home, UtensilsCrossed, Dumbbell, User, Leaf } from 'lucide-react-native
 import { colors, fontFamily }    from '../theme/theme';
 
 // Screens
-import { WelcomeScreen }          from '../screens/WelcomeScreen';
+import { SplashScreen }           from '../screens/SplashScreen';
 import { LoginScreen }            from '../screens/LoginScreen';
 import { SignupScreen }           from '../screens/SignupScreen';
-import { OnboardingGoalScreen }   from '../screens/OnboardingGoalScreen';
 import { HomeScreen }             from '../screens/HomeScreen';
 import { MealsScreen }            from '../screens/MealsScreen';
 import { WorkoutsScreen }         from '../screens/WorkoutsScreen';
@@ -26,11 +25,11 @@ import { ProfileHistoryScreen }   from '../screens/profile/ProfileHistoryScreen'
 import { ProfileNotificationsScreen } from '../screens/profile/ProfileNotificationsScreen';
 import { ProfileRitualsScreen }        from '../screens/profile/ProfileRitualsScreen';
 import { ProfileEditScreen }           from '../screens/profile/ProfileEditScreen';
-import { OnboardingQuestionnaireScreen } from '../screens/OnboardingQuestionnaireScreen';
+import { OnboardingDiagnosticScreen }    from '../screens/OnboardingDiagnosticScreen';
 import { OnboardingSlidesScreen }        from '../screens/OnboardingSlidesScreen';
-import { SubscriptionScreen }            from '../screens/SubscriptionScreen';
 import { ProgramGenerationScreen }       from '../screens/ProgramGenerationScreen';
 import { ProgramReadyScreen }            from '../screens/ProgramReadyScreen';
+import { ProgramTeaserScreen }           from '../screens/ProgramTeaserScreen';
 import { EquilibreScreen }              from '../screens/EquilibreScreen';
 
 import { UserProfile } from '../data';
@@ -156,28 +155,35 @@ function MainTabs({ userName, userEmail }: { userName: string; userEmail: string
 }
 
 /* ─── Root ────────────────────────────────────────────────────────────────── */
+/**
+ * Tunnel de conversion : la valeur AVANT le signup.
+ *   splash → slides → diagnostic (10 q) → generating → teaser → signup → dashboard
+ * Le profil + programme sont gardés en mémoire (pendingRef) et sauvegardés
+ * dans Firestore au moment de la création du compte.
+ */
 type OnboardingScreen =
-  | 'slides'          // 1. Présentation features
-  | 'subscription'    // 2. Choix plan
-  | 'welcome'         // 3. Login / Signup
-  | 'login'
-  | 'signup'
-  | 'goal'            // 4. Objectif
-  | 'questionnaire'   // 5. Profil complet
-  | 'generating'      // 6. Animation génération
-  | 'ready';          // 7. Programme prêt
+  | 'splash'       // 0. Logo + CTA unique
+  | 'slides'       // 1. Mini-présentation (4 slides)
+  | 'diagnostic'   // 2. 10 questions conversationnelles
+  | 'generating'   // 3. Écran de génération (~10 s)
+  | 'teaser'       // 4. Aperçu verrouillé du programme
+  | 'signup'       // 5. Création de compte (minimal)
+  | 'login'        //    Connexion comptes existants
+  | 'ready';       //    Programme prêt (parcours re-diagnostic, déjà connecté)
 
 export const RootNavigator: React.FC = () => {
-  const [authed,          setAuthed]          = useState(false);
-  const [authReady,       setAuthReady]       = useState(false); // Firebase a répondu
-  const [hasProfile,      setHasProfile]      = useState<boolean | null>(null); // null = vérification Firestore en cours
-  const [screen,          setScreen]          = useState<OnboardingScreen>('slides');
-  const [profile,         setProfile]         = useState<UserProfile | null>(null);
-  const [userName,        setUserName]        = useState('');
-  const [userEmail,       setUserEmail]       = useState('');
-  const [firebaseUid,     setFirebaseUid]     = useState<string | null>(null);
-  const [sportDiscipline, setSportDiscipline] = useState<string | undefined>(undefined);
+  const [authed,      setAuthed]      = useState(false);
+  const [authReady,   setAuthReady]   = useState(false); // Firebase a répondu
+  const [hasProfile,  setHasProfile]  = useState<boolean | null>(null); // null = vérification Firestore en cours
+  const [screen,      setScreen]      = useState<OnboardingScreen>('splash');
+  const [profile,     setProfile]     = useState<UserProfile | null>(null);
+  const [userName,    setUserName]    = useState('');
+  const [userEmail,   setUserEmail]   = useState('');
+  const [firebaseUid, setFirebaseUid] = useState<string | null>(null);
   const storeProgram = useProgramStore(s => s.program);
+
+  // Profil + programme générés AVANT le signup, en attente de sauvegarde
+  const pendingRef = React.useRef<{ profile: UserProfile; program: GeneratedProgram } | null>(null);
 
   // Écoute Firebase Auth — restaure la session au reload
   // et vérifie si l'utilisateur a complété son diagnostic (profil Firestore)
@@ -185,25 +191,44 @@ export const RootNavigator: React.FC = () => {
     const unsub = onAuthChange(async user => {
       if (user) {
         setFirebaseUid(user.uid);
-        setUserName(user.displayName ?? '');
         setUserEmail(user.email ?? '');
-        // Sans profil ET programme Firestore → onboarding forcé, jamais le dashboard
-        try {
-          const data = await getUserData(user.uid);
-          const ok = !!(data && data.profile && data.program);
-          setHasProfile(ok);
-          if (data?.profile) setProfile(data.profile as UserProfile);
-          useProgramStore.getState().setProgram(ok ? (data!.program as GeneratedProgram) : null);
-        } catch {
-          setHasProfile(false);
-          useProgramStore.getState().clear();
+
+        if (pendingRef.current) {
+          // Signup en fin de tunnel : on persiste le diagnostic pré-auth
+          const { profile: pp, program: pg } = pendingRef.current;
+          try {
+            await saveUserProfile(user.uid, pp, pp.mainGoal || 'muscle');
+            await saveProgram(user.uid, pg);
+          } catch {} // le programme reste en mémoire même si le réseau échoue
+          setProfile(pp);
+          setUserName(pp.firstName ?? user.displayName ?? '');
+          useProgramStore.getState().setProgram(pg);
+          setHasProfile(true);
+          pendingRef.current = null;
+        } else {
+          setUserName(user.displayName ?? '');
+          // Sans profil ET programme Firestore → onboarding forcé, jamais le dashboard
+          try {
+            const data = await getUserData(user.uid);
+            const ok = !!(data && data.profile && data.program);
+            setHasProfile(ok);
+            if (data?.profile) {
+              setProfile(data.profile as UserProfile);
+              const fn = (data.profile as UserProfile).firstName;
+              if (fn) setUserName(fn);
+            }
+            useProgramStore.getState().setProgram(ok ? (data!.program as GeneratedProgram) : null);
+          } catch {
+            setHasProfile(false);
+            useProgramStore.getState().clear();
+          }
         }
         setAuthed(true);
       } else {
         setFirebaseUid(null);
         setAuthed(false);
         setHasProfile(null);
-        setScreen('slides');
+        setScreen('splash');
         useProgramStore.getState().clear();
       }
       setAuthReady(true);
@@ -214,26 +239,8 @@ export const RootNavigator: React.FC = () => {
   // Affiche rien pendant que Firebase vérifie la session / le profil
   if (!authReady || (authed && hasProfile === null)) return null;
 
-  // ── Connecté MAIS diagnostic jamais complété → onboarding obligatoire ──
+  // ── Connecté MAIS diagnostic jamais complété → diagnostic obligatoire ──
   if (authed && !hasProfile) {
-    if (screen === 'questionnaire')
-      return (
-        <OnboardingQuestionnaireScreen
-          onBack={() => setScreen('goal')}
-          initialProfile={sportDiscipline ? { sportDiscipline } : {}}
-          onComplete={async (p) => {
-            setProfile(p);
-            // Génération du programme réel + persistance Firestore
-            const prog = generateProgram(p);
-            useProgramStore.getState().setProgram(prog);
-            if (firebaseUid) {
-              await saveUserProfile(firebaseUid, p, p.mainGoal || 'muscle').catch(() => {});
-              await saveProgram(firebaseUid, prog).catch(() => {});
-            }
-            setScreen('generating');
-          }}
-        />
-      );
     if (screen === 'generating' && profile)
       return (
         <ProgramGenerationScreen
@@ -248,115 +255,105 @@ export const RootNavigator: React.FC = () => {
           onStart={() => setHasProfile(true)}
         />
       );
-    // Par défaut : choix de l'objectif (porte d'entrée du diagnostic)
     return (
-      <OnboardingGoalScreen
+      <OnboardingDiagnosticScreen
         onBack={() => {}}
-        onContinue={(_goalId, discipline) => {
-          setSportDiscipline(discipline);
-          setScreen('questionnaire');
+        onComplete={async (p) => {
+          setProfile(p);
+          if (p.firstName) setUserName(p.firstName);
+          const prog = generateProgram(p);
+          useProgramStore.getState().setProgram(prog);
+          if (firebaseUid) {
+            await saveUserProfile(firebaseUid, p, p.mainGoal || 'muscle').catch(() => {});
+            await saveProgram(firebaseUid, prog).catch(() => {});
+          }
+          setScreen('generating');
         }}
       />
     );
   }
 
   if (!authed) {
-    // ── 1. Slides intro ──
-    // BÊTA : on bypasse le paywall, tout le monde a accès Premium gratuit
+    // ── 0. Splash — CTA unique, zéro friction ──
+    if (screen === 'splash')
+      return (
+        <SplashScreen
+          onStart={() => setScreen('slides')}
+          onLogin={() => setScreen('login')}
+        />
+      );
+
+    // ── 1. Mini-présentation (4 slides) ──
     if (screen === 'slides')
       return (
         <OnboardingSlidesScreen
-          onDone={() => setScreen('welcome')}
+          onDone={() => setScreen('diagnostic')}
         />
       );
 
-    // ── 2. Paywall (désactivé en bêta) ──
-    if (screen === 'subscription')
+    // ── 2. Diagnostic 10 questions — AVANT le signup ──
+    if (screen === 'diagnostic')
       return (
-        <SubscriptionScreen
+        <OnboardingDiagnosticScreen
           onBack={() => setScreen('slides')}
-          onFree={() => setScreen('signup')}
-          onPremium={() => setScreen('signup')}
-        />
-      );
-
-    // ── 3. Welcome (retour possible depuis login) ──
-    if (screen === 'welcome')
-      return (
-        <WelcomeScreen
-          onLogin={() => setScreen('login')}
-          onSignup={() => setScreen('signup')}
-        />
-      );
-
-    // ── 4. Login ──
-    if (screen === 'login')
-      return (
-        <LoginScreen
-          onBack={() => setScreen('welcome')}
-          onSuccess={() => setAuthed(true)}
-          onForgot={() => {}}
-        />
-      );
-
-    // ── 5. Signup ──
-    if (screen === 'signup')
-      return (
-        <SignupScreen
-          onBack={() => setScreen('welcome')}
-          onSuccess={(name, email) => { setUserName(name); setUserEmail(email); setScreen('goal'); }}
-        />
-      );
-
-    // ── 6. Objectif ──
-    if (screen === 'goal')
-      return (
-        <OnboardingGoalScreen
-          onBack={() => setScreen('signup')}
-          onContinue={(_goalId, discipline) => {
-            setSportDiscipline(discipline);
-            setScreen('questionnaire');
-          }}
-        />
-      );
-
-    // ── 7. Questionnaire programme ──
-    if (screen === 'questionnaire')
-      return (
-        <OnboardingQuestionnaireScreen
-          onBack={() => setScreen('goal')}
-          initialProfile={sportDiscipline ? { sportDiscipline } : {}}
-          onComplete={async (p) => {
+          onComplete={(p) => {
             setProfile(p);
-            // Génération du programme réel + persistance Firestore
+            if (p.firstName) setUserName(p.firstName);
             const prog = generateProgram(p);
             useProgramStore.getState().setProgram(prog);
-            if (firebaseUid) {
-              await saveUserProfile(firebaseUid, p, p.mainGoal || 'muscle').catch(() => {});
-              await saveProgram(firebaseUid, prog).catch(() => {});
-            }
+            pendingRef.current = { profile: p, program: prog };
             setScreen('generating');
           }}
         />
       );
 
-    // ── 8. Animation génération ──
+    // ── 3. Génération (~10 s, perception de valeur) ──
     if (screen === 'generating' && profile)
       return (
         <ProgramGenerationScreen
           profile={profile}
-          onDone={() => setScreen('ready')}
+          onDone={() => setScreen('teaser')}
         />
       );
 
-    // ── 9. Programme prêt ──
-    if (screen === 'ready' && profile)
+    // ── 4. Teaser — la valeur est créée, le signup vient après ──
+    if (screen === 'teaser' && storeProgram)
       return (
-        <ProgramReadyScreen
-          profile={profile}
-          onStart={() => setAuthed(true)}
+        <ProgramTeaserScreen
+          program={storeProgram}
+          firstName={profile?.firstName ?? ''}
+          onSignup={() => setScreen('signup')}
+          onLogin={() => setScreen('login')}
         />
       );
+
+    // ── 5. Signup minimal (email + mot de passe) ──
+    if (screen === 'signup')
+      return (
+        <SignupScreen
+          onBack={() => setScreen(pendingRef.current ? 'teaser' : 'splash')}
+          initialName={profile?.firstName}
+          onSuccess={(name, email) => { setUserName(name); setUserEmail(email); }}
+        />
+      );
+
+    // ── Connexion comptes existants ──
+    if (screen === 'login')
+      return (
+        <LoginScreen
+          onBack={() => setScreen(pendingRef.current ? 'teaser' : 'splash')}
+          onSuccess={() => {}}
+          onForgot={() => {}}
+        />
+      );
+
+    // Fallback : retour au splash
+    return (
+      <SplashScreen
+        onStart={() => setScreen('slides')}
+        onLogin={() => setScreen('login')}
+      />
+    );
   }
 
   return (

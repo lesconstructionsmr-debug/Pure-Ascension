@@ -24,16 +24,16 @@ interface Props {
 /* ─── Messages affichés pendant le chargement ───────────────────────────── */
 const STEPS = [
   { pct: 0,   label: 'Analyse de ton profil…' },
-  { pct: 18,  label: 'Calcul de tes besoins caloriques…' },
-  { pct: 35,  label: 'Création de ton plan repas…' },
-  { pct: 52,  label: 'Génération de tes séances…' },
-  { pct: 68,  label: 'Adaptation à ton niveau…' },
-  { pct: 82,  label: 'Personnalisation des recettes…' },
-  { pct: 95,  label: 'Finalisation du programme…' },
+  { pct: 16,  label: 'Calcul de tes besoins caloriques…' },
+  { pct: 34,  label: 'Construction de ton programme d\'entraînement…' },
+  { pct: 52,  label: 'Calcul de tes macros personnalisés…' },
+  { pct: 70,  label: 'Finalisation de ton plan nutrition…' },
+  { pct: 88,  label: 'Dernières vérifications…' },
   { pct: 100, label: 'Ton programme est prêt ✦' },
 ];
 
-const TOTAL_MS = 3600; // durée totale
+// Volontairement ralenti (~10 s) : le moment clé de perception de valeur.
+const TOTAL_MS = 9500;
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
 export const ProgramGenerationScreen: React.FC<Props> = ({ profile, onDone }) => {
@@ -135,7 +135,7 @@ export const ProgramGenerationScreen: React.FC<Props> = ({ profile, onDone }) =>
             <Text style={st.titleItalic}>programme</Text>
           </Text>
           <Text style={st.subtitle}>
-            Objectif : {goalLabel[profile.mainGoal]} · {profile.frequency}×/semaine
+            Objectif : {profile.goalLabel ?? goalLabel[profile.mainGoal]} · {profile.frequency}×/semaine
           </Text>
         </View>
 
