@@ -131,6 +131,7 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
   const [heightFt, setHeightFt]         = useState('');
   const [heightIn, setHeightIn]         = useState('');
   const [weightLb, setWeightLb]         = useState('');
+  const [targetLb, setTargetLb]         = useState('');
   const [activity, setActivity]         = useState<ActivityLevel | null>(null);
   const [experience, setExperience]     = useState<TrainingExperience | null>(null);
   const [equipment, setEquipment]       = useState<Equipment[]>([]);
@@ -171,6 +172,7 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
       case 3:  return sex !== null;
       case 4:  return age >= 14 && age <= 90;
       case 5:  return Number(heightFt) >= 4 && Number(heightFt) <= 7 && Number(weightLb) >= 70 && Number(weightLb) <= 500;
+      // poids cible optionnel — s'il est saisi, il doit rester dans une plage réaliste
       case 6:  return activity !== null;
       case 7:  return experience !== null;
       case 8:  return equipment.length > 0;
@@ -185,6 +187,9 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
     // Conversion impérial → métrique (formules Mifflin-St Jeor en cm/kg)
     const heightCm = Math.round(Number(heightFt) * 30.48 + Number(heightIn || 0) * 2.54);
     const weightKg = Math.round(Number(weightLb.replace(',', '.')) * 0.45359 * 10) / 10;
+    const targetKg = targetLb
+      ? Math.round(Number(targetLb.replace(',', '.')) * 0.45359 * 10) / 10
+      : undefined;
 
     // Équipement → accès salle (le plus complet gagne)
     const gymAccess = equipment.includes('gym') ? 'full'
@@ -199,6 +204,7 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
       age,
       heightCm,
       currentWeightKg: weightKg,
+      targetWeightKg: targetKg,
       morphotype: morphotype ?? undefined,
       experience: experience!,
       mainGoal: goal!.main,
@@ -330,8 +336,21 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
                   <UnitInput value={heightFt} onChange={setHeightFt} unit="pi" placeholder="5" flex={1} />
                   <UnitInput value={heightIn} onChange={setHeightIn} unit="po" placeholder="7" flex={1} />
                 </View>
-                <Text style={st.fieldLabel}>Ton poids</Text>
+                <Text style={st.fieldLabel}>Ton poids actuel</Text>
                 <UnitInput value={weightLb} onChange={setWeightLb} unit="lb" placeholder="160" />
+                <Text style={st.fieldLabel}>Ton poids cible <Text style={st.fieldOptional}>(optionnel)</Text></Text>
+                <UnitInput value={targetLb} onChange={setTargetLb} unit="lb" placeholder="150" />
+                {weightLb && targetLb && Number(targetLb) > 0 && (
+                  <View style={st.targetHint}>
+                    <Text style={st.targetHintText}>
+                      {Number(targetLb) < Number(weightLb)
+                        ? `Objectif : perdre ${(Number(weightLb) - Number(targetLb)).toFixed(0)} lb`
+                        : Number(targetLb) > Number(weightLb)
+                        ? `Objectif : prendre ${(Number(targetLb) - Number(weightLb)).toFixed(0)} lb`
+                        : 'Objectif : maintenir ton poids'}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -557,6 +576,9 @@ const st = StyleSheet.create({
   stepperUnit:  { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.base, color: colors.ink[500] },
 
   fieldLabel: { fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.sm, color: colors.ink[700] },
+  fieldOptional: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[400] },
+  targetHint:     { backgroundColor: colors.sage[50], borderRadius: radius.md, padding: spacing[3] },
+  targetHintText: { fontFamily: fontFamily.hanken.medium, fontSize: fontSize.sm, color: colors.sage[700], textAlign: 'center' },
   rowFields:  { flexDirection: 'row', gap: spacing[3] },
   unitField: {
     flexDirection: 'row', alignItems: 'center',
