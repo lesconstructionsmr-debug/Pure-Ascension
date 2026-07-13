@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: Vérifie si l'utilisateur est authentifié avec le bon UID
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Règles pour les profils utilisateur
+    match /users/{uid} {
+      // Un utilisateur peut lire son propre profil
+      allow read: if isOwner(uid);
+      
+      // Création de compte initiale
+      allow create: if isOwner(uid) 
+        && request.resource.data.stripe_subscription_status == 'inactive'
+        && request.resource.data.planLevel == 'none'
+        && request.resource.data.isPremium == false;
+      
+      // Mise à jour de compte par l'utilisateur
+      allow update: if isOwner(uid)
+        // Interdire formellement au client de modifier les champs liés à Stripe/Premium
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'stripe_subscription_status', 
+          'stripe_subscription_id', 
+          'planLevel', 
+          'isPremium'
+        ]);
+        
+      // Seul un admin ou webhook (via SDK Admin) peut modifier les abonnements.
+      // Firebase Security Rules ne s'appliquent pas aux accès admin Firebase (Netlify functions).
+
+      // Règles pour les sous-collections de progression quotidienne
+      match /progress/{date} {
+        allow read, write: if isOwner(uid);
+      }
+      
+      // Règles pour le programme d'entraînement/nutrition stocké sous l'utilisateur
+      // Le programme lui-même peut être stocké dans le document utilisateur (users/{uid}.program)
+    }
+  }
+}

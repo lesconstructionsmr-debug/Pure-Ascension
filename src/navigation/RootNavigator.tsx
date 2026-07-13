@@ -36,9 +36,10 @@ import { UserProfile } from '../data';
 import { DailyProgressProvider } from '../context/DailyProgressContext';
 import { CalorieProvider }      from '../context/CalorieContext';
 import { onAuthChange } from '../services/authService';
-import { saveUserProfile, getUserData } from '../services/dbService';
+import { saveUserProfile, getUserData, listenToUserData, setUserPlan } from '../services/dbService';
 import { generateProgram, saveProgram, GeneratedProgram } from '../services/programService';
 import { useProgramStore } from '../store/useProgramStore';
+import { SubscriptionScreen } from '../screens/SubscriptionScreen';
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 type AuthStack   = { Welcome:undefined; Login:undefined; Signup:undefined; Goal:undefined };
@@ -180,18 +181,44 @@ export const RootNavigator: React.FC = () => {
   const [userName,    setUserName]    = useState('');
   const [userEmail,   setUserEmail]   = useState('');
   const [firebaseUid, setFirebaseUid] = useState<string | null>(null);
+  const [stripeStatus, setStripeStatus] = useState<string | null>(null);
+  const [planLevel,    setPlanLevel]    = useState<string | null>(null);
   const storeProgram = useProgramStore(s => s.program);
 
   // Profil + programme générés AVANT le signup, en attente de sauvegarde
   const pendingRef = React.useRef<{ profile: UserProfile; program: GeneratedProgram } | null>(null);
 
   // Écoute Firebase Auth — restaure la session au reload
-  // et vérifie si l'utilisateur a complété son diagnostic (profil Firestore)
+  // et écoute en temps réel les changements du profil utilisateur sur Firestore
   React.useEffect(() => {
+    let unsubDb: (() => void) | null = null;
+
     const unsub = onAuthChange(async user => {
       if (user) {
         setFirebaseUid(user.uid);
         setUserEmail(user.email ?? '');
+
+        // Écoute en temps réel
+        unsubDb = listenToUserData(user.uid, (data) => {
+          if (data) {
+            setStripeStatus(data.stripe_subscription_status ?? 'inactive');
+            setPlanLevel(data.planLevel ?? 'none');
+
+            if (data.profile) {
+              setProfile(data.profile as UserProfile);
+              const fn = (data.profile as UserProfile).firstName;
+              if (fn) setUserName(fn);
+            }
+            if (data.program) {
+              useProgramStore.getState().setProgram(data.program as GeneratedProgram);
+            }
+            setHasProfile(!!(data.profile && data.program));
+          } else {
+            setStripeStatus('inactive');
+            setPlanLevel('none');
+            setHasProfile(false);
+          }
+        });
 
         if (pendingRef.current) {
           // Signup en fin de tunnel : on persiste le diagnostic pré-auth
@@ -199,33 +226,23 @@ export const RootNavigator: React.FC = () => {
           try {
             await saveUserProfile(user.uid, pp, pp.mainGoal || 'muscle');
             await saveProgram(user.uid, pg);
-          } catch {} // le programme reste en mémoire même si le réseau échoue
+          } catch {}
           setProfile(pp);
           setUserName(pp.firstName ?? user.displayName ?? '');
           useProgramStore.getState().setProgram(pg);
           setHasProfile(true);
           pendingRef.current = null;
-        } else {
-          setUserName(user.displayName ?? '');
-          // Sans profil ET programme Firestore → onboarding forcé, jamais le dashboard
-          try {
-            const data = await getUserData(user.uid);
-            const ok = !!(data && data.profile && data.program);
-            setHasProfile(ok);
-            if (data?.profile) {
-              setProfile(data.profile as UserProfile);
-              const fn = (data.profile as UserProfile).firstName;
-              if (fn) setUserName(fn);
-            }
-            useProgramStore.getState().setProgram(ok ? (data!.program as GeneratedProgram) : null);
-          } catch {
-            setHasProfile(false);
-            useProgramStore.getState().clear();
-          }
         }
         setAuthed(true);
       } else {
+        if (unsubDb) {
+          unsubDb();
+          unsubDb = null;
+        }
         setFirebaseUid(null);
+        setUserEmail('');
+        setStripeStatus(null);
+        setPlanLevel(null);
         setAuthed(false);
         setHasProfile(null);
         setScreen('splash');
@@ -233,7 +250,11 @@ export const RootNavigator: React.FC = () => {
       }
       setAuthReady(true);
     });
-    return unsub;
+
+    return () => {
+      unsub();
+      if (unsubDb) unsubDb();
+    };
   }, []);
 
   // Affiche rien pendant que Firebase vérifie la session / le profil
@@ -268,6 +289,25 @@ export const RootNavigator: React.FC = () => {
             await saveProgram(firebaseUid, prog).catch(() => {});
           }
           setScreen('generating');
+        }}
+      />
+    );
+  }
+
+  // ── Utilisateur connecté avec profil, mais aucun abonnement actif ni plan gratuit choisi ──
+  const hasAccess = stripeStatus === 'active' || stripeStatus === 'trialing' || planLevel === 'free' || planLevel === 'standard' || planLevel === 'premium';
+  
+  if (authed && hasProfile && !hasAccess) {
+    return (
+      <SubscriptionScreen
+        uid={firebaseUid!}
+        email={userEmail}
+        onFree={async () => {
+          try {
+            await setUserPlan(firebaseUid!, 'free');
+          } catch (error) {
+            console.error('Erreur lors du choix du plan gratuit :', error);
+          }
         }}
       />
     );
