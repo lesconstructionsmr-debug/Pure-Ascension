@@ -23,6 +23,67 @@ const PRESETS = [
   { name:'Yaourt grec 0%',  kcal:59,  proteins:10,  carbs:3.6,fats:0.4 },
   { name:'Riz cuit 150g',   kcal:195, proteins:4,   carbs:43, fats:0.3 },
   { name:'Poulet 100g',     kcal:165, proteins:31,  carbs:0,  fats:3.6 },
+  { name:'Saumon 100g',     kcal:208, proteins:20,  carbs:0,  fats:13 },
+  { name:'Avocat demi',     kcal:120, proteins:1.5, carbs:6.8,fats:11 },
+  { name:'Amandes poignée', kcal:164, proteins:6,   carbs:6.1,fats:14 },
+  { name:'Whey (1 scoop)',  kcal:120, proteins:24,  carbs:3,  fats:1.5 },
+  { name:'Patate douce',    kcal:130, proteins:2.4, carbs:30, fats:0.15 },
+];
+
+const LOCAL_DATABASE = [
+  // Fruits
+  { name: 'Banane', kcal: 89, proteins: 1.1, carbs: 23, fats: 0.3 },
+  { name: 'Pomme', kcal: 52, proteins: 0.3, carbs: 14, fats: 0.2 },
+  { name: 'Fraise', kcal: 32, proteins: 0.7, carbs: 7.7, fats: 0.3 },
+  { name: 'Orange', kcal: 47, proteins: 0.9, carbs: 12, fats: 0.1 },
+  { name: 'Framboise', kcal: 53, proteins: 1.2, carbs: 12, fats: 0.7 },
+  { name: 'Myrtille', kcal: 57, proteins: 0.7, carbs: 14, fats: 0.3 },
+  { name: 'Avocat', kcal: 160, proteins: 2, carbs: 9, fats: 15 },
+
+  // Protéines / Viandes / Poissons
+  { name: 'Saumon (pavé)', kcal: 208, proteins: 20, carbs: 0, fats: 13 },
+  { name: 'Saumon fumé', kcal: 117, proteins: 18, carbs: 0, fats: 4.5 },
+  { name: 'Blanc de poulet (cuit)', kcal: 165, proteins: 31, carbs: 0, fats: 3.6 },
+  { name: 'Steak haché 5% (cuit)', kcal: 138, proteins: 21, carbs: 0, fats: 5 },
+  { name: 'Steak haché 15% (cuit)', kcal: 210, proteins: 19, carbs: 0, fats: 15 },
+  { name: 'Dinde (poitrine)', kcal: 135, proteins: 30, carbs: 0, fats: 1.5 },
+  { name: 'Thon en conserve (au naturel)', kcal: 116, proteins: 26, carbs: 0, fats: 1 },
+  { name: 'Crevettes (cuites)', kcal: 99, proteins: 24, carbs: 0.2, fats: 0.3 },
+  { name: 'Œuf entier (gros)', kcal: 78, proteins: 6, carbs: 0.6, fats: 5 },
+  { name: 'Blanc d\'œuf', kcal: 52, proteins: 11, carbs: 0.7, fats: 0.2 },
+
+  // Féculents / Céréales
+  { name: 'Flocons d\'avoine', kcal: 389, proteins: 16.9, carbs: 66, fats: 6.9 },
+  { name: 'Riz basmati (cuit)', kcal: 130, proteins: 2.7, carbs: 28, fats: 0.3 },
+  { name: 'Pâtes (cuites)', kcal: 157, proteins: 5.8, carbs: 31, fats: 0.9 },
+  { name: 'Patate douce (cuite)', kcal: 86, proteins: 1.6, carbs: 20, fats: 0.1 },
+  { name: 'Pomme de terre (cuite)', kcal: 87, proteins: 1.9, carbs: 20, fats: 0.1 },
+  { name: 'Quinoa (cuit)', kcal: 120, proteins: 4.4, carbs: 21, fats: 1.9 },
+  { name: 'Pain de blé entier (tranche)', kcal: 69, proteins: 3.6, carbs: 12, fats: 0.9 },
+
+  // Produits Laitiers / Alternatifs
+  { name: 'Yaourt grec 0%', kcal: 59, proteins: 10, carbs: 3.6, fats: 0.4 },
+  { name: 'Cottage cheese 2%', kcal: 98, proteins: 11, carbs: 3.4, fats: 4.3 },
+  { name: 'Fromage blanc 0%', kcal: 48, proteins: 8, carbs: 4, fats: 0 },
+  { name: 'Lait demi-écrémé (100ml)', kcal: 46, proteins: 3.3, carbs: 4.8, fats: 1.5 },
+  { name: 'Lait d\'amande sans sucre (100ml)', kcal: 13, proteins: 0.4, carbs: 0.3, fats: 1.1 },
+
+  // Oléagineux / Graines / Graisses
+  { name: 'Amandes (28g)', kcal: 164, proteins: 6, carbs: 6.1, fats: 14 },
+  { name: 'Noix (28g)', kcal: 185, proteins: 4.3, carbs: 3.9, fats: 18.5 },
+  { name: 'Beurre de cacahuète (1 c. à s.)', kcal: 94, proteins: 4, carbs: 3, fats: 8 },
+  { name: 'Huile d\'olive (1 c. à s.)', kcal: 119, proteins: 0, carbs: 0, fats: 13.5 },
+  { name: 'Graines de chia (10g)', kcal: 49, proteins: 1.7, carbs: 4.2, fats: 3.1 },
+
+  // Légumes
+  { name: 'Brocoli (cuit)', kcal: 35, proteins: 2.4, carbs: 7.2, fats: 0.4 },
+  { name: 'Épinards (cuits)', kcal: 23, proteins: 3, carbs: 3.8, fats: 0.3 },
+  { name: 'Haricots verts (cuits)', kcal: 31, proteins: 1.8, carbs: 7, fats: 0.1 },
+  { name: 'Concombre', kcal: 15, proteins: 0.7, carbs: 3.6, fats: 0.1 },
+  { name: 'Tomate', kcal: 18, proteins: 0.9, carbs: 3.9, fats: 0.2 },
+
+  // Suppléments
+  { name: 'Whey Protein (1 mesure)', kcal: 120, proteins: 24, carbs: 3, fats: 1.5 }
 ];
 
 /* ─── Open Food Facts search ───────────────────────────────────────────────── */
@@ -119,16 +180,41 @@ export const AddFoodModal: React.FC<Props> = ({ visible, onClose }) => {
     setQuery(q);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (q.length < 2) { setResults([]); setSearched(false); return; }
+
+    // Recherche locale immédiate
+    const localMatches = LOCAL_DATABASE.filter(f =>
+      f.name.toLowerCase().includes(q.toLowerCase())
+    ).map(f => ({
+      name: f.name,
+      kcal: f.kcal,
+      proteins: f.proteins,
+      carbs: f.carbs,
+      fats: f.fats,
+      per: 'portion standard'
+    }));
+
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       setError('');
       try {
         const r = await searchOFF(q);
-        setResults(r);
+        // Fusionner en mettant les correspondances locales en premier
+        const combined = [...localMatches];
+        r.forEach(item => {
+          if (!combined.some(c => c.name.toLowerCase() === item.name.toLowerCase())) {
+            combined.push(item);
+          }
+        });
+        setResults(combined);
         setSearched(true);
       } catch {
-        setError('Connexion impossible. Essaie l\'entrée manuelle.');
-        setResults([]);
+        if (localMatches.length > 0) {
+          setResults(localMatches);
+          setSearched(true);
+        } else {
+          setError('Connexion impossible. Essaie l\'entrée manuelle.');
+          setResults([]);
+        }
       } finally {
         setLoading(false);
       }
