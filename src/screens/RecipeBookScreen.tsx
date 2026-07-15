@@ -3,7 +3,7 @@ import {
   Pressable, SafeAreaView, ScrollView, StyleSheet,
   Text, TextInput, View
 } from 'react-native';
-import { Search, Lock, ChevronRight, Plus, ArrowLeft, Check } from 'lucide-react-native';
+import { Search, Lock, ChevronRight, Plus, ArrowLeft, Check, Sparkles, Heart, CheckCircle2 } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, spacing, radius, shadows } from '../theme/theme';
 import { useProgramStore } from '../store/useProgramStore';
 import { useCalorie } from '../context/CalorieContext';
@@ -335,6 +335,97 @@ export const RECIPES: Recipe[] = [
   }
 ];
 
+const FlexibilityGuide: React.FC = () => {
+  return (
+    <View style={st.flexContainer}>
+      {/* Intro card */}
+      <View style={st.flexIntroCard}>
+        <Sparkles size={20} color={colors.sage[600]} />
+        <View style={{ flex: 1 }}>
+          <Text style={st.flexIntroTitle}>La Méthode Flexible Pure Ascension</Text>
+          <Text style={st.flexIntroSub}>
+            Tu n'as pas le temps de cuisiner nos recettes holistiques ? Pas de problème. 
+            Tant que tu respectes tes macros, tu peux composer tes repas en piochant dans ces équivalences.
+          </Text>
+        </View>
+      </View>
+
+      {/* Règle des 3 tiers */}
+      <View style={st.flexRuleCard}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[2] }}>
+          <Heart size={18} color={colors.clay[500]} />
+          <Text style={st.flexRuleTitle}>La Règle d'Or de l'Assiette</Text>
+        </View>
+        <Text style={st.flexRuleText}>
+          • <Text style={{ fontFamily: fontFamily.hanken.bold }}>1/3 de Protéine maigre</Text> (reconstruction musculaire){"\n"}
+          • <Text style={{ fontFamily: fontFamily.hanken.bold }}>1/3 de Glucides complexes</Text> (énergie stable, IG bas){"\n"}
+          • <Text style={{ fontFamily: fontFamily.hanken.bold }}>1/3 de Légumes verts & colorés</Text> (fibres, micronutriments){"\n"}
+          • <Text style={{ fontFamily: fontFamily.hanken.bold }}>1 dose de Graisses saines</Text> (équilibre hormonal)
+        </Text>
+      </View>
+
+      {/* Groupes alimentaires */}
+      <Text style={st.groupTitle}>🎯 Tables d'Équivalences (Portions Standards)</Text>
+
+      {/* Protéines */}
+      <View style={st.flexGroupCard}>
+        <View style={st.flexGroupHeader}>
+          <View style={[st.flexColorDot, { backgroundColor: colors.clay[500] }]} />
+          <Text style={st.flexGroupLabel}>Protéines (Cible ~20-25g)</Text>
+        </View>
+        <View style={st.flexItemsList}>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🍗 Blanc de poulet / dinde (cuit)</Text><Text style={st.flexItemQty}>100g</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🐟 Pavé de saumon sauvage</Text><Text style={st.flexItemQty}>120g</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🍳 Œufs entiers (gros)</Text><Text style={st.flexItemQty}>3 unités</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🍤 Crevettes roses</Text><Text style={st.flexItemQty}>110g</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🥛 Fromage blanc 0%</Text><Text style={st.flexItemQty}>250g</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🌱 Tofu ferme</Text><Text style={st.flexItemQty}>150g</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>💪 Whey Protein isolate</Text><Text style={st.flexItemQty}>1 mesure (30g)</Text></View>
+        </View>
+      </View>
+
+      {/* Glucides */}
+      <View style={st.flexGroupCard}>
+        <View style={st.flexGroupHeader}>
+          <View style={[st.flexColorDot, { backgroundColor: '#4E7384' }]} />
+          <Text style={st.flexGroupLabel}>Glucides Complexes (Cible ~30g)</Text>
+        </View>
+        <View style={st.flexItemsList}>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🌾 Riz basmati / sauvage (cuit)</Text><Text style={st.flexItemQty}>100g</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🍠 Patate douce (vapeur)</Text><Text style={st.flexItemQty}>150g</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🥔 Pomme de terre vapeur</Text><Text style={st.flexItemQty}>160g</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🥣 Flocons d'avoine (pesé cru)</Text><Text style={st.flexItemQty}>45g</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🥗 Quinoa (cuit)</Text><Text style={st.flexItemQty}>140g</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🍞 Pain de seigle complet</Text><Text style={st.flexItemQty}>2 tranches</Text></View>
+        </View>
+      </View>
+
+      {/* Lipides */}
+      <View style={st.flexGroupCard}>
+        <View style={st.flexGroupHeader}>
+          <View style={[st.flexColorDot, { backgroundColor: colors.sage[600] }]} />
+          <Text style={st.flexGroupLabel}>Lipides de qualité (Cible ~10-12g)</Text>
+        </View>
+        <View style={st.flexItemsList}>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🥑 Avocat frais</Text><Text style={st.flexItemQty}>1/2 moyen</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🫒 Huile d'olive extra-vierge</Text><Text style={st.flexItemQty}>1 c. à table (12ml)</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🥜 Amandes / Noix de Grenoble</Text><Text style={st.flexItemQty}>20g</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🍫 Chocolat noir 85%</Text><Text style={st.flexItemQty}>2 carrés (20g)</Text></View>
+          <View style={st.flexItemRow}><Text style={st.flexItemName}>🥥 Huile de coco vierge</Text><Text style={st.flexItemQty}>1 c. à table</Text></View>
+        </View>
+      </View>
+
+      {/* Info Card */}
+      <View style={st.flexAdviceCard}>
+        <CheckCircle2 size={16} color={colors.sage[600]} />
+        <Text style={st.flexAdviceText}>
+          Astuce : Utilise le bouton d'ajout rapide ou la recherche locale dans ton journal nutritionnel quotidien pour enregistrer ces portions en un clic !
+        </Text>
+      </View>
+    </View>
+  );
+};
+
 interface Props {
   navigation: any;
 }
@@ -342,7 +433,7 @@ interface Props {
 export const RecipeBookScreen: React.FC<Props> = ({ navigation }) => {
   const isPremium = useProgramStore(s => s.isPremium);
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'reset' | 'hormone' | 'satiete'>('reset');
+  const [activeTab, setActiveTab] = useState<'reset' | 'hormone' | 'satiete' | 'flexible'>('reset');
   const { addEntry } = useCalorie();
   const [addedId, setAddedId] = useState<string | null>(null);
 
@@ -385,34 +476,36 @@ export const RecipeBookScreen: React.FC<Props> = ({ navigation }) => {
 
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
         {/* Search */}
-        <View style={st.searchContainer}>
-          <Search size={18} color={colors.ink[400]} />
-          <TextInput
-            style={st.searchInput}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Rechercher une recette saine..."
-            placeholderTextColor={colors.ink[400]}
-          />
-        </View>
+        {activeTab !== 'flexible' && (
+          <View style={st.searchContainer}>
+            <Search size={18} color={colors.ink[400]} />
+            <TextInput
+              style={st.searchInput}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Rechercher une recette saine..."
+              placeholderTextColor={colors.ink[400]}
+            />
+          </View>
+        )}
 
         {/* Categories / Tabs */}
         <View style={st.tabsRow}>
-          {(['reset', 'hormone', 'satiete'] as const).map(tab => (
+          {(['reset', 'hormone', 'satiete', 'flexible'] as const).map(tab => (
             <Pressable
               key={tab}
               onPress={() => setActiveTab(tab)}
               style={[st.tabBtn, activeTab === tab && st.tabBtnActive]}
             >
               <Text style={[st.tabText, activeTab === tab && st.tabTextActive]}>
-                {tab === 'reset' ? 'Reset 14j' : tab === 'hormone' ? 'Équilibre' : 'Satiété'}
+                {tab === 'reset' ? 'Reset 14j' : tab === 'hormone' ? 'Équilibre' : tab === 'satiete' ? 'Satiété' : 'Flexibilité'}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        {/* Upsell Banner for non-premium */}
-        {!isPremium && (
+        {/* Upsell Banner for non-premium (hidden for flexible tab) */}
+        {!isPremium && activeTab !== 'flexible' && (
           <Pressable onPress={() => useProgramStore.getState().setShowPaywall(true)} style={st.upsellCard}>
             <View style={st.lockCircle}>
               <Lock size={20} color={colors.sage[600]} />
@@ -426,78 +519,79 @@ export const RecipeBookScreen: React.FC<Props> = ({ navigation }) => {
             <ChevronRight size={18} color={colors.ink[400]} />
           </Pressable>
         )}
-
-        {/* Recipes list */}
-        <View style={st.list}>
-          {filteredRecipes.map(recipe => {
-            const isAdded = addedId === recipe.id;
-            return (
-              <Pressable
-                key={recipe.id}
-                onPress={() => handleRecipePress(recipe)}
-                style={[st.recipeCard, !isPremium && st.recipeCardLocked]}
-              >
-                <View style={st.recipeHeader}>
-                  <View style={{ flex: 1 }}>
-                    <View style={st.tagRow}>
-                      <Text style={st.recipeCategory}>{recipe.categoryLabel}</Text>
-                      {!isPremium && (
-                        <View style={st.lockTag}>
-                          <Lock size={10} color="#fff" />
-                          <Text style={st.lockTagText}>Premium</Text>
-                        </View>
-                      )}
+        {activeTab === 'flexible' ? (
+          <FlexibilityGuide />
+        ) : (
+          /* Recipes list */
+          <View style={st.list}>
+            {filteredRecipes.map(recipe => {
+              const isAdded = addedId === recipe.id;
+              return (
+                <Pressable
+                  key={recipe.id}
+                  onPress={() => handleRecipePress(recipe)}
+                  style={[st.recipeCard, !isPremium && st.recipeCardLocked]}
+                >
+                  <View style={st.recipeHeader}>
+                    <View style={{ flex: 1 }}>
+                      <View style={st.tagRow}>
+                        <Text style={st.recipeCategory}>{recipe.categoryLabel}</Text>
+                        {!isPremium && (
+                          <View style={st.lockTag}>
+                            <Lock size={10} color="#fff" />
+                            <Text style={st.lockTagText}>Premium</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={st.recipeName}>{recipe.name}</Text>
                     </View>
-                    <Text style={st.recipeName}>{recipe.name}</Text>
                   </View>
-                </View>
 
-                <Text style={st.recipeDesc} numberOfLines={2}>
-                  {recipe.description}
-                </Text>
+                  <Text style={st.recipeDesc} numberOfLines={2}>{recipe.description}</Text>
 
-                {/* Macros row */}
-                <View style={st.macrosRow}>
-                  <View style={st.macro}>
-                    <Text style={st.macroValue}>{recipe.kcal}</Text>
-                    <Text style={st.macroLabel}>kcal</Text>
+                  {/* Macros row */}
+                  <View style={st.macrosRow}>
+                    <View style={st.macro}>
+                      <Text style={st.macroValue}>{recipe.kcal}</Text>
+                      <Text style={st.macroLabel}>kcal</Text>
+                    </View>
+                    <View style={st.macroLine} />
+                    <View style={st.macro}>
+                      <Text style={st.macroValue}>{recipe.proteins}g</Text>
+                      <Text style={st.macroLabel}>Prot</Text>
+                    </View>
+                    <View style={st.macroLine} />
+                    <View style={st.macro}>
+                      <Text style={st.macroValue}>{recipe.carbs}g</Text>
+                      <Text style={st.macroLabel}>Gluc</Text>
+                    </View>
+                    <View style={st.macroLine} />
+                    <View style={st.macro}>
+                      <Text style={st.macroValue}>{recipe.fats}g</Text>
+                      <Text style={st.macroLabel}>Lip</Text>
+                    </View>
                   </View>
-                  <View style={st.macroLine} />
-                  <View style={st.macro}>
-                    <Text style={st.macroValue}>{recipe.proteins}g</Text>
-                    <Text style={st.macroLabel}>Prot</Text>
-                  </View>
-                  <View style={st.macroLine} />
-                  <View style={st.macro}>
-                    <Text style={st.macroValue}>{recipe.carbs}g</Text>
-                    <Text style={st.macroLabel}>Gluc</Text>
-                  </View>
-                  <View style={st.macroLine} />
-                  <View style={st.macro}>
-                    <Text style={st.macroValue}>{recipe.fats}g</Text>
-                    <Text style={st.macroLabel}>Lip</Text>
-                  </View>
-                </View>
 
-                {/* Interactive buttons */}
-                {isPremium && (
-                  <View style={st.cardFooter}>
-                    <Pressable
-                      onPress={() => handleAdd(recipe)}
-                      style={[st.addBtn, isAdded && st.addBtnSuccess]}
-                      accessibilityRole="button"
-                    >
-                      <Plus size={16} color="#fff" />
-                      <Text style={st.addBtnText}>
-                        {isAdded ? 'Ajouté !' : 'Ajouter au journal'}
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+                  {/* Interactive buttons */}
+                  {isPremium && (
+                    <View style={st.cardFooter}>
+                      <Pressable
+                        onPress={() => handleAdd(recipe)}
+                        style={[st.addBtn, isAdded && st.addBtnSuccess]}
+                        accessibilityRole="button"
+                      >
+                        <Plus size={16} color="#fff" />
+                        <Text style={st.addBtnText}>
+                          {isAdded ? 'Ajouté !' : 'Ajouter au journal'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -574,7 +668,48 @@ const st = StyleSheet.create({
     borderRadius: radius.pill, ...shadows.sm
   },
   addBtnSuccess: { backgroundColor: colors.sage[600] },
-  addBtnText: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: '#fff' }
+  addBtnText: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: '#fff' },
+
+  // Flexibility tab styles
+  flexContainer: { gap: spacing[4] },
+  flexIntroCard: {
+    flexDirection: 'row', gap: spacing[3], backgroundColor: colors.sage[50],
+    borderWidth: 1, borderColor: colors.sage[200], borderRadius: radius.xl, padding: spacing[4]
+  },
+  flexIntroTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.sage[900] },
+  flexIntroSub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.sage[700], marginTop: 2, lineHeight: 16 },
+  flexRuleCard: {
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: colors.ink[200],
+    borderRadius: radius.xl, padding: spacing[4]
+  },
+  flexRuleTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] },
+  flexRuleText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 22 },
+  groupTitle: { fontFamily: fontFamily.spectral.bold, fontSize: fontSize.lg, color: colors.ink[900], marginTop: spacing[2], marginBottom: spacing[1] },
+  flexGroupCard: {
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: colors.ink[200],
+    borderRadius: radius.xl, overflow: 'hidden'
+  },
+  flexGroupHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[2.5],
+    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+    backgroundColor: '#fbf8f3', borderBottomWidth: 1, borderBottomColor: colors.ink[150]
+  },
+  flexColorDot: { width: 10, height: 10, borderRadius: 5 },
+  flexGroupLabel: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[900] },
+  flexItemsList: { padding: spacing[2] },
+  flexItemRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: spacing[3], paddingVertical: spacing[2.5],
+    borderBottomWidth: 1, borderBottomColor: colors.ink[100]
+  },
+  flexItemName: { fontFamily: fontFamily.hanken.medium, fontSize: fontSize.sm, color: colors.ink[800] },
+  flexItemQty: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.sage[600] },
+  flexAdviceCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[2.5],
+    backgroundColor: colors.sage[50], borderRadius: radius.lg, padding: spacing[3],
+    marginTop: spacing[2]
+  },
+  flexAdviceText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.sage[800], flex: 1, lineHeight: 16 }
 });
 
 export default RecipeBookScreen;
