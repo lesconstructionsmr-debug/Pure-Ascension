@@ -233,6 +233,7 @@ export const RootNavigator: React.FC = () => {
             let nameToSet = userName;
             if (data.profile) {
               setProfile(data.profile as UserProfile);
+              useProgramStore.getState().setProfile(data.profile as UserProfile);
               const fn = (data.profile as UserProfile).firstName;
               if (fn) {
                 setUserName(fn);
@@ -310,6 +311,7 @@ export const RootNavigator: React.FC = () => {
         onBack={() => setScreen('slides')}
         onComplete={async (p) => {
           setProfile(p);
+          useProgramStore.getState().setProfile(p);
           if (p.firstName) setUserName(p.firstName);
           useProgramStore.getState().setUserData(p.firstName || '', userEmail || auth.currentUser?.email || '');
           const prog = generateProgram(p);

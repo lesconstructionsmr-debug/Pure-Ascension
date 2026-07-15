@@ -26,7 +26,7 @@ interface Props {
   onComplete: (profile: UserProfile) => void;
 }
 
-const TOTAL_STEPS = 15;
+const TOTAL_STEPS = 7;
 
 /* ─── Option card (choix unique) ─────────────────────────────────────────── */
 function OptionCard({ label, sublabel, selected, onPress }: {
@@ -182,23 +182,16 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
     setDigestiveSymptoms(prev =>
       prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
     );
+
   const canContinue = (): boolean => {
     switch (step) {
       case 1:  return name.length >= 2;
-      case 2:  return goal !== null;
-      case 3:  return sex !== null;
-      case 4:  return age >= 14 && age <= 90;
-      case 5:  return Number(heightFt) >= 4 && Number(heightFt) <= 7 && Number(weightLb) >= 70 && Number(weightLb) <= 500;
-      case 6:  return activity !== null;
-      case 7:  return experience !== null;
-      case 8:  return equipment.length > 0;
-      case 9:  return cardioSports.length > 0;
-      case 10: return true;
-      case 11: return true;
-      case 12: return frequency >= 2;
-      case 13: return true;
-      case 14: return healthCondition !== null;
-      case 15: return true; // WHY profond est optionnel — ne bloque pas la génération
+      case 2:  return goal !== null && sex !== null && age >= 14;
+      case 3:  return Number(heightFt) >= 4 && Number(heightFt) <= 7 && Number(weightLb) >= 70 && Number(weightLb) <= 500 && experience !== null;
+      case 4:  return equipment.length > 0 && frequency >= 2;
+      case 5:  return activity !== null;
+      case 6:  return cardioSports.length > 0;
+      case 7:  return true; // Restrictions alimentaires (optionnel)
       default: return true;
     }
   };
@@ -228,13 +221,13 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
         targetWeightKg: targetKg,
         morphotype: morphotype ?? undefined,
         experience: experience ?? 'débutante',
-        mainGoal: goal?.main ?? 'muscle',
-        goalLabel: goal?.label ?? 'Prise de muscle',
+        mainGoal: goal?.main || 'muscle',
+        goalLabel: goal?.label || 'Prise de muscle',
         frequency: (frequency || 3) as TrainingFrequency,
         gymAccess,
         equipment: equipment || [],
         sessionDuration: 45,
-        activityLevel: activity ?? 'leger',
+        activityLevel: activity || 'leger',
         dietaryRestrictions,
         allergies: allergies.trim() || undefined,
         healthConditions: healthCondition || 'aucune',
@@ -252,20 +245,12 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
   /* ── Titres conversationnels ── */
   const titles: Record<number, { title: string; sub: string }> = {
     1:  { title: 'Commençons par ton prénom.', sub: 'Pour personnaliser ton programme du début à la fin.' },
-    2:  { title: name ? `${name}, parlons de ton objectif.` : 'Parlons de ton objectif.', sub: 'Tout ton programme sera construit autour de ça.' },
-    3:  { title: 'Ton sexe biologique ?', sub: 'Il influence directement tes besoins caloriques.' },
-    4:  { title: 'Ton âge ?', sub: 'Ton métabolisme évolue avec les années — on en tient compte.' },
-    5:  { title: 'Ta taille et ton poids ?', sub: 'Pour calculer tes besoins précis (formule Mifflin-St Jeor).' },
-    6:  { title: 'Ton quotidien, il ressemble à quoi ?', sub: 'Ton niveau d\'activité hors entraînement.' },
-    7:  { title: 'Ton expérience d\'entraînement ?', sub: 'On adapte l\'intensité et la progression à ton niveau.' },
-    8:  { title: 'Ton équipement disponible ?', sub: 'Sélectionne tout ce qui s\'applique — les exercices s\'adaptent.' },
-    9:  { title: 'Ta discipline cardio favorite ?', sub: 'Pour structurer tes zones cardiaques et optimiser tes performances.' },
-    10: { title: 'Des restrictions alimentaires ?', sub: 'Ton plan nutrition les respectera à 100 %.' },
-    11: { title: 'Symptômes digestifs ou fatigue ?', sub: 'Optionnel — pour détecter de l\'hypochlorhydrie ou de l\'intestin perméable.' },
-    12: { title: name ? `${name}, combien de jours par semaine ?` : 'Combien de jours par semaine ?', sub: 'Sois réaliste — la constance bat l\'intensité.' },
-    13: { title: 'Ton type morphologique ?', sub: 'Optionnel — ça affine la répartition de tes macros.' },
-    14: { title: 'Ton état de santé ?', sub: 'Des limitations physiques, douleurs thoraciques ou antécédents médicaux ?' },
-    15: { title: 'Ton "WHY" profond ?', sub: 'Ta motivation émotionnelle pour ne jamais abandonner lors des baisses de régime.' },
+    2:  { title: name ? `${name}, définis ton profil.` : 'Définis ton profil.', sub: 'Sélectionne ton objectif principal, ton genre et ton âge.' },
+    3:  { title: 'Mesures & niveau ?', sub: 'Indique ta taille, ton poids (actuel et cible) et ton niveau d\'expérience.' },
+    4:  { title: 'Matériel & fréquence ?', sub: 'Sélectionne ton équipement et le nombre de jours d\'entraînement.' },
+    5:  { title: 'Ton quotidien, il ressemble à quoi ?', sub: 'Ton niveau d\'activité hors entraînement.' },
+    6:  { title: 'Ta discipline cardio favorite ?', sub: 'Pour structurer tes zones cardiaques et ton cardio.' },
+    7:  { title: 'Des restrictions alimentaires ?', sub: 'Ton plan nutrition les respectera à 100 %.' },
   };
 
   const progress = step / TOTAL_STEPS;
@@ -315,80 +300,180 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
               </View>
             )}
 
-            {/* ── Q2 Objectif ── */}
+            {/* ── Q2 Objectif, Sexe & Âge regroupés ── */}
             {step === 2 && (
-              <View style={st.body}>
-                {([
-                  { main: 'gras',   label: 'Perte de gras',      sub: 'Réduire ta masse grasse durablement' },
-                  { main: 'muscle', label: 'Prise de masse',     sub: 'Construire du muscle et du volume' },
-                  { main: 'tone',   label: 'Remise en forme',    sub: 'Retrouver énergie, tonus et mobilité' },
-                  { main: 'force',  label: 'Performance',        sub: 'Repousser tes charges et tes records' },
-                  { main: 'tone',   label: 'Bien-être général',  sub: 'Bouger mieux, dormir mieux, te sentir mieux' },
-                ] as { main: MainGoal; label: string; sub: string }[]).map(opt => (
-                  <OptionCard
-                    key={opt.label}
-                    label={opt.label}
-                    sublabel={opt.sub}
-                    selected={goal?.label === opt.label}
-                    onPress={() => setGoal({ main: opt.main, label: opt.label })}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* ── Q3 Sexe ── */}
-            {step === 3 && (
-              <View style={st.body}>
-                {([
-                  { id: 'homme', label: 'Homme' },
-                  { id: 'femme', label: 'Femme' },
-                  { id: 'nsp',   label: 'Préfère ne pas dire' },
-                ] as { id: Sex; label: string }[]).map(opt => (
-                  <OptionCard
-                    key={opt.id}
-                    label={opt.label}
-                    selected={sex === opt.id}
-                    onPress={() => setSex(opt.id)}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* ── Q4 Âge ── */}
-            {step === 4 && (
-              <View style={st.body}>
-                <Stepper value={age} onChange={setAge} min={14} max={90} unit="ans" />
-              </View>
-            )}
-
-            {/* ── Q5 Taille + Poids ── */}
-            {step === 5 && (
-              <View style={st.body}>
-                <Text style={st.fieldLabel}>Ta taille</Text>
-                <View style={st.rowFields}>
-                  <UnitInput value={heightFt} onChange={setHeightFt} unit="pi" placeholder="5" flex={1} />
-                  <UnitInput value={heightIn} onChange={setHeightIn} unit="po" placeholder="7" flex={1} />
+              <View style={[st.body, { gap: spacing[4] }]}>
+                <View style={{ gap: spacing[2] }}>
+                  <Text style={st.fieldLabel}>Quel est ton objectif principal ?</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing[2], paddingBottom: 4 }}>
+                    {([
+                      { main: 'gras',   label: 'Perte de gras' },
+                      { main: 'muscle', label: 'Prise de masse' },
+                      { main: 'tone',   label: 'Remise en forme' },
+                      { main: 'force',  label: 'Performance' },
+                      { main: 'tone',   label: 'Bien-être général' },
+                    ] as { main: MainGoal; label: string }[]).map(opt => {
+                      const isSelected = goal?.label === opt.label;
+                      return (
+                        <Pressable
+                          key={opt.label}
+                          onPress={() => setGoal({ main: opt.main, label: opt.label })}
+                          style={[
+                            st.chipOption,
+                            isSelected && { backgroundColor: colors.sage[500], borderColor: colors.sage[500] }
+                          ]}
+                        >
+                          <Text style={[st.chipOptionText, isSelected && { color: '#fff', fontFamily: fontFamily.hanken.bold }]}>
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
                 </View>
-                <Text style={st.fieldLabel}>Ton poids actuel</Text>
-                <UnitInput value={weightLb} onChange={setWeightLb} unit="lb" placeholder="160" />
-                <Text style={st.fieldLabel}>Ton poids cible <Text style={st.fieldOptional}>(optionnel)</Text></Text>
-                <UnitInput value={targetLb} onChange={setTargetLb} unit="lb" placeholder="150" />
-                {weightLb && targetLb && Number(targetLb) > 0 && (
-                  <View style={st.targetHint}>
-                    <Text style={st.targetHintText}>
-                      {Number(targetLb) < Number(weightLb)
-                        ? `Objectif : perdre ${(Number(weightLb) - Number(targetLb)).toFixed(0)} lb`
-                        : Number(targetLb) > Number(weightLb)
-                        ? `Objectif : prendre ${(Number(targetLb) - Number(weightLb)).toFixed(0)} lb`
-                        : 'Objectif : maintenir ton poids'}
-                    </Text>
+
+                <View style={{ gap: spacing[2] }}>
+                  <Text style={st.fieldLabel}>Ton genre biologique (pour le BMR)</Text>
+                  <View style={{ flexDirection: 'row', gap: spacing[2] }}>
+                    {([
+                      { id: 'homme', label: 'Homme' },
+                      { id: 'femme', label: 'Femme' },
+                      { id: 'nsp',   label: 'Préfère ne pas dire' },
+                    ] as { id: Sex; label: string }[]).map(opt => {
+                      const isSelected = sex === opt.id;
+                      return (
+                        <Pressable
+                          key={opt.id}
+                          onPress={() => setSex(opt.id)}
+                          style={[
+                            st.chipOption,
+                            { flex: 1 },
+                            isSelected && { backgroundColor: colors.sage[500], borderColor: colors.sage[500] }
+                          ]}
+                        >
+                          <Text style={[st.chipOptionText, isSelected && { color: '#fff', fontFamily: fontFamily.hanken.bold }]}>
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
-                )}
+                </View>
+
+                <View style={{ gap: spacing[2] }}>
+                  <Text style={st.fieldLabel}>Quel est ton âge ?</Text>
+                  <Stepper value={age} onChange={setAge} min={14} max={90} unit="ans" />
+                </View>
               </View>
             )}
 
-            {/* ── Q6 Activité ── */}
-            {step === 6 && (
+            {/* ── Q3 Taille + Poids + Poids Cible + Expérience ── */}
+            {step === 3 && (
+              <View style={[st.body, { gap: spacing[4] }]}>
+                {/* Taille */}
+                <View style={{ gap: spacing[2] }}>
+                  <Text style={st.fieldLabel}>Ta taille (Système Impérial)</Text>
+                  <View style={st.rowFields}>
+                    <UnitInput value={heightFt} onChange={setHeightFt} unit="pi" placeholder="5" flex={1} />
+                    <UnitInput value={heightIn} onChange={setHeightIn} unit="po" placeholder="7" flex={1} />
+                  </View>
+                </View>
+
+                {/* Poids */}
+                <View style={{ gap: spacing[2] }}>
+                  <Text style={st.fieldLabel}>Ton poids actuel et poids cible (lb)</Text>
+                  <View style={st.rowFields}>
+                    <UnitInput value={weightLb} onChange={setWeightLb} unit="actuel (lb)" placeholder="150" flex={1} />
+                    <UnitInput value={targetLb} onChange={setTargetLb} unit="cible (lb)" placeholder="140" flex={1} />
+                  </View>
+                </View>
+
+                {/* Expérience */}
+                <View style={{ gap: spacing[2] }}>
+                  <Text style={st.fieldLabel}>Quel est ton niveau d'expérience ?</Text>
+                  <View style={{ flexDirection: 'row', gap: spacing[2] }}>
+                    {([
+                      { id: 'débutante',     label: 'Débutant·e' },
+                      { id: 'intermédiaire', label: 'Intermédiaire' },
+                      { id: 'avancée',       label: 'Avancé·e' },
+                    ] as { id: TrainingExperience; label: string }[]).map(opt => {
+                      const isSelected = experience === opt.id;
+                      return (
+                        <Pressable
+                          key={opt.id}
+                          onPress={() => setExperience(opt.id)}
+                          style={[
+                            st.chipOption,
+                            { flex: 1 },
+                            isSelected && { backgroundColor: colors.sage[500], borderColor: colors.sage[500] }
+                          ]}
+                        >
+                          <Text style={[st.chipOptionText, isSelected && { color: '#fff', fontFamily: fontFamily.hanken.bold }]}>
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* ── Q4 Matériel & Fréquence regroupés ── */}
+            {step === 4 && (
+              <View style={[st.body, { gap: spacing[4] }]}>
+                {/* Équipement (multi) */}
+                <View style={{ gap: spacing[2] }}>
+                  <Text style={st.fieldLabel}>Quel équipement as-tu à disposition ? (Multi-choix)</Text>
+                  <View style={st.chipsWrap}>
+                    {([
+                      { id: 'gym',         label: '🏋️ Gym complète' },
+                      { id: 'halteres',    label: '💪 Haltères/Banc' },
+                      { id: 'poids-corps', label: '🏃 Poids du corps' },
+                      { id: 'bandes',      label: '🎗️ Bandes élastiques' },
+                    ] as { id: Equipment; label: string }[]).map(opt => {
+                      const isSelected = equipment.includes(opt.id);
+                      return (
+                        <Pressable
+                          key={opt.id}
+                          onPress={() => toggleEquipment(opt.id)}
+                          style={[
+                            st.chipOption,
+                            isSelected && { backgroundColor: colors.sage[500], borderColor: colors.sage[500] }
+                          ]}
+                        >
+                          <Text style={[st.chipOptionText, isSelected && { color: '#fff', fontFamily: fontFamily.hanken.bold }]}>
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Fréquence */}
+                <View style={{ gap: spacing[2] }}>
+                  <Text style={st.fieldLabel}>Combien de jours souhaites-tu t'entraîner ?</Text>
+                  <View style={st.freqRow}>
+                    {([2, 3, 4, 5, 6] as TrainingFrequency[]).map(f => (
+                      <Pressable
+                        key={f}
+                        onPress={() => setFrequency(f)}
+                        style={[st.freqChip, frequency === f && st.freqChipOn]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: frequency === f }}
+                      >
+                        <Text style={[st.freqNum, frequency === f && { color: '#fff' }]}>{f}</Text>
+                        <Text style={[st.freqLabel, frequency === f && { color: colors.sage[100] }]}>jours</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* ── Q5 Activité ── */}
+            {step === 5 && (
               <View style={st.body}>
                 {([
                   { id: 'sedentaire', label: 'Sédentaire',       sub: 'Travail de bureau, peu de marche' },
@@ -407,55 +492,8 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
               </View>
             )}
 
-            {/* ── Q7 Expérience ── */}
-            {step === 7 && (
-              <View style={st.body}>
-                {([
-                  { id: 'débutante',     label: 'Débutant·e',    sub: 'Moins d\'un an d\'entraînement régulier' },
-                  { id: 'intermédiaire', label: 'Intermédiaire', sub: '1 à 3 ans, mouvements de base maîtrisés' },
-                  { id: 'avancée',       label: 'Avancé·e',      sub: '3 ans et plus, progression structurée' },
-                ] as { id: TrainingExperience; label: string; sub: string }[]).map(opt => (
-                  <OptionCard
-                    key={opt.id}
-                    label={opt.label}
-                    sublabel={opt.sub}
-                    selected={experience === opt.id}
-                    onPress={() => setExperience(opt.id)}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* ── Q8 Équipement (multi) ── */}
-            {step === 8 && (
-              <View style={st.body}>
-                {([
-                  { id: 'gym',         label: 'Gym complète',            sub: 'Machines, barres, câbles' },
-                  { id: 'halteres',    label: 'Maison avec haltères',    sub: 'Haltères, banc, kettlebell' },
-                  { id: 'poids-corps', label: 'Aucun équipement',        sub: 'Poids de corps uniquement' },
-                  { id: 'bandes',      label: 'Bandes élastiques',       sub: 'Élastiques de résistance' },
-                ] as { id: Equipment; label: string; sub: string }[]).map(opt => (
-                  <Pressable
-                    key={opt.id}
-                    onPress={() => toggleEquipment(opt.id)}
-                    style={[st.optionCard, equipment.includes(opt.id) && st.optionCardSelected]}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: equipment.includes(opt.id) }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[st.optionLabel, equipment.includes(opt.id) && { color: colors.sage[600] }]}>{opt.label}</Text>
-                      <Text style={st.optionSub}>{opt.sub}</Text>
-                    </View>
-                    <View style={[st.checkbox, equipment.includes(opt.id) && st.checkboxOn]}>
-                      {equipment.includes(opt.id) && <Check size={13} color="#fff" strokeWidth={2.5} />}
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
-            {/* ── Q9 Cardio Sport ── */}
-            {step === 9 && (
+            {/* ── Q6 Cardio Sport ── */}
+            {step === 6 && (
               <View style={st.body}>
                 <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[500], marginBottom: spacing[1] }}>
                   Plusieurs choix possibles ✓
@@ -485,14 +523,13 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
               </View>
             )}
 
-            {/* ── Q10 Restrictions (multi) ── */}
-            {step === 10 && (
+            {/* ── Q7 Restrictions (multi) ── */}
+            {step === 7 && (
               <View style={st.body}>
                 <View style={st.chipsWrap}>
                   {[
                     { id: 'aucune',       label: 'Aucune' },
                     { id: 'végétarien',   label: 'Végétarien·ne' },
-                    { id: 'végétalien',   label: 'Végan·e' },
                     { id: 'sans-gluten',  label: 'Sans gluten' },
                     { id: 'sans-lactose', label: 'Sans lactose' },
                   ].map(opt => (
@@ -504,134 +541,21 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
                     />
                   ))}
                 </View>
-                <View style={st.allergyCard}>
-                  <Text style={st.fieldLabel}>Allergies ? (optionnel)</Text>
-                  <TextInput
-                    style={st.allergyInput}
-                    value={allergies}
-                    onChangeText={setAllergies}
-                    placeholder="Ex : arachides, fruits de mer…"
-                    placeholderTextColor={colors.ink[400]}
-                    multiline
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* ── Q11 Troubles digestifs (multi) ── */}
-            {step === 11 && (
-              <View style={st.body}>
-                {[
-                  { id: 'ballonnements',      label: 'Ballonnements post-repas', sub: 'Gonflement de l\'estomac ou inconfort juste après manger.' },
-                  { id: 'reflux',             label: 'Reflux gastriques / Brûlures', sub: 'Remontées acides ou sensation de brûlure œsophagienne.' },
-                  { id: 'fatigue-post-prandiale', label: 'Fatigue post-prandiale', sub: 'Somnolence ou baisse d\'énergie marquée après les repas.' },
-                  { id: 'transit-irregulier', label: 'Transit irrégulier', sub: 'Constipation, alternance ou ballonnements chroniques.' },
-                ].map(opt => (
-                  <Pressable
-                    key={opt.id}
-                    onPress={() => toggleDigestiveSymptom(opt.id)}
-                    style={[st.optionCard, digestiveSymptoms.includes(opt.id) && st.optionCardSelected]}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: digestiveSymptoms.includes(opt.id) }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[st.optionLabel, digestiveSymptoms.includes(opt.id) && { color: colors.sage[600] }]}>{opt.label}</Text>
-                      <Text style={st.optionSub}>{opt.sub}</Text>
-                    </View>
-                    <View style={[st.checkbox, digestiveSymptoms.includes(opt.id) && st.checkboxOn]}>
-                      {digestiveSymptoms.includes(opt.id) && <Check size={13} color="#fff" strokeWidth={2.5} />}
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
-            {/* ── Q12 Fréquence ── */}
-            {step === 12 && (
-              <View style={st.body}>
-                <View style={st.freqRow}>
-                  {([2, 3, 4, 5, 6] as TrainingFrequency[]).map(f => (
-                    <Pressable
-                      key={f}
-                      onPress={() => setFrequency(f)}
-                      style={[st.freqChip, frequency === f && st.freqChipOn]}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: frequency === f }}
-                    >
-                      <Text style={[st.freqNum, frequency === f && { color: '#fff' }]}>{f}</Text>
-                      <Text style={[st.freqLabel, frequency === f && { color: colors.sage[100] }]}>jours</Text>
-                    </Pressable>
-                  ))}
-                </View>
-                {frequency >= 2 && (
-                  <View style={st.hintCard}>
-                    <Text style={st.hintText}>
-                      {frequency <= 3
-                        ? 'Parfait pour bâtir l\'habitude. Chaque séance comptera.'
-                        : frequency <= 5
-                        ? 'Bon équilibre entre stimulation et récupération.'
-                        : 'Programme exigeant — la récupération sera clé. 💪'}
-                    </Text>
+                {diets.length > 0 && !diets.includes('aucune') && (
+                  <View style={st.allergyCard}>
+                    <Text style={st.fieldLabel}>Allergies spécifiques ? (Optionnel)</Text>
+                    <TextInput
+                      style={st.allergyInput}
+                      value={allergies}
+                      onChangeText={setAllergies}
+                      placeholder="Ex : arachides, fruits de mer…"
+                      placeholderTextColor={colors.ink[400]}
+                      multiline
+                    />
                   </View>
                 )}
-              </View>
-            )}
-
-            {/* ── Q13 Morphotype (bonus) ── */}
-            {step === 13 && (
-              <View style={st.body}>
-                {([
-                  { id: 'ectomorphe',  label: 'Ectomorphe',  sub: 'Mince naturellement, difficulté à prendre du poids' },
-                  { id: 'mesomorphe',  label: 'Mésomorphe',  sub: 'Athlétique naturellement, prend du muscle facilement' },
-                  { id: 'endomorphe',  label: 'Endomorphe',  sub: 'Prend du poids facilement, ossature plus large' },
-                ] as { id: Morphotype; label: string; sub: string }[]).map(opt => (
-                  <OptionCard
-                    key={opt.id}
-                    label={opt.label}
-                    sublabel={opt.sub}
-                    selected={morphotype === opt.id}
-                    onPress={() => setMorphotype(opt.id)}
-                  />
-                ))}
-                <Pressable onPress={() => { setMorphotype(null); goNext(); }} style={st.skipLink} accessibilityRole="button">
-                  <Text style={st.skipLinkText}>Je ne sais pas — passer</Text>
-                </Pressable>
-              </View>
-            )}
-
-            {/* ── Q14 État de santé ── */}
-            {step === 14 && (
-              <View style={st.body}>
-                {([
-                  { id: 'aucune',    label: 'Aucune limitation', sub: 'Je suis en pleine santé pour m\'entraîner.' },
-                  { id: 'cardiaque',  label: 'Limitations cardiaques', sub: 'Douleurs thoraciques ou troubles cardiovasculaires.' },
-                  { id: 'articulaire',label: 'Limitations articulaires', sub: 'Problèmes d\'os, de dos ou d\'articulations majeurs.' },
-                  { id: 'enceinte',   label: 'Grossesse / Post-partum', sub: 'Enceinte ou accouchement récent.' },
-                  { id: 'autre',      label: 'Autre limitation', sub: 'Tout autre problème nécessitant un avis médical.' },
-                ]).map(opt => (
-                  <OptionCard
-                    key={opt.id}
-                    label={opt.label}
-                    sublabel={opt.sub}
-                    selected={healthCondition === opt.id}
-                    onPress={() => setHealthCondition(opt.id)}
-                  />
-                ))}
                 
-                {healthCondition !== 'aucune' && (
-                  <View style={st.securityAlert}>
-                    <Text style={st.securityAlertText}>
-                      ⚠️ Pour ta sécurité, un accord médical écrit est fortement recommandé avant d'entamer ton programme Pure Ascension avec ces limitations.
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* ── Q15 Le "WHY" profond ── */}
-            {step === 15 && (
-              <View style={st.body}>
-                <View style={st.allergyCard}>
+                <View style={[st.allergyCard, { marginTop: spacing[6] }]}>
                   <Text style={st.fieldLabel}>Quelle est la raison profonde qui te pousse à te transformer aujourd'hui ?</Text>
                   <TextInput
                     style={st.allergyInput}
@@ -770,6 +694,17 @@ const st = StyleSheet.create({
 
   securityAlert: { backgroundColor: '#fdf2e9', borderRadius: radius.md, padding: spacing[4], borderWidth: 1, borderColor: '#f5c299', marginTop: spacing[3] },
   securityAlertText: { fontFamily: fontFamily.hanken.medium, fontSize: fontSize.sm, color: '#c4661f', lineHeight: 20, textAlign: 'center' },
+
+  chipOption: {
+    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+    borderRadius: radius.md, backgroundColor: '#fff',
+    borderWidth: 1.5, borderColor: colors.ink[200],
+    alignItems: 'center', justifyContent: 'center',
+  },
+  chipOptionText: {
+    fontFamily: fontFamily.hanken.medium,
+    fontSize: fontSize.base, color: colors.ink[700],
+  },
 });
 
 export default OnboardingDiagnosticScreen;

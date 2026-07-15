@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import {
   ChevronLeft, ChevronRight, Check, Clock,
-  Pause, Play, SkipForward, X, Trophy,
+  Pause, Play, SkipForward, X, Trophy, ArrowDown, ArrowUp, ShieldCheck, Dumbbell, Activity, Zap, Flame
 } from 'lucide-react-native';
 import * as Haptics from '../utils/haptics';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows, duration } from '../theme/theme';
@@ -16,6 +16,132 @@ import { useDailyProgress } from '../context/DailyProgressContext';
 import { EmptyState } from '../components/EmptyState';
 import { useProgramStore } from '../store/useProgramStore';
 import { getTodaySession } from '../services/programService';
+import { getMuscleGroup, ExerciseImage } from './WorkoutsScreen';
+
+const MovementDiagram: React.FC<{ name: string }> = ({ name }) => {
+  const group = getMuscleGroup(name);
+  
+  // Custom tips and arrows based on movement type
+  let movementTips = ["Garder le buste droit", "Contrôler la descente"];
+  let pathDirection = "vertical";
+  let targetMuscle = group.label;
+
+  const n = name.toLowerCase();
+  if (n.includes('squat')) {
+    movementTips = ["Pousser les genoux vers l'extérieur", "Garder les talons au sol", "Descente sous la parallèle"];
+    pathDirection = "down-up";
+    targetMuscle = "Quadriceps / Fessiers";
+  } else if (n.includes('fente')) {
+    movementTips = ["Genou arrière proche du sol", "Garder l'équilibre", "Buste légèrement penché"];
+    pathDirection = "down-up";
+    targetMuscle = "Fessiers / Ischios";
+  } else if (n.includes('développé') || n.includes('pompe') || n.includes('push-up')) {
+    movementTips = ["Coudes à 45 degrés", "Engager les abdominaux", "Extension complète"];
+    pathDirection = "up-down";
+    targetMuscle = "Pectoraux / Triceps";
+  } else if (n.includes('traction') || n.includes('pull')) {
+    movementTips = ["Tirer avec les coudes", "Poitrine vers la barre", "Contrôler la descente"];
+    pathDirection = "up-down";
+    targetMuscle = "Grand Dorsal";
+  } else if (n.includes('rowing') || n.includes('tirage')) {
+    movementTips = ["Serrer les omoplates", "Garder le dos plat", "Tirer vers le nombril"];
+    pathDirection = "horizontal";
+    targetMuscle = "Haut du Dos / Trapèzes";
+  } else if (n.includes('gainage') || n.includes('planche')) {
+    movementTips = ["Alignement cheville-bassin-épaule", "Rentrer le nombril", "Ne pas creuser le dos"];
+    pathDirection = "isometric";
+    targetMuscle = "Transverse / Abdominaux";
+  }
+
+  return (
+    <View style={{
+      backgroundColor: group.bg,
+      borderRadius: radius.lg,
+      padding: spacing[4],
+      borderWidth: 1,
+      borderColor: group.color + '33',
+      gap: spacing[3],
+      marginVertical: spacing[2],
+      ...shadows.sm
+    }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+          <Activity size={18} color={group.color} />
+          <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[900] }}>
+            Schéma Anatomique & Posture
+          </Text>
+        </View>
+        <Badge variant="sage" label={targetMuscle} />
+      </View>
+
+      {/* Schematic drawing representation */}
+      <View style={{
+        height: 120,
+        backgroundColor: '#fff',
+        borderRadius: radius.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: colors.ink[150],
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Dynamic arrows based on path direction */}
+        {pathDirection === 'down-up' && (
+          <View style={{ alignItems: 'center', gap: spacing[2] }}>
+            <ArrowDown size={28} color={group.color} strokeWidth={2.5} />
+            <Dumbbell size={24} color={colors.ink[400]} />
+            <ArrowUp size={28} color={group.color} strokeWidth={2.5} />
+          </View>
+        )}
+        {pathDirection === 'up-down' && (
+          <View style={{ alignItems: 'center', gap: spacing[2] }}>
+            <ArrowUp size={28} color={group.color} strokeWidth={2.5} />
+            <Dumbbell size={24} color={colors.ink[400]} />
+            <ArrowDown size={28} color={group.color} strokeWidth={2.5} />
+          </View>
+        )}
+        {pathDirection === 'horizontal' && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[4] }}>
+            <ChevronLeft size={24} color={group.color} strokeWidth={2.5} />
+            <Dumbbell size={24} color={colors.ink[400]} />
+            <ChevronRight size={24} color={group.color} strokeWidth={2.5} />
+          </View>
+        )}
+        {pathDirection === 'isometric' && (
+          <View style={{ alignItems: 'center', gap: spacing[1] }}>
+            <View style={{ width: 80, height: 8, borderRadius: 4, backgroundColor: group.color }} />
+            <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: group.color, marginTop: 4 }}>
+              EFFORT ISOMÉTRIQUE (STATIQUE)
+            </Text>
+          </View>
+        )}
+        {pathDirection === 'vertical' && (
+          <View style={{ alignItems: 'center', gap: spacing[2] }}>
+            <Dumbbell size={24} color={group.color} />
+            <Text style={{ fontFamily: fontFamily.hanken.medium, fontSize: fontSize.xs, color: colors.ink[500] }}>
+              Mouvement alterné
+            </Text>
+          </View>
+        )}
+
+        <View style={{ position: 'absolute', bottom: 6, right: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <ShieldCheck size={12} color={colors.sage[600]} />
+          <Text style={{ fontFamily: fontFamily.hanken.medium, fontSize: 10, color: colors.sage[600] }}>Alignement sécurisé</Text>
+        </View>
+      </View>
+
+      {/* Movement Tips */}
+      <View style={{ gap: spacing[1.5] }}>
+        {movementTips.map((tip, idx) => (
+          <Text key={idx} style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[700], lineHeight: 16 }}>
+            • {tip}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+};
 
 interface Props { onClose: () => void; }
 
@@ -195,12 +321,17 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
         {exercise && (
           <View style={s.exerciseSection}>
             <View style={s.exHeader}>
-              <View>
-                <Text style={s.exCounter}>Exercice {currentExerciseIdx + 1}/{exercises.length}</Text>
-                <Text style={s.exName}>{exercise.name}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
+                <ExerciseImage name={exercise.name} size={48} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.exCounter}>Exercice {currentExerciseIdx + 1}/{exercises.length}</Text>
+                  <Text style={s.exName}>{exercise.name}</Text>
+                </View>
               </View>
               <Badge variant="sage" label={`${exercise.sets} × ${exercise.reps}`} />
             </View>
+
+            <MovementDiagram name={exercise.name} />
 
             {exercise.notes && (
               <View style={s.notesBox}>
@@ -253,6 +384,7 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
           {exercises.map((ex, exIdx) => {
             const exDone = Array.from({ length: ex.sets }, (_, i) => completedSets.has(setKey(exIdx, i))).every(Boolean);
             const isCurrent = exIdx === currentExerciseIdx;
+            const group = getMuscleGroup(ex.name);
             return (
               <Pressable
                 key={ex.id}
@@ -260,14 +392,16 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
                 onPress={() => { setCurrentExerciseIdx(exIdx); setCurrentSetIdx(0); }}
                 accessibilityRole="button"
               >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
+                  <ExerciseImage name={ex.name} size={36} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.exRowName, isCurrent && { color:colors.sage[700] }]}>{ex.name}</Text>
+                    <Text style={s.exRowMeta}>{ex.sets} séries × {ex.reps} reps · {group.label}</Text>
+                  </View>
+                </View>
                 <View style={[s.exRowDot, exDone && s.exRowDotDone, isCurrent && s.exRowDotCurrent]}>
-                  {exDone && <Check size={12} color="#fff" strokeWidth={2.5} />}
+                  {exDone && <Check size={10} color="#fff" strokeWidth={2.5} />}
                 </View>
-                <View style={{ flex:1 }}>
-                  <Text style={[s.exRowName, isCurrent && { color:colors.sage[700] }]}>{ex.name}</Text>
-                  <Text style={s.exRowMeta}>{ex.sets} séries × {ex.reps} reps</Text>
-                </View>
-                {isCurrent && <ChevronRight size={16} color={colors.sage[500]} strokeWidth={2} />}
               </Pressable>
             );
           })}

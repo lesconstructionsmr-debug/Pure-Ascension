@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Check, Dumbbell, Lock, Sparkles, ChevronRight, Activity, Calendar } from 'lucide-react-native';
+import { Check, Dumbbell, Lock, Sparkles, ChevronRight, Activity, Calendar, Zap, Flame } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 import { Badge }    from '../components/Badge';
 import { Button }   from '../components/Button';
@@ -12,6 +12,44 @@ import { useProgramStore } from '../store/useProgramStore';
 import { getTodaySession, saveProgram } from '../services/programService';
 import { auth } from '../services/firebase';
 
+export function getMuscleGroup(name: string): { label: string; icon: string; bg: string; color: string } {
+  const n = name.toLowerCase();
+  if (n.includes('squat') || n.includes('fente') || n.includes('presse') || n.includes('leg') || n.includes('ischio') || n.includes('mollet') || n.includes('quad') || n.includes('fessier')) {
+    return { label: 'Jambes', icon: 'legs', bg: '#EAF2EC', color: colors.sage[600] };
+  }
+  if (n.includes('développé') || n.includes('push-up') || n.includes('pompe') || n.includes('chest') || n.includes('dips') || n.includes('pec')) {
+    return { label: 'Pectoraux', icon: 'push', bg: '#FCF2ED', color: colors.clay[500] };
+  }
+  if (n.includes('traction') || n.includes('tirage') || n.includes('rowing') || n.includes('lombaires') || n.includes('back') || n.includes('pull')) {
+    return { label: 'Dos', icon: 'pull', bg: '#EEF7FB', color: '#4E7384' };
+  }
+  if (n.includes('biceps') || n.includes('triceps') || n.includes('curl') || n.includes('bras') || n.includes('shoulder') || n.includes('élévation') || n.includes('épaules') || n.includes('delto')) {
+    return { label: 'Bras / Épaules', icon: 'arms', bg: '#F8F1FD', color: '#9C54D6' };
+  }
+  if (n.includes('gainage') || n.includes('crunch') || n.includes('abdo') || n.includes('core') || n.includes('planche') || n.includes('sit-up')) {
+    return { label: 'Tronc / Abdominos', icon: 'core', bg: '#FDFCEB', color: '#D4A84B' };
+  }
+  return { label: 'Cardio / Général', icon: 'cardio', bg: '#F5F5F5', color: colors.ink[600] };
+}
+
+export const ExerciseImage: React.FC<{ name: string; size?: number }> = ({ name, size = 44 }) => {
+  const group = getMuscleGroup(name);
+  return (
+    <View style={{
+      width: size, height: size, borderRadius: radius.md,
+      backgroundColor: group.bg, alignItems: 'center', justifyContent: 'center',
+      borderWidth: 1, borderColor: group.color + '22'
+    }}>
+      {group.icon === 'legs' && <Dumbbell size={size * 0.45} color={group.color} />}
+      {group.icon === 'push' && <Sparkles size={size * 0.45} color={group.color} />}
+      {group.icon === 'pull' && <Zap size={size * 0.45} color={group.color} />}
+      {group.icon === 'arms' && <Dumbbell size={size * 0.45} color={group.color} />}
+      {group.icon === 'core' && <Flame size={size * 0.45} color={group.color} />}
+      {group.icon === 'cardio' && <Activity size={size * 0.45} color={group.color} />}
+    </View>
+  );
+};
+
 const Hero: React.FC = () => (
   <View style={{ width:'100%', height:220, backgroundColor:colors.sage[800], alignItems:'center', justifyContent:'center', gap:spacing[2] }}>
     <Dumbbell size={36} color={colors.sage[300]} strokeWidth={1.5} />
@@ -19,16 +57,27 @@ const Hero: React.FC = () => (
   </View>
 );
 
-const ExRow: React.FC<{ex:Exercise;onToggle:(id:string)=>void}> = ({ex,onToggle}) => (
-  <Pressable onPress={()=>onToggle(ex.id)} accessibilityRole="checkbox" accessibilityState={{checked:ex.done}}
-    style={{ flexDirection:'row', alignItems:'center', padding:spacing[4], gap:spacing[3], minHeight:52 }}>
-    <View style={[{ width:28, height:28, borderRadius:14, borderWidth:1.5, borderColor:colors.ink[200], alignItems:'center', justifyContent:'center', backgroundColor:colors.white }, ex.done&&{ backgroundColor:colors.sage[500], borderColor:colors.sage[500] }]}>
-      {ex.done && <Check size={13} color={colors.white} strokeWidth={2.5} />}
-    </View>
-    <Text style={{ flex:1, fontFamily:fontFamily.hanken.medium, fontSize:fontSize.base, color:ex.done?colors.ink[500]:colors.ink[900], textDecorationLine:ex.done?'line-through':'none' }}>{ex.name}</Text>
-    <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[600], minWidth:52, textAlign:'right' }}>{ex.sets}×{ex.reps}</Text>
-  </Pressable>
-);
+const ExRow: React.FC<{ex:Exercise;onToggle:(id:string)=>void}> = ({ex,onToggle}) => {
+  const group = getMuscleGroup(ex.name);
+  return (
+    <Pressable onPress={()=>onToggle(ex.id)} accessibilityRole="checkbox" accessibilityState={{checked:ex.done}}
+      style={{ flexDirection:'row', alignItems:'center', padding:spacing[4], gap:spacing[3], minHeight:64 }}>
+      <View style={[{ width:24, height:24, borderRadius:12, borderWidth:1.5, borderColor:colors.ink[200], alignItems:'center', justifyContent:'center', backgroundColor:colors.white }, ex.done&&{ backgroundColor:colors.sage[500], borderColor:colors.sage[500] }]}>
+        {ex.done && <Check size={11} color={colors.white} strokeWidth={2.5} />}
+      </View>
+      <ExerciseImage name={ex.name} size={44} />
+      <View style={{ flex:1 }}>
+        <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.base, color:ex.done?colors.ink[500]:colors.ink[900], textDecorationLine:ex.done?'line-through':'none' }}>
+          {ex.name}
+        </Text>
+        <Text style={{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.ink[500], marginTop: 2 }}>
+          Muscle : {group.label}
+        </Text>
+      </View>
+      <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[600], minWidth:52, textAlign:'right' }}>{ex.sets}×{ex.reps}</Text>
+    </Pressable>
+  );
+};
 
 export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const program          = useProgramStore(s => s.program);
