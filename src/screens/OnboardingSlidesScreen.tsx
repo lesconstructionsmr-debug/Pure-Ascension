@@ -8,23 +8,20 @@ import {
   Animated, Pressable,
   SafeAreaView, StyleSheet, Text, View,
 } from 'react-native';
-import {
-  ClipboardList, BrainCircuit, LayoutDashboard, Sparkles,
-  ChevronRight,
-} from 'lucide-react-native';
+import { Sparkles, ChevronRight } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius } from '../theme/theme';
 import { Button } from '../components/Button';
+import { SlidePreview, PreviewVariant } from '../components/SlidePreview';
 
 /* ─── Slide data ─────────────────────────────────────────────────────────
  * 1 phrase max par slide — on sette les attentes en 15 secondes.
- * NOTE : les zones d'illustration sont des placeholders (icônes) en
- * attendant les captures des sections de l'app fournies par l'équipe.   */
+ * `preview` = mini-aperçu natif de l'écran réel (voir SlidePreview).   */
 const SLIDES = [
   {
     id: '1',
     bg:    colors.sage[800],
     accent:colors.sage[300],
-    icon:  ClipboardList,
+    preview: 'diagnostic' as PreviewVariant,
     tag:   'ÉTAPE 1',
     title: 'Réponds à',
     titleItalic: '10 questions simples.',
@@ -34,7 +31,7 @@ const SLIDES = [
     id: '2',
     bg:    colors.ink[900],
     accent:colors.sage[400],
-    icon:  BrainCircuit,
+    preview: 'generation' as PreviewVariant,
     tag:   'ÉTAPE 2',
     title: 'Notre IA crée ton programme',
     titleItalic: 'sur mesure.',
@@ -44,7 +41,7 @@ const SLIDES = [
     id: '3',
     bg:    colors.clay[700],
     accent:colors.clay[200],
-    icon:  LayoutDashboard,
+    preview: 'dashboard' as PreviewVariant,
     tag:   'ÉTAPE 3',
     title: 'Entraînement + nutrition + bien-être,',
     titleItalic: 'tout au même endroit.',
@@ -54,7 +51,7 @@ const SLIDES = [
     id: '4',
     bg:    '#2D3F35',
     accent:colors.sage[200],
-    icon:  Sparkles,
+    preview: null,
     tag:   'À TOI',
     title: 'Prêt·e ?',
     titleItalic: 'Ton programme t\'attend.',
@@ -73,7 +70,6 @@ export const OnboardingSlidesScreen: React.FC<Props> = ({ onDone }) => {
 
   const isLast = index === SLIDES.length - 1;
   const slide  = SLIDES[index];
-  const Icon   = slide.icon;
 
   const animateDot = (idx: number) => {
     dotAnims.forEach((anim, i) => {
@@ -107,15 +103,19 @@ export const OnboardingSlidesScreen: React.FC<Props> = ({ onDone }) => {
       {/* Slide content — fade in/out on transition */}
       <Animated.View style={[st.slide, { opacity: fadeAnim }]}>
 
-        {/* Illustration area */}
+        {/* Illustration area — mini-aperçu natif de l'écran, ou icône finale */}
         <View style={[st.illustrationArea, { backgroundColor: slide.accent + '22' }]}>
-          <View style={[st.iconCircle, { backgroundColor: slide.accent + '33' }]}>
-            <View style={[st.iconCircleInner, { backgroundColor: slide.accent + '55' }]}>
-              <Icon size={48} color={slide.accent} strokeWidth={1.2} />
-            </View>
-          </View>
           <View style={[st.decoTopRight,  { backgroundColor: slide.accent + '44' }]} />
           <View style={[st.decoBottomLeft,{ backgroundColor: slide.accent + '22' }]} />
+          {slide.preview ? (
+            <SlidePreview variant={slide.preview} />
+          ) : (
+            <View style={[st.iconCircle, { backgroundColor: slide.accent + '33' }]}>
+              <View style={[st.iconCircleInner, { backgroundColor: slide.accent + '55' }]}>
+                <Sparkles size={48} color={slide.accent} strokeWidth={1.2} />
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Text */}
@@ -199,27 +199,27 @@ const st = StyleSheet.create({
   slide: { flex: 1 },
 
   illustrationArea: {
-    height: 300, alignItems: 'center', justifyContent: 'center',
-    margin: spacing[5], borderRadius: radius.xl, position: 'relative',
+    height: 220, alignItems: 'center', justifyContent: 'center',
+    margin: spacing[4], borderRadius: radius.xl, position: 'relative',
   },
   iconCircle: {
-    width: 160, height: 160, borderRadius: 80,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  iconCircleInner: {
     width: 120, height: 120, borderRadius: 60,
     alignItems: 'center', justifyContent: 'center',
   },
+  iconCircleInner: {
+    width: 90, height: 90, borderRadius: 45,
+    alignItems: 'center', justifyContent: 'center',
+  },
   decoTopRight: {
-    position: 'absolute', top: 24, right: 24,
-    width: 48, height: 48, borderRadius: 24,
+    position: 'absolute', top: 16, right: 16,
+    width: 36, height: 36, borderRadius: 18,
   },
   decoBottomLeft: {
-    position: 'absolute', bottom: 24, left: 24,
-    width: 80, height: 80, borderRadius: 40,
+    position: 'absolute', bottom: 16, left: 16,
+    width: 60, height: 60, borderRadius: 30,
   },
 
-  textArea: { paddingHorizontal: spacing[6], gap: spacing[3] },
+  textArea: { paddingHorizontal: spacing[6], gap: spacing[2] },
   tag:   {
     fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.xs,
     letterSpacing: 2, textTransform: 'uppercase',

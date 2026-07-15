@@ -31,21 +31,25 @@ import { ProgramGenerationScreen }       from '../screens/ProgramGenerationScree
 import { ProgramReadyScreen }            from '../screens/ProgramReadyScreen';
 import { ProgramTeaserScreen }           from '../screens/ProgramTeaserScreen';
 import { EquilibreScreen }              from '../screens/EquilibreScreen';
+import { RecipeBookScreen }             from '../screens/RecipeBookScreen';
+import { RecipeDetailScreen }           from '../screens/RecipeDetailScreen';
+import { ProgramAdjustmentScreen }       from '../screens/ProgramAdjustmentScreen';
+import { AICoachScreen }                  from '../screens/AICoachScreen';
 
 import { UserProfile } from '../data';
 import { DailyProgressProvider } from '../context/DailyProgressContext';
 import { CalorieProvider }      from '../context/CalorieContext';
 import { onAuthChange } from '../services/authService';
-import { saveUserProfile, getUserData, listenToUserData, setUserPlan } from '../services/dbService';
+import { saveUserProfile, getUserData, listenToUserData, setUserPlan, saveUserProfileAndProgram } from '../services/dbService';
 import { generateProgram, saveProgram, GeneratedProgram } from '../services/programService';
 import { useProgramStore } from '../store/useProgramStore';
 import { SubscriptionScreen } from '../screens/SubscriptionScreen';
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 type AuthStack   = { Welcome:undefined; Login:undefined; Signup:undefined; Goal:undefined };
-type HomeStack   = { HomeMain:undefined };
-type MealsStack  = { MealsMain:undefined };
-type WorkoutsStack = { WorkoutsMain:undefined; ActiveWorkout:undefined };
+type HomeStack   = { HomeMain:undefined; AICoach:undefined };
+type MealsStack  = { MealsMain:undefined; RecipeBook:undefined; RecipeDetail:{ recipeId:string } };
+type WorkoutsStack = { WorkoutsMain:undefined; ActiveWorkout:undefined; ProgramAdjustment:undefined };
 type ProfileStack  = { ProfileMain:undefined; Goals:{ isNewUser?: boolean }; History:{ isNewUser?: boolean }; Notifications:undefined; Rituals:undefined; EditProfile:undefined };
 type TabList     = { Accueil:undefined; Repas:undefined; Séances:undefined; Équilibre:undefined; Profil:undefined };
 
@@ -56,11 +60,32 @@ const WorkoutsSt  = createNativeStackNavigator<WorkoutsStack>();
 const ProfileSt   = createNativeStackNavigator<ProfileStack>();
 const Tab         = createBottomTabNavigator<TabList>();
 
+/* ─── Wrappers pour éviter les composants en ligne (React error #310) ─────── */
+function ActiveWorkoutScreenWrapper({ navigation }: any) {
+  return <ActiveWorkoutScreen onClose={() => navigation.goBack()} />;
+}
+function ProfileGoalsScreenWrapper({ navigation, route }: any) {
+  return <ProfileGoalsScreen onBack={() => navigation.goBack()} isNewUser={route.params?.isNewUser} />;
+}
+function ProfileHistoryScreenWrapper({ navigation, route }: any) {
+  return <ProfileHistoryScreen onBack={() => navigation.goBack()} isNewUser={route.params?.isNewUser} />;
+}
+function ProfileNotificationsScreenWrapper({ navigation }: any) {
+  return <ProfileNotificationsScreen onBack={() => navigation.goBack()} />;
+}
+function ProfileRitualsScreenWrapper({ navigation }: any) {
+  return <ProfileRitualsScreen onBack={() => navigation.goBack()} />;
+}
+function ProfileEditScreenWrapper({ navigation }: any) {
+  return <ProfileEditScreen onBack={() => navigation.goBack()} onSave={() => navigation.goBack()} />;
+}
+
 /* ─── Stack screens ──────────────────────────────────────────────────────── */
-function HomeStackScreen({ userName }: { userName: string }) {
+function HomeStackScreen() {
   return (
     <HomeSt.Navigator screenOptions={{ headerShown:false }}>
-      <HomeSt.Screen name="HomeMain" children={() => <HomeScreen userName={userName} />} />
+      <HomeSt.Screen name="HomeMain" component={HomeScreen} />
+      <HomeSt.Screen name="AICoach" component={AICoachScreen} />
     </HomeSt.Navigator>
   );
 }
@@ -69,6 +94,8 @@ function MealsStackScreen() {
   return (
     <MealsSt.Navigator screenOptions={{ headerShown:false }}>
       <MealsSt.Screen name="MealsMain" component={MealsScreen} />
+      <MealsSt.Screen name="RecipeBook" component={RecipeBookScreen} />
+      <MealsSt.Screen name="RecipeDetail" component={RecipeDetailScreen} />
     </MealsSt.Navigator>
   );
 }
@@ -77,25 +104,21 @@ function WorkoutsStackScreen() {
   return (
     <WorkoutsSt.Navigator screenOptions={{ headerShown:false }}>
       <WorkoutsSt.Screen name="WorkoutsMain" component={WorkoutsScreen} />
-      <WorkoutsSt.Screen
-        name="ActiveWorkout"
-        component={({ navigation }: any) => (
-          <ActiveWorkoutScreen onClose={() => navigation.goBack()} />
-        )}
-      />
+      <WorkoutsSt.Screen name="ActiveWorkout" component={ActiveWorkoutScreenWrapper} />
+      <WorkoutsSt.Screen name="ProgramAdjustment" component={ProgramAdjustmentScreen} />
     </WorkoutsSt.Navigator>
   );
 }
 
-function ProfileStackScreen({ userName, userEmail }: { userName: string; userEmail: string }) {
+function ProfileStackScreen() {
   return (
     <ProfileSt.Navigator screenOptions={{ headerShown:false }}>
-      <ProfileSt.Screen name="ProfileMain" children={({ navigation }:any) => <ProfileScreen navigation={navigation} userName={userName} userEmail={userEmail} />} />
-      <ProfileSt.Screen name="Goals"         component={({ navigation, route }:any) => <ProfileGoalsScreen onBack={() => navigation.goBack()} isNewUser={route.params?.isNewUser} />} />
-      <ProfileSt.Screen name="History"       component={({ navigation, route }:any) => <ProfileHistoryScreen onBack={() => navigation.goBack()} isNewUser={route.params?.isNewUser} />} />
-      <ProfileSt.Screen name="Notifications" component={({ navigation }:any) => <ProfileNotificationsScreen onBack={() => navigation.goBack()} />} />
-      <ProfileSt.Screen name="Rituals"       component={({ navigation }:any) => <ProfileRitualsScreen onBack={() => navigation.goBack()} />} />
-      <ProfileSt.Screen name="EditProfile"  component={({ navigation }:any) => <ProfileEditScreen onBack={() => navigation.goBack()} onSave={() => navigation.goBack()} />} />
+      <ProfileSt.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileSt.Screen name="Goals"         component={ProfileGoalsScreenWrapper} />
+      <ProfileSt.Screen name="History"       component={ProfileHistoryScreenWrapper} />
+      <ProfileSt.Screen name="Notifications" component={ProfileNotificationsScreenWrapper} />
+      <ProfileSt.Screen name="Rituals"       component={ProfileRitualsScreenWrapper} />
+      <ProfileSt.Screen name="EditProfile"  component={ProfileEditScreenWrapper} />
     </ProfileSt.Navigator>
   );
 }
@@ -121,7 +144,7 @@ function TabIcon({ name, focused }: { name: keyof TabList; focused: boolean }) {
 }
 
 /* ─── Main tab navigator ─────────────────────────────────────────────────── */
-function MainTabs({ userName, userEmail }: { userName: string; userEmail: string }) {
+function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -146,11 +169,11 @@ function MainTabs({ userName, userEmail }: { userName: string; userEmail: string
         ),
       })}
     >
-      <Tab.Screen name="Accueil"   children={() => <HomeStackScreen userName={userName} />}    />
+      <Tab.Screen name="Accueil"   component={HomeStackScreen}    />
       <Tab.Screen name="Repas"     component={MealsStackScreen}   />
       <Tab.Screen name="Séances"   component={WorkoutsStackScreen}/>
       <Tab.Screen name="Équilibre" component={EquilibreScreen}    />
-      <Tab.Screen name="Profil"    children={() => <ProfileStackScreen userName={userName} userEmail={userEmail} />} />
+      <Tab.Screen name="Profil"    component={ProfileStackScreen} />
     </Tab.Navigator>
   );
 }
@@ -184,9 +207,7 @@ export const RootNavigator: React.FC = () => {
   const [stripeStatus, setStripeStatus] = useState<string | null>(null);
   const [planLevel,    setPlanLevel]    = useState<string | null>(null);
   const storeProgram = useProgramStore(s => s.program);
-
-  // Profil + programme générés AVANT le signup, en attente de sauvegarde
-  const pendingRef = React.useRef<{ profile: UserProfile; program: GeneratedProgram } | null>(null);
+  const showPaywall = useProgramStore(s => s.showPaywall);
 
   // Écoute Firebase Auth — restaure la session au reload
   // et écoute en temps réel les changements du profil utilisateur sur Firestore
@@ -197,18 +218,28 @@ export const RootNavigator: React.FC = () => {
       if (user) {
         setFirebaseUid(user.uid);
         setUserEmail(user.email ?? '');
+        useProgramStore.getState().setUserData(userName || user.displayName || '', user.email ?? '');
 
-        // Écoute en temps réel
         unsubDb = listenToUserData(user.uid, (data) => {
           if (data) {
-            setStripeStatus(data.stripe_subscription_status ?? 'inactive');
-            setPlanLevel(data.planLevel ?? 'none');
+            const status = data.stripe_subscription_status ?? 'inactive';
+            const level = data.planLevel ?? 'none';
+            setStripeStatus(status);
+            setPlanLevel(level);
+            
+            const isPrem = status === 'active' || status === 'trialing' || level === 'premium';
+            useProgramStore.getState().setPremium(isPrem);
 
+            let nameToSet = userName;
             if (data.profile) {
               setProfile(data.profile as UserProfile);
               const fn = (data.profile as UserProfile).firstName;
-              if (fn) setUserName(fn);
+              if (fn) {
+                setUserName(fn);
+                nameToSet = fn;
+              }
             }
+            useProgramStore.getState().setUserData(nameToSet || user.displayName || '', user.email ?? '');
             if (data.program) {
               useProgramStore.getState().setProgram(data.program as GeneratedProgram);
             }
@@ -216,23 +247,12 @@ export const RootNavigator: React.FC = () => {
           } else {
             setStripeStatus('inactive');
             setPlanLevel('none');
+            useProgramStore.getState().setPremium(false);
             setHasProfile(false);
+            setScreen('slides'); // Commence le parcours onboarding pour les nouveaux utilisateurs
           }
         });
 
-        if (pendingRef.current) {
-          // Signup en fin de tunnel : on persiste le diagnostic pré-auth
-          const { profile: pp, program: pg } = pendingRef.current;
-          try {
-            await saveUserProfile(user.uid, pp, pp.mainGoal || 'muscle');
-            await saveProgram(user.uid, pg);
-          } catch {}
-          setProfile(pp);
-          setUserName(pp.firstName ?? user.displayName ?? '');
-          useProgramStore.getState().setProgram(pg);
-          setHasProfile(true);
-          pendingRef.current = null;
-        }
         setAuthed(true);
       } else {
         if (unsubDb) {
@@ -262,6 +282,13 @@ export const RootNavigator: React.FC = () => {
 
   // ── Connecté MAIS diagnostic jamais complété → diagnostic obligatoire ──
   if (authed && !hasProfile) {
+    if (screen === 'slides')
+      return (
+        <OnboardingSlidesScreen
+          onDone={() => setScreen('diagnostic')}
+        />
+      );
+
     if (screen === 'generating' && profile)
       return (
         <ProgramGenerationScreen
@@ -269,6 +296,7 @@ export const RootNavigator: React.FC = () => {
           onDone={() => setScreen('ready')}
         />
       );
+
     if (screen === 'ready' && profile)
       return (
         <ProgramReadyScreen
@@ -276,19 +304,39 @@ export const RootNavigator: React.FC = () => {
           onStart={() => setHasProfile(true)}
         />
       );
+
     return (
       <OnboardingDiagnosticScreen
-        onBack={() => {}}
+        onBack={() => setScreen('slides')}
         onComplete={async (p) => {
           setProfile(p);
           if (p.firstName) setUserName(p.firstName);
+          useProgramStore.getState().setUserData(p.firstName || '', userEmail || auth.currentUser?.email || '');
           const prog = generateProgram(p);
           useProgramStore.getState().setProgram(prog);
           if (firebaseUid) {
-            await saveUserProfile(firebaseUid, p, p.mainGoal || 'muscle').catch(() => {});
-            await saveProgram(firebaseUid, prog).catch(() => {});
+            await saveUserProfileAndProgram(firebaseUid, p, prog, p.mainGoal || 'muscle').catch(() => {});
           }
           setScreen('generating');
+        }}
+      />
+    );
+  }
+
+  // ── Paywall global d'upsell (Phase 2) ──
+  if (authed && showPaywall) {
+    return (
+      <SubscriptionScreen
+        uid={firebaseUid!}
+        email={userEmail}
+        onBack={() => useProgramStore.getState().setShowPaywall(false)}
+        onFree={async () => {
+          try {
+            await setUserPlan(firebaseUid!, 'free');
+            useProgramStore.getState().setShowPaywall(false);
+          } catch (error) {
+            console.error('Erreur lors du choix du plan gratuit :', error);
+          }
         }}
       />
     );
@@ -318,70 +366,29 @@ export const RootNavigator: React.FC = () => {
     if (screen === 'splash')
       return (
         <SplashScreen
-          onStart={() => setScreen('slides')}
+          onStart={() => setScreen('signup')}
           onLogin={() => setScreen('login')}
         />
       );
 
-    // ── 1. Mini-présentation (4 slides) ──
-    if (screen === 'slides')
+    // ── 1. Inscription minimale ──
+    if (screen === 'signup')
       return (
-        <OnboardingSlidesScreen
-          onDone={() => setScreen('diagnostic')}
-        />
-      );
-
-    // ── 2. Diagnostic 10 questions — AVANT le signup ──
-    if (screen === 'diagnostic')
-      return (
-        <OnboardingDiagnosticScreen
-          onBack={() => setScreen('slides')}
-          onComplete={(p) => {
-            setProfile(p);
-            if (p.firstName) setUserName(p.firstName);
-            const prog = generateProgram(p);
-            useProgramStore.getState().setProgram(prog);
-            pendingRef.current = { profile: p, program: prog };
-            setScreen('generating');
+        <SignupScreen
+          onBack={() => setScreen('splash')}
+          initialName=""
+          onSuccess={(name, email) => {
+            setUserName(name);
+            setUserEmail(email);
           }}
         />
       );
 
-    // ── 3. Génération (~10 s, perception de valeur) ──
-    if (screen === 'generating' && profile)
-      return (
-        <ProgramGenerationScreen
-          profile={profile}
-          onDone={() => setScreen('teaser')}
-        />
-      );
-
-    // ── 4. Teaser — la valeur est créée, le signup vient après ──
-    if (screen === 'teaser' && storeProgram)
-      return (
-        <ProgramTeaserScreen
-          program={storeProgram}
-          firstName={profile?.firstName ?? ''}
-          onSignup={() => setScreen('signup')}
-          onLogin={() => setScreen('login')}
-        />
-      );
-
-    // ── 5. Signup minimal (email + mot de passe) ──
-    if (screen === 'signup')
-      return (
-        <SignupScreen
-          onBack={() => setScreen(pendingRef.current ? 'teaser' : 'splash')}
-          initialName={profile?.firstName}
-          onSuccess={(name, email) => { setUserName(name); setUserEmail(email); }}
-        />
-      );
-
-    // ── Connexion comptes existants ──
+    // ── 2. Connexion comptes existants ──
     if (screen === 'login')
       return (
         <LoginScreen
-          onBack={() => setScreen(pendingRef.current ? 'teaser' : 'splash')}
+          onBack={() => setScreen('splash')}
           onSuccess={() => {}}
           onForgot={() => {}}
         />
@@ -390,7 +397,7 @@ export const RootNavigator: React.FC = () => {
     // Fallback : retour au splash
     return (
       <SplashScreen
-        onStart={() => setScreen('slides')}
+        onStart={() => setScreen('signup')}
         onLogin={() => setScreen('login')}
       />
     );

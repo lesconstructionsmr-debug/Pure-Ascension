@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Check, Dumbbell } from 'lucide-react-native';
-import { colors, fontFamily, fontSize, lineHeight, spacing } from '../theme/theme';
+import { Check, Dumbbell, Lock, Sparkles, ChevronRight, Activity, Calendar } from 'lucide-react-native';
+import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 import { Badge }    from '../components/Badge';
 import { Button }   from '../components/Button';
 import { Card }     from '../components/Card';
@@ -9,7 +9,8 @@ import { Progress } from '../components/Progress';
 import { type Exercise } from '../data';
 import { EmptyState } from '../components/EmptyState';
 import { useProgramStore } from '../store/useProgramStore';
-import { getTodaySession } from '../services/programService';
+import { getTodaySession, saveProgram } from '../services/programService';
+import { auth } from '../services/firebase';
 
 const Hero: React.FC = () => (
   <View style={{ width:'100%', height:220, backgroundColor:colors.sage[800], alignItems:'center', justifyContent:'center', gap:spacing[2] }}>
@@ -31,16 +32,37 @@ const ExRow: React.FC<{ex:Exercise;onToggle:(id:string)=>void}> = ({ex,onToggle}
 
 export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const program          = useProgramStore(s => s.program);
+  const isPremium        = useProgramStore(s => s.isPremium);
   const setActiveSession = useProgramStore(s => s.setActiveSession);
+  
   const today   = program ? getTodaySession(program) : null;
   const session = today?.session ?? null;
-  const [exercises, setExercises] = useState<Exercise[]>(session?.exercises ?? []);
+
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [showDayPicker, setShowDayPicker] = useState(false);
+
+  // Initialiser la session sélectionnée par défaut au chargement
+  useEffect(() => {
+    if (session && !selectedSessionId) {
+      setSelectedSessionId(session.id);
+    }
+  }, [session]);
+
+  const activeSession = program?.sessions.find(s => s.id === selectedSessionId) ?? session;
+  const [exercises, setExercises] = useState<Exercise[]>(activeSession?.exercises ?? []);
+
+  // Mettre à jour les exercices quand la session sélectionnée change
+  useEffect(() => {
+    if (activeSession) {
+      setExercises(activeSession.exercises);
+    }
+  }, [selectedSessionId, activeSession]);
 
   // Aucun programme réel → jamais de données factices
-  if (!program || !today || !session) {
+  if (!program || !today || !activeSession) {
     return (
       <SafeAreaView style={s.safe}>
-        <View style={{ flex:1, justifyContent:'center', paddingHorizontal:spacing[5] }}>
+        <View style={{ flex:1, paddingHorizontal:spacing[5], justifyContent:'center' }}>
           <EmptyState
             title="Aucune séance trouvée"
             message="Complète ton diagnostic pour recevoir ton plan d'entraînement personnalisé."
@@ -53,21 +75,137 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
   const done=exercises.filter(e=>e.done).length, total=exercises.length;
   const pct=total>0?Math.round((done/total)*100):0;
   const toggle=(id:string)=>setExercises(p=>p.map(e=>e.id===id?{...e,done:!e.done}:e));
+  
   const startSession = () => {
-    setActiveSession(session.id);
+    setActiveSession(activeSession.id);
     navigation?.navigate('ActiveWorkout');
   };
+
+  const handleAdjustPress = () => {
+    if (!isPremium) {
+      useProgramStore.getState().setShowPaywall(true);
+    } else {
+      navigation?.navigate('ProgramAdjustment');
+    }
+  };
+
+  const handleSwapDay = async (targetDay: string) => {
+    const updatedSessions = program.sessions.map(s => {
+      if (s.id === activeSession.id) {
+        return { ...s, day: targetDay };
+      }
+      if (s.day === targetDay) {
+        return { ...s, day: activeSession.day };
+      }
+      return s;
+    });
+
+    const updatedProgram = { ...program, sessions: updatedSessions };
+    useProgramStore.getState().setProgram(updatedProgram);
+
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      await saveProgram(uid, updatedProgram).catch(err => {
+        console.error("Erreur lors de la sauvegarde du swap de jour :", err);
+      });
+    }
+
+    setShowDayPicker(false);
+  };
+
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <Hero />
         <View style={s.inner}>
+          
+          {/* ── Liste de toutes les séances de la semaine ── */}
+          <View style={{ gap: spacing[2.5], marginBottom: spacing[1] }}>
+            <Text style={s.sectionHeaderTitle}>
+              Planning de ta semaine
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing[3], paddingVertical: 4 }}>
+              {program.sessions.map((s) => {
+                const isSelected = s.id === selectedSessionId;
+                const isTodaySession = today?.session?.id === s.id;
+                return (
+                  <Pressable
+                    key={s.id}
+                    onPress={() => setSelectedSessionId(s.id)}
+                    style={[
+                      s.dayTab,
+                      isSelected && s.dayTabSelected,
+                      isTodaySession && !isSelected && s.dayTabToday
+                    ]}
+                  >
+                    <Text style={[s.dayTabDay, isSelected && { color: '#fff' }]}>
+                      {s.day ?? 'Séance'}
+                    </Text>
+                    <Text style={[s.dayTabTitle, isSelected ? { color: colors.sage[100] } : { color: colors.ink[500] }]} numberOfLines={1}>
+                      {s.title}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* ── Détail de la séance sélectionnée ── */}
           <Card elevation="sm" padding={spacing[5]}>
-            <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[3], marginBottom:spacing[3] }}>
-              <Badge label={today.isToday ? 'Séance du jour' : session.day ?? 'À venir'} variant="clay" />
-              <Text style={{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600] }}>{session.duration} min · {session.exerciseCount} exercices</Text>
+            <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[3], marginBottom:spacing[4] }}>
+              <Badge label={today.session?.id === activeSession.id ? 'Séance du jour' : activeSession.day ?? 'À venir'} variant="clay" />
+              <Text style={{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600] }}>
+                {activeSession.duration} min · {activeSession.exerciseCount} exercices
+              </Text>
             </View>
-            <Text style={{ fontFamily:fontFamily.spectral.medium, fontSize:fontSize.xl, color:colors.ink[900], lineHeight:fontSize.xl*lineHeight.snug, marginBottom:spacing[5] }} accessibilityRole="header">{session.title}</Text>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing[2], marginBottom: spacing[5] }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily:fontFamily.spectral.medium, fontSize:fontSize.xl, color:colors.ink[900], lineHeight:fontSize.xl*lineHeight.snug }} accessibilityRole="header">
+                  {activeSession.title}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setShowDayPicker(!showDayPicker)}
+                style={s.changeDayBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Planifier un autre jour"
+              >
+                <Calendar size={14} color={colors.sage[600]} />
+                <Text style={s.changeDayBtnText}>Planifier</Text>
+              </Pressable>
+            </View>
+
+            {/* Day Picker / Swapper inside Card */}
+            {showDayPicker && (
+              <View style={s.dayPickerContainer}>
+                <Text style={s.dayPickerTitle}>Planifier cette séance sur un autre jour :</Text>
+                <View style={s.dayPickerGrid}>
+                  {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Dimanche', 'Samedi', 'Dimanche'].map(d => {
+                    const isCurrent = activeSession.day === d;
+                    const sessionOnDay = program.sessions.find(s => s.day === d);
+                    return (
+                      <Pressable
+                        key={d}
+                        onPress={() => handleSwapDay(d)}
+                        style={[s.dayPickerOption, isCurrent && s.dayPickerOptionCurrent]}
+                      >
+                        <Text style={[s.dayPickerOptionText, isCurrent && { color: '#fff' }]}>
+                          {d}
+                        </Text>
+                        {sessionOnDay && !isCurrent && (
+                          <Text style={s.dayPickerOptionSub} numberOfLines={1}>
+                            🔄 Échanger avec : {sessionOnDay.title}
+                          </Text>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Button variant="secondary" size="sm" label="Annuler" onPress={() => setShowDayPicker(false)} style={{ marginTop: spacing[3] }} />
+              </View>
+            )}
+
             <View style={{ gap:spacing[2] }}>
               <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
                 <Text style={{ fontFamily:fontFamily.hanken.medium,   fontSize:fontSize.sm, color:colors.ink[600] }}>Progression</Text>
@@ -76,6 +214,57 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
               <Progress value={pct} fillColor={colors.sage[500]} trackColor={colors.sage[100]} height={8} />
             </View>
           </Card>
+
+          {/* Zones de Fréquence Cardiaque & Cardio Sport V9 */}
+          {program.cardioZones && (
+            <Card elevation="sm" padding={spacing[4]} style={{ gap: spacing[3] }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+                <Activity size={18} color={colors.sage[600]} />
+                <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                  Rapport de zones cardiaques
+                </Text>
+              </View>
+              
+              <View style={{ gap: spacing[2.5] }}>
+                <View style={s.zoneRow}>
+                  <View style={[s.zoneDot, { backgroundColor: colors.sage[400] }]} />
+                  <Text style={s.zoneName}>Zone 2 (Cardio Modéré)</Text>
+                  <Text style={s.zoneVal}>{program.cardioZones.z2}</Text>
+                </View>
+                <View style={s.zoneRow}>
+                  <View style={[s.zoneDot, { backgroundColor: '#e2a13b' }]} />
+                  <Text style={s.zoneName}>Zone 3 (Endurance Active)</Text>
+                  <Text style={s.zoneVal}>{program.cardioZones.z3}</Text>
+                </View>
+                <View style={s.zoneRow}>
+                  <View style={[s.zoneDot, { backgroundColor: '#c85d32' }]} />
+                  <Text style={s.zoneName}>Zone 4 (Seuil Lactate)</Text>
+                  <Text style={s.zoneVal}>{program.cardioZones.z4}</Text>
+                </View>
+                <View style={s.zoneRow}>
+                  <View style={[s.zoneDot, { backgroundColor: colors.clay[500] }]} />
+                  <Text style={s.zoneName}>Zone 5 (Effort Maximal)</Text>
+                  <Text style={s.zoneVal}>{program.cardioZones.z5}</Text>
+                </View>
+              </View>
+
+              {program.cardioSport === 'velo' && (
+                <View style={s.cardioSportNote}>
+                  <Text style={s.cardioSportNoteText}>
+                    🚴 Note cycliste : Tes cibles FC Max sont ajustées (-5 bpm) car la position assise exige moins d'effort de stabilisation mécanique.
+                  </Text>
+                </View>
+              )}
+              {program.cardioSport === 'trail' && (
+                <View style={s.cardioSportNote}>
+                  <Text style={s.cardioSportNoteText}>
+                    ⛰️ Note trail : Attention aux dénivelés brutaux qui font rapidement grimper les pulsations. Reste à l'écoute !
+                  </Text>
+                </View>
+              )}
+            </Card>
+          )}
+
           <View style={{ gap:spacing[3] }}>
             <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.md, color:colors.ink[900] }}>Exercices</Text>
             <Card elevation="sm" padding={0} style={{ overflow:'hidden' }}>
@@ -87,7 +276,37 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
               ))}
             </Card>
           </View>
+          
           <Button variant="accent" size="lg" label="Continuer la séance" fullWidth onPress={startSession} />
+          
+          {/* Ajustement Premium du programme */}
+          <Pressable onPress={handleAdjustPress} style={s.adjustBtn} accessibilityRole="button">
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
+              <View style={s.adjustIconWrap}>
+                <Sparkles size={16} color={colors.sage[600]} />
+              </View>
+              <View>
+                <Text style={s.adjustTitle}>Réajuster mon programme</Text>
+                <Text style={s.adjustSub}>Régénérer le volume après 3 semaines</Text>
+              </View>
+            </View>
+            {isPremium ? (
+              <ChevronRight size={18} color={colors.ink[400]} />
+            ) : (
+              <View style={s.lockWrap}>
+                <Lock size={12} color="#fff" />
+                <Text style={s.lockText}>Premium</Text>
+              </View>
+            )}
+          </Pressable>
+
+          {/* Bandeau de décharge médicale */}
+          <View style={s.medicalDisclaimer}>
+            <Text style={s.medicalDisclaimerText}>
+              Avertissement : L'activité physique comporte des risques. Assure-toi d'exécuter les mouvements en toute sécurité. En cas de douleur ou d'inconfort, arrête immédiatement l'effort. Consulte ton médecin pour tout doute médical.
+            </Text>
+          </View>
+
           <View style={{ height:spacing[10] }} />
         </View>
       </ScrollView>
@@ -100,5 +319,113 @@ const s = StyleSheet.create({
   scroll:  { flex:1 },
   content: { paddingBottom:spacing[10] },
   inner:   { paddingHorizontal:spacing[5], paddingTop:spacing[5], gap:spacing[5] },
+  
+  zoneRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  zoneDot: { width: 10, height: 10, borderRadius: 5 },
+  zoneName: { flex: 1, fontFamily: fontFamily.hanken.medium, fontSize: fontSize.sm, color: colors.ink[800] },
+  zoneVal: { fontFamily: fontFamily.spectral.bold, fontSize: fontSize.sm, color: colors.ink[900] },
+  
+  cardioSportNote: { backgroundColor: colors.sand[100], borderRadius: radius.md, padding: spacing[3], marginTop: spacing[1] },
+  cardioSportNoteText: { fontFamily: fontFamily.hanken.regular, fontSize: 11, color: colors.ink[600], lineHeight: 16 },
+
+  adjustBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[4],
+    borderWidth: 1.5, borderColor: colors.ink[200], ...shadows.sm,
+    marginTop: spacing[2]
+  },
+  adjustIconWrap: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.sage[50], alignItems: 'center', justifyContent: 'center'
+  },
+  adjustTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[900] },
+  adjustSub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[500], marginTop: 2 },
+  lockWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: colors.sage[500], paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: radius.pill
+  },
+  lockText: { fontFamily: fontFamily.hanken.bold, fontSize: 10, color: '#fff' },
+
+  medicalDisclaimer: { marginTop:spacing[4], padding:spacing[3], backgroundColor:colors.sand[100], borderRadius:8, borderWidth:1, borderColor:colors.sand[200] },
+  medicalDisclaimerText: { fontFamily:fontFamily.hanken.regular, fontSize:10, color:colors.ink[500], textAlign:'center', lineHeight:14 },
+
+  /* Styles de planification hebdomadaire */
+  sectionHeaderTitle: {
+    fontFamily: fontFamily.hanken.semiBold,
+    fontSize: fontSize.xs, color: colors.ink[500],
+    textTransform: 'uppercase', letterSpacing: 0.5
+  },
+  dayTab: {
+    paddingHorizontal: spacing[4], paddingVertical: spacing[2.5],
+    borderRadius: radius.md, backgroundColor: '#fff',
+    borderWidth: 1, borderColor: colors.ink[200],
+    alignItems: 'center', justifyContent: 'center',
+    minWidth: 90, ...shadows.sm
+  },
+  dayTabSelected: {
+    backgroundColor: colors.sage[500],
+    borderColor: colors.sage[500]
+  },
+  dayTabToday: {
+    borderColor: colors.sage[400],
+    borderWidth: 1.5
+  },
+  dayTabDay: {
+    fontFamily: fontFamily.hanken.bold,
+    fontSize: fontSize.sm, color: colors.ink[900]
+  },
+  dayTabTitle: {
+    fontFamily: fontFamily.hanken.regular,
+    fontSize: 10, marginTop: 2,
+    maxWidth: 120
+  },
+
+  /* Bouton changement de jour */
+  changeDayBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: spacing[2.5], paddingVertical: 6,
+    borderRadius: radius.pill, backgroundColor: colors.sage[50],
+    borderWidth: 1, borderColor: colors.sage[200]
+  },
+  changeDayBtnText: {
+    fontFamily: fontFamily.hanken.bold,
+    fontSize: 10, color: colors.sage[600]
+  },
+
+  /* Sélecteur de jour */
+  dayPickerContainer: {
+    backgroundColor: colors.sand[50], borderRadius: radius.lg,
+    padding: spacing[3], marginBottom: spacing[4],
+    borderWidth: 1, borderColor: colors.ink[200]
+  },
+  dayPickerTitle: {
+    fontFamily: fontFamily.hanken.bold,
+    fontSize: fontSize.xs, color: colors.ink[800],
+    marginBottom: spacing[2]
+  },
+  dayPickerGrid: {
+    gap: spacing[1.5], marginBottom: spacing[2]
+  },
+  dayPickerOption: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: spacing[3], paddingVertical: spacing[2],
+    borderRadius: radius.md, backgroundColor: '#fff',
+    borderWidth: 1, borderColor: colors.ink[200]
+  },
+  dayPickerOptionCurrent: {
+    backgroundColor: colors.sage[500],
+    borderColor: colors.sage[500]
+  },
+  dayPickerOptionText: {
+    fontFamily: fontFamily.hanken.medium,
+    fontSize: fontSize.sm, color: colors.ink[900]
+  },
+  dayPickerOptionSub: {
+    fontFamily: fontFamily.hanken.regular,
+    fontSize: 9, color: colors.ink[500],
+    maxWidth: 140
+  }
 });
+
 export default WorkoutsScreen;

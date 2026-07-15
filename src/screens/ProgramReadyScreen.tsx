@@ -72,13 +72,18 @@ export const ProgramReadyScreen: React.FC<Props> = ({ profile, onStart }) => {
   const calories     = getCalories(profile);
   const macros       = getMacros(calories, profile.mainGoal, profile.morphotype);
   const programName  = getProgramName(profile);
-  const trainingDays = getTrainingDays(profile.frequency);
+  const trainingDays = getTrainingDays(profile.frequency) || ['Lundi', 'Mercredi', 'Vendredi'];
 
   const headerFade = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(headerFade, { toValue: 1, duration: 600, useNativeDriver: true }).start();
   }, []);
+
+  const totalMacros = (macros.protein + macros.carbs + macros.fat) || 1;
+  const proteinPct  = Math.max(10, Math.min(100, Math.round((macros.protein / totalMacros) * 100)));
+  const carbsPct    = Math.max(10, Math.min(100, Math.round((macros.carbs / totalMacros) * 100)));
+  const fatPct      = Math.max(10, Math.min(100, Math.round((macros.fat / totalMacros) * 100)));
 
   return (
     <SafeAreaView style={st.safe}>
@@ -95,7 +100,7 @@ export const ProgramReadyScreen: React.FC<Props> = ({ profile, onStart }) => {
             {'\n'}est prêt pour toi.
           </Text>
           <Text style={st.heroSub}>
-            {GOAL_LABELS[profile.mainGoal]} · {EXPERIENCE_LABELS[profile.experience]} · {GYM_LABELS[profile.gymAccess]}
+            {GOAL_LABELS[profile.mainGoal] || 'Gain musculaire'} · {EXPERIENCE_LABELS[profile.experience] || 'Débutant(e)'} · {GYM_LABELS[profile.gymAccess] || 'À la maison'}
           </Text>
         </Animated.View>
 
@@ -109,13 +114,13 @@ export const ProgramReadyScreen: React.FC<Props> = ({ profile, onStart }) => {
           <View style={st.statDivider} />
           <View style={st.statCard}>
             <Calendar size={20} color={colors.sage[500]} strokeWidth={1.8} />
-            <Text style={st.statValue}>{profile.frequency}×</Text>
+            <Text style={st.statValue}>{profile.frequency || 3}×</Text>
             <Text style={st.statLabel}>/ semaine</Text>
           </View>
           <View style={st.statDivider} />
           <View style={st.statCard}>
             <Clock size={20} color={colors.sage[500]} strokeWidth={1.8} />
-            <Text style={st.statValue}>{profile.sessionDuration}</Text>
+            <Text style={st.statValue}>{profile.sessionDuration || 45}</Text>
             <Text style={st.statLabel}>min / séance</Text>
           </View>
         </FadeCard>
@@ -128,17 +133,17 @@ export const ProgramReadyScreen: React.FC<Props> = ({ profile, onStart }) => {
           </View>
           <View style={st.macrosCard}>
             <View style={st.macroItem}>
-              <View style={[st.macroBar, { backgroundColor: colors.clay[400], height: `${Math.round(macros.protein / (macros.protein + macros.carbs + macros.fat) * 100)}%` }]} />
+              <View style={[st.macroBar, { backgroundColor: colors.clay[400], height: `${proteinPct}%` }]} />
               <Text style={st.macroValue}>{macros.protein}g</Text>
               <Text style={st.macroLabel}>Protéines</Text>
             </View>
             <View style={st.macroItem}>
-              <View style={[st.macroBar, { backgroundColor: colors.sage[400], height: `${Math.round(macros.carbs / (macros.protein + macros.carbs + macros.fat) * 100)}%` }]} />
+              <View style={[st.macroBar, { backgroundColor: colors.sage[400], height: `${carbsPct}%` }]} />
               <Text style={st.macroValue}>{macros.carbs}g</Text>
               <Text style={st.macroLabel}>Glucides</Text>
             </View>
             <View style={st.macroItem}>
-              <View style={[st.macroBar, { backgroundColor: '#D4A84B', height: `${Math.round(macros.fat / (macros.protein + macros.carbs + macros.fat) * 100)}%` }]} />
+              <View style={[st.macroBar, { backgroundColor: '#D4A84B', height: `${fatPct}%` }]} />
               <Text style={st.macroValue}>{macros.fat}g</Text>
               <Text style={st.macroLabel}>Lipides</Text>
             </View>

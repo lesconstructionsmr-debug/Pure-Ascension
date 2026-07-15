@@ -71,6 +71,7 @@ export const handler: Handler = async (event) => {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'subscription',
+      allow_promotion_codes: true, // Autorise les codes promo sur la page Stripe Checkout
       line_items: [
         {
           price: priceId,

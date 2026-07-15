@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Plus, Sparkles, Trash2 } from 'lucide-react-native';
+import { Plus, Sparkles, Trash2, BookOpen, ChevronRight } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 import { formatNumber } from '../data';
 import { Ring } from '../components/Ring';
@@ -113,6 +113,24 @@ export const MealsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           </Pressable>
         )}
 
+        {/* ── Livre de recettes ── */}
+        <Pressable
+          style={s.recipeBookBtn}
+          onPress={() => navigation?.navigate('RecipeBook')}
+          accessibilityRole="button"
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
+            <View style={s.recipeBookIconCircle}>
+              <BookOpen size={20} color={colors.sage[600]} />
+            </View>
+            <View>
+              <Text style={s.recipeBookTitle}>Livre de Recettes Holistiques</Text>
+              <Text style={s.recipeBookSub}>Reset Métabolique & Équilibre Hormonal</Text>
+            </View>
+          </View>
+          <ChevronRight size={18} color={colors.ink[400]} />
+        </Pressable>
+
         {/* ── Cibles du programme ── */}
         {program ? (
           <View style={s.planCard}>
@@ -134,6 +152,13 @@ export const MealsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             <Text style={s.planHint}>Complète ton diagnostic pour recevoir tes cibles caloriques personnalisées.</Text>
           </View>
         )}
+
+        {/* Bandeau de décharge médicale */}
+        <View style={s.medicalDisclaimer}>
+          <Text style={s.medicalDisclaimerText}>
+            Avertissement : Les cibles nutritionnelles et suggestions de Pure Ascension sont destinées à soutenir votre bien-être. Elles ne remplacent pas un avis médical. Consultez un professionnel de la santé avant tout changement alimentaire majeur.
+          </Text>
+        </View>
 
         <View style={{ height:spacing[10] }} />
       </ScrollView>
@@ -185,5 +210,20 @@ const s = StyleSheet.create({
   planTitle:{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:colors.sage[700] },
   planText: { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[900] },
   planHint: { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600], lineHeight:fontSize.sm*lineHeight.relaxed },
+
+  recipeBookBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[4],
+    borderWidth: 1.5, borderColor: colors.ink[200], ...shadows.sm
+  },
+  recipeBookIconCircle: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: colors.sage[50], alignItems: 'center', justifyContent: 'center'
+  },
+  recipeBookTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] },
+  recipeBookSub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[500], marginTop: 2 },
+
+  medicalDisclaimer: { marginTop:spacing[4], padding:spacing[3], backgroundColor:colors.sand[100], borderRadius:radius.md, borderWidth:1, borderColor:colors.sand[200] },
+  medicalDisclaimerText: { fontFamily:fontFamily.hanken.regular, fontSize:10, color:colors.ink[500], textAlign:'center', lineHeight:14 },
 });
 export default MealsScreen;

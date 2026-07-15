@@ -1,208 +1,240 @@
-/**
- * EquilibreScreen — Onglet Équilibre
- * Rituels quotidiens : respiration, journal, méditation, scan corporel…
- */
 import React, { useState } from 'react';
 import {
   SafeAreaView, ScrollView, StyleSheet,
   Text, View, Pressable,
 } from 'react-native';
 import {
-  Sun, Moon, Wind, BookOpen, Heart, Flower2, Check, Plus,
+  Sun, Wind, Eye, Droplet, Heart, Check, Plus, Minus, Info, Sparkles
 } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 
-type Ritual = {
+type Habit = {
   id: string; icon: React.ElementType; title: string; desc: string;
-  duration: string; color: string; bg: string;
-  tags: string[]; completedToday: boolean;
+  color: string; bg: string;
+  tag: string;
 };
 
-const RITUALS: Ritual[] = [
+const ANTI_INFLAM_HABITS: Habit[] = [
   {
-    id:'r1', icon:Wind, title:'Respiration 4-7-8', duration:'5 min',
-    color:colors.info[500], bg:colors.info[50],
-    desc:'Inspire 4 secondes, retiens 7, expire 8. 3 cycles pour calmer le système nerveux et aiguiser la concentration.',
-    tags:['matin','soir','stress'], completedToday:false,
+    id: 'h1', icon: Sun, title: 'Exposition Lumière Naturelle',
+    color: '#e2a13b', bg: '#fdf8f0',
+    tag: 'Matin · 10 min',
+    desc: 'Exposition solaire directe dès le réveil pour caler l\'horloge biologique et sécréter l\'hormone du dynamisme.'
   },
   {
-    id:'r2', icon:Sun, title:'Réveil en douceur', duration:'10 min',
-    color:colors.status.warning, bg:colors.status.warningSoft,
-    desc:'Étirements légers au lever pour réveiller le corps en douceur. Pas d\'écran pendant les 10 premières minutes.',
-    tags:['matin','mobilité','énergie'], completedToday:false,
+    id: 'h2', icon: Heart, title: 'Thérapie par le Froid',
+    color: '#3498db', bg: '#ecf0f1',
+    tag: 'Douche · 30s à 2 min',
+    desc: 'Terminer la douche par un jet d\'eau froide pour stimuler le système parasympathique et réduire l\'inflammation.'
   },
   {
-    id:'r3', icon:BookOpen, title:'Journal du soir', duration:'5 min',
-    color:colors.clay[500], bg:colors.clay[100],
-    desc:'3 choses pour lesquelles tu es reconnaissant·e aujourd\'hui. Ancre ta journée dans le positif.',
-    tags:['soir','mindset'], completedToday:false,
+    id: 'h3', icon: Wind, title: 'Respiration 4-7-8',
+    color: colors.sage[600], bg: colors.sage[50],
+    tag: 'Calme · 2x par jour',
+    desc: 'Inspire 4s, retiens 7s, expire 8s. Idéal pour inhiber la réponse de stress aiguë du cortisol.'
   },
   {
-    id:'r4', icon:Heart, title:'Scan corporel', duration:'8 min',
-    color:colors.sage[500], bg:colors.sage[100],
-    desc:'Prise de conscience des sensations physiques et émotionnelles. Un moment de connexion avec soi.',
-    tags:['soir','récupération'], completedToday:false,
+    id: 'h4', icon: Eye, title: 'Coupure Écrans',
+    color: colors.clay[500], bg: colors.clay[100],
+    tag: 'Soir · 1 heure avant',
+    desc: 'Coupure stricte de tous les écrans avant le sommeil pour préserver la sécrétion naturelle de mélatonine.'
   },
   {
-    id:'r5', icon:Moon, title:'Méditation guidée', duration:'10 min',
-    color:colors.ink[600], bg:colors.sand[200],
-    desc:'Éteindre les écrans 30 min avant de dormir. Un court scan de détente pour préparer un sommeil profond.',
-    tags:['soir','sommeil'], completedToday:false,
-  },
-  {
-    id:'r6', icon:Flower2, title:'Marche méditative', duration:'15 min',
-    color:colors.status.success, bg:colors.status.successSoft,
-    desc:'Une promenade lente et consciente, sans musique ni podcast. Juste toi et ton environnement.',
-    tags:['journée','pleine conscience'], completedToday:false,
-  },
+    id: 'h5', icon: Wind, title: 'Qualité de l\'Air Intérieur',
+    color: colors.info[500], bg: colors.info[50],
+    tag: 'Maison · 10 min',
+    desc: 'Aérer vos pièces de vie 10 minutes par jour pour évacuer les perturbateurs chimiques et rafraîchir l\'oxygène.'
+  }
 ];
 
 export const EquilibreScreen: React.FC = () => {
-  const [completed, setCompleted] = useState<Set<string>>(new Set());
-  const [expanded,  setExpanded]  = useState<string | null>(null);
+  const [completedHabits, setCompletedHabits] = useState<Set<string>>(new Set());
+  const [waterMl, setWaterMl] = useState<number>(0);
+  const [masticationDone, setMasticationDone] = useState(false);
 
-  const toggle = (id: string) => {
-    setCompleted(prev => {
+  const toggleHabit = (id: string) => {
+    setCompletedHabits(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   };
 
-  const doneCount  = completed.size;
-  const totalCount = RITUALS.length;
+  const adjustWater = (amount: number) => {
+    setWaterMl(prev => Math.max(0, Math.min(4000, prev + amount)));
+  };
+
+  const doneCount = completedHabits.size + (masticationDone ? 1 : 0) + (waterMl >= 3000 ? 1 : 0);
+  const totalCount = ANTI_INFLAM_HABITS.length + 2; // +1 mastication +1 eau
+
+  const waterPct = Math.min(100, Math.round((waterMl / 3000) * 100));
 
   return (
-    <SafeAreaView style={s.safe}>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={st.safe}>
+      <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
 
         {/* Header */}
-        <View style={s.header}>
-          <Text style={s.headerTitle}>Équilibre</Text>
-          <Text style={s.headerSub}>Quelques minutes pour toi.</Text>
+        <View style={st.header}>
+          <Text style={st.headerTitle}>Équilibre & Vitalité</Text>
+          <Text style={st.headerSub}>Optimisation du microbiote et réduction de l'inflammation.</Text>
         </View>
 
-        {/* Progress card */}
-        <View style={s.summaryCard}>
-          <View style={s.summaryTop}>
-            <Text style={s.summaryHeading}>Aujourd'hui</Text>
-            <Text style={s.summaryCount}>{doneCount}/{totalCount}</Text>
+        {/* Global Progress card */}
+        <View style={st.summaryCard}>
+          <View style={st.summaryTop}>
+            <Text style={st.summaryHeading}>Score Anti-Inflammatoire</Text>
+            <Text style={st.summaryCount}>{doneCount}/{totalCount}</Text>
           </View>
-          <View style={s.progressTrack}>
-            <View style={[s.progressFill, { width:`${(doneCount / totalCount) * 100}%` as any }]} />
+          <View style={st.progressTrack}>
+            <View style={[st.progressFill, { width: `${(doneCount / totalCount) * 100}%` as any }]} />
           </View>
-          <Text style={s.summaryCaption}>
+          <Text style={st.summaryCaption}>
             {doneCount === totalCount
-              ? '✨ Tous tes rituels accomplis — belle journée !'
-              : `${totalCount - doneCount} rituel${totalCount - doneCount > 1 ? 's' : ''} restant${totalCount - doneCount > 1 ? 's' : ''} aujourd'hui`}
+              ? '✨ Parfait ! Équilibre gastro-intestinal et hormonal optimal.'
+              : `${totalCount - doneCount} rituel${totalCount - doneCount > 1 ? 's' : ''} restant${totalCount - doneCount > 1 ? 's' : ''} pour aujourd'hui.`}
           </Text>
         </View>
 
-        {/* Ritual cards */}
-        {RITUALS.map(ritual => {
-          const isDone     = completed.has(ritual.id);
-          const isExpanded = expanded === ritual.id;
-          const Icon       = ritual.icon;
-          return (
-            <View key={ritual.id} style={[s.card, isDone && s.cardDone]}>
+        {/* Water tracker widget */}
+        <View style={st.widgetCard}>
+          <View style={st.widgetHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+              <Droplet size={20} color="#3498db" />
+              <View>
+                <Text style={st.widgetTitle}>Hydratation & Transit</Text>
+                <Text style={st.widgetSub}>Objectif minimum : 3,0 Litres par jour</Text>
+              </View>
+            </View>
+            <Text style={st.waterProgressText}>{waterMl / 1000} L / 3 L</Text>
+          </View>
+
+          <View style={st.waterBarTrack}>
+            <View style={[st.waterBarFill, { width: `${waterPct}%` as any }]} />
+          </View>
+
+          <View style={st.waterBtns}>
+            <Pressable onPress={() => adjustWater(-250)} style={st.waterBtn} accessibilityRole="button">
+              <Minus size={16} color={colors.ink[600]} />
+              <Text style={st.waterBtnLabel}>-250 ml</Text>
+            </Pressable>
+            <Pressable onPress={() => adjustWater(250)} style={[st.waterBtn, st.waterBtnAdd]} accessibilityRole="button">
+              <Plus size={16} color="#fff" />
+              <Text style={[st.waterBtnLabel, { color: '#fff' }]}>+250 ml</Text>
+            </Pressable>
+          </View>
+
+          <Text style={st.waterHintText}>
+            💧 Hydratation optimale essentielle pour lubrifier le transit et éliminer les toxines du foie.
+          </Text>
+        </View>
+
+        {/* Mastication reminder widget */}
+        <View style={[st.widgetCard, masticationDone && st.widgetCardDone]}>
+          <View style={st.widgetHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], flex: 1 }}>
+              <Info size={20} color={colors.sage[600]} />
+              <View style={{ flex: 1 }}>
+                <Text style={st.widgetTitle}>Mastication Parasympathique</Text>
+                <Text style={st.widgetSub}>20 à 30 mastications par bouchée</Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={() => setMasticationDone(!masticationDone)}
+              style={[st.checkCircleBtn, masticationDone && st.checkCircleBtnActive]}
+            >
+              {masticationDone ? <Check size={14} color="#fff" /> : null}
+            </Pressable>
+          </View>
+          <Text style={st.masticationDesc}>
+            Mâcher lentement, en état de calme (sans écrans), permet d'activer le système nerveux parasympathique indispensable pour sécréter les sucs et enzymes gastriques. Évite les fermentations et ballonnements.
+          </Text>
+        </View>
+
+        {/* Anti-inflam habits list */}
+        <Text style={st.sectionHeading}>Les 5 Leviers Anti-Inflammatoires</Text>
+        <View style={{ gap: spacing[3], marginBottom: 40 }}>
+          {ANTI_INFLAM_HABITS.map(habit => {
+            const isDone = completedHabits.has(habit.id);
+            const Icon = habit.icon;
+            return (
               <Pressable
-                style={s.cardTop}
-                onPress={() => setExpanded(isExpanded ? null : ritual.id)}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: isExpanded }}
+                key={habit.id}
+                onPress={() => toggleHabit(habit.id)}
+                style={[st.habitCard, isDone && st.habitCardDone]}
               >
-                <View style={[s.cardIcon, { backgroundColor: isDone ? ritual.color : ritual.bg }]}>
-                  <Icon size={22} color={isDone ? '#fff' : ritual.color} strokeWidth={1.8} />
-                  {isDone && (
-                    <View style={[s.doneBadge, { backgroundColor: ritual.color }]}>
-                      <Check size={8} color="#fff" strokeWidth={3} />
-                    </View>
-                  )}
+                <View style={[st.habitIconWrap, { backgroundColor: isDone ? habit.color : habit.bg }]}>
+                  <Icon size={20} color={isDone ? '#fff' : habit.color} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.cardTitle, isDone && s.cardTitleDone]}>{ritual.title}</Text>
-                  <Text style={s.cardDuration}>{ritual.duration}</Text>
+                  <Text style={st.habitTag}>{habit.tag}</Text>
+                  <Text style={[st.habitTitle, isDone && st.habitTitleDone]}>{habit.title}</Text>
+                  <Text style={st.habitDesc}>{habit.desc}</Text>
                 </View>
-                <Pressable
-                  style={[s.checkBtn, isDone && { backgroundColor: ritual.color, borderColor: ritual.color }]}
-                  onPress={() => toggle(ritual.id)}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: isDone }}
-                >
-                  {isDone
-                    ? <Check size={16} color="#fff" strokeWidth={2.5} />
-                    : <View style={s.checkEmpty} />
-                  }
-                </Pressable>
+                <View style={[st.checkCircleBtn, isDone && { backgroundColor: habit.color, borderColor: habit.color }]}>
+                  {isDone ? <Check size={14} color="#fff" /> : null}
+                </View>
               </Pressable>
-
-              <View style={s.tagsRow}>
-                {ritual.tags.map(tag => (
-                  <View key={tag} style={[s.tag, { backgroundColor: ritual.bg }]}>
-                    <Text style={[s.tagText, { color: ritual.color }]}>{tag}</Text>
-                  </View>
-                ))}
-              </View>
-
-              {isExpanded && (
-                <View style={[s.expandedBox, { borderLeftColor: ritual.color }]}>
-                  <Text style={s.expandedText}>{ritual.desc}</Text>
-                </View>
-              )}
-            </View>
-          );
-        })}
-
-        <Pressable style={s.addCard} accessibilityRole="button">
-          <View style={s.addIcon}>
-            <Plus size={20} color={colors.sage[500]} strokeWidth={2} />
-          </View>
-          <Text style={s.addText}>Créer un rituel personnalisé</Text>
-        </Pressable>
-
-        <View style={{ height: 60 }} />
+            );
+          })}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-const s = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: colors.sand[50] },
+const st = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.sand[50] },
   scroll: { paddingHorizontal: spacing[5], paddingTop: spacing[6] },
-
-  header:      { marginBottom: spacing[6], gap: spacing[1] },
+  header: { marginBottom: spacing[6], gap: spacing[1] },
   headerTitle: { fontFamily: fontFamily.spectral.regular, fontSize: fontSize['3xl'], color: colors.ink[900] },
-  headerSub:   { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.base, color: colors.ink[600] },
+  headerSub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600], lineHeight: 18 },
 
-  summaryCard:    { backgroundColor: colors.sage[800], borderRadius: radius.xl, padding: spacing[5], marginBottom: spacing[6], gap: spacing[3] },
-  summaryTop:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  summaryCard: { backgroundColor: colors.sage[800], borderRadius: radius.xl, padding: spacing[5], marginBottom: spacing[5], gap: spacing[3] },
+  summaryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   summaryHeading: { fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.base, color: '#fff' },
-  summaryCount:   { fontFamily: fontFamily.spectral.medium, fontSize: fontSize['2xl'], color: colors.sage[300] },
-  progressTrack:  { height: 6, borderRadius: 3, backgroundColor: colors.sage[700], overflow: 'hidden' },
-  progressFill:   { height: '100%' as any, borderRadius: 3, backgroundColor: colors.sage[400] },
-  summaryCaption: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.sage[200] },
+  summaryCount: { fontFamily: fontFamily.spectral.medium, fontSize: fontSize['2xl'], color: colors.sage[300] },
+  progressTrack: { height: 6, borderRadius: 3, backgroundColor: colors.sage[700], overflow: 'hidden' },
+  progressFill: { height: '100%' as any, borderRadius: 3, backgroundColor: colors.sage[400] },
+  summaryCaption: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.sage[200], lineHeight: 16 },
 
-  card:     { backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[4], marginBottom: spacing[3], gap: spacing[3], ...shadows.sm },
-  cardDone: { opacity: 0.8 },
-  cardTop:  { flexDirection: 'row', alignItems: 'center', gap: spacing[4] },
-  cardIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  doneBadge:{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
-  cardTitle:{ fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.base, color: colors.ink[900], marginBottom: 2 },
-  cardTitleDone: { textDecorationLine: 'line-through', color: colors.ink[400] },
-  cardDuration:  { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[500] },
-  checkBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: colors.ink[300], alignItems: 'center', justifyContent: 'center' },
-  checkEmpty:{ width: 12, height: 12, borderRadius: 6 },
+  widgetCard: {
+    backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[4],
+    borderWidth: 1.5, borderColor: colors.ink[200], gap: spacing[3],
+    marginBottom: spacing[4], ...shadows.sm
+  },
+  widgetCardDone: { borderColor: colors.sage[200], backgroundColor: colors.sage[50] },
+  widgetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2] },
+  widgetTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] },
+  widgetSub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[500], marginTop: 2 },
+  waterProgressText: { fontFamily: fontFamily.spectral.bold, fontSize: fontSize.base, color: '#3498db' },
+  waterBarTrack: { height: 8, borderRadius: 4, backgroundColor: colors.ink[100], overflow: 'hidden' },
+  waterBarFill: { height: '100%', borderRadius: 4, backgroundColor: '#3498db' },
+  waterBtns: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[1] },
+  waterBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    height: 40, borderRadius: radius.pill, borderWidth: 1.5, borderColor: colors.ink[200],
+    backgroundColor: '#fff'
+  },
+  waterBtnAdd: { backgroundColor: '#3498db', borderColor: '#3498db' },
+  waterBtnLabel: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: colors.ink[700] },
+  waterHintText: { fontFamily: fontFamily.hanken.regular, fontSize: 11, color: colors.ink[500], lineHeight: 16, marginTop: 2 },
 
-  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
-  tag:     { paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.pill },
-  tagText: { fontFamily: fontFamily.hanken.medium, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
+  checkCircleBtn: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: colors.ink[300], alignItems: 'center', justifyContent: 'center' },
+  checkCircleBtnActive: { backgroundColor: colors.sage[500], borderColor: colors.sage[500] },
+  masticationDesc: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600], lineHeight: 20 },
 
-  expandedBox:  { backgroundColor: colors.sand[100], borderRadius: radius.md, padding: spacing[4], borderLeftWidth: 3 },
-  expandedText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: fontSize.sm * lineHeight.relaxed },
-
-  addCard: { flexDirection: 'row', alignItems: 'center', gap: spacing[4], padding: spacing[5], borderRadius: radius.xl, borderWidth: 2, borderColor: colors.sage[200], borderStyle: 'dashed', justifyContent: 'center' },
-  addIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.sage[100], alignItems: 'center', justifyContent: 'center' },
-  addText: { fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.base, color: colors.sage[600] },
+  sectionHeading: { fontFamily: fontFamily.spectral.bold, fontSize: fontSize.lg, color: colors.ink[900], marginTop: spacing[3], marginBottom: spacing[4] },
+  habitCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[4],
+    backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[4],
+    borderWidth: 1.5, borderColor: colors.ink[200], ...shadows.sm
+  },
+  habitCardDone: { opacity: 0.8 },
+  habitIconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  habitTag: { fontFamily: fontFamily.hanken.bold, fontSize: 10, color: colors.ink[400], textTransform: 'uppercase', letterSpacing: 0.5 },
+  habitTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[900], marginTop: 2 },
+  habitTitleDone: { textDecorationLine: 'line-through', color: colors.ink[400] },
+  habitDesc: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[600], lineHeight: 16, marginTop: 4 }
 });
 
 export default EquilibreScreen;

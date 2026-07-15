@@ -3,8 +3,8 @@ import {
   KeyboardAvoidingView, Platform, Pressable, SafeAreaView,
   ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { Mail, Lock, User as UserIcon, ChevronLeft } from 'lucide-react-native';
-import { colors, fontFamily, fontSize, lineHeight, spacing } from '../theme/theme';
+import { Mail, Lock, User as UserIcon, ChevronLeft, Check } from 'lucide-react-native';
+import { colors, fontFamily, fontSize, lineHeight, spacing, radius } from '../theme/theme';
 import { Button } from '../components/Button';
 import { Input }  from '../components/Input';
 import { signUp } from '../services/authService';
@@ -17,11 +17,12 @@ interface Props {
 }
 
 export const SignupScreen: React.FC<Props> = ({ onBack, onSuccess, initialName }) => {
-  const [name, setName]         = useState(initialName ?? '');
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [errors, setErrors]     = useState<Record<string,string>>({});
+  const [name, setName]                 = useState(initialName ?? '');
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [loading, setLoading]           = useState(false);
+  const [errors, setErrors]             = useState<Record<string,string>>({});
 
   const validate = () => {
     const e: Record<string,string> = {};
@@ -29,6 +30,7 @@ export const SignupScreen: React.FC<Props> = ({ onBack, onSuccess, initialName }
     if (!email.trim())   e.email    = 'Adresse e-mail requise.';
     else if (!/\S+@\S+\.\S+/.test(email)) e.email = 'Format d\'e-mail invalide.';
     if (password.length < 8) e.password = 'Au moins 8 caractères.';
+    if (!acceptedTerms)  e.terms    = 'Tu devez certifier ton état de santé et accepter les CGU.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -110,12 +112,27 @@ export const SignupScreen: React.FC<Props> = ({ onBack, onSuccess, initialName }
             />
           </View>
 
-          <Button variant="primary" size="lg" label="Créer mon compte" fullWidth loading={loading} onPress={handleSignup} />
+          <View style={s.checkboxRow}>
+            <Pressable
+              style={[s.checkbox, acceptedTerms && s.checkboxChecked]}
+              onPress={() => setAcceptedTerms(!acceptedTerms)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: acceptedTerms }}
+            >
+              {acceptedTerms && <Check size={12} color="#fff" strokeWidth={3.5} />}
+            </Pressable>
+            <Text style={s.checkboxLabel}>
+              Je confirme avoir lu et accepté les{' '}
+              <Text style={s.legalLink}>Conditions Générales d'Utilisation</Text>
+              {' '}et je certifie être en bonne santé, sans contre-indications médicales pour suivre les entraînements.
+            </Text>
+          </View>
+          {errors.terms && <Text style={s.errorText}>{errors.terms}</Text>}
+
+          <Button variant="primary" size="lg" label="Créer mon compte" fullWidth loading={loading} onPress={handleSignup} style={{ marginTop: spacing[4] }} />
 
           <Text style={s.legal}>
-            En créant un compte, tu acceptes nos{' '}
-            <Text style={s.legalLink}>Conditions d'utilisation</Text>
-            {' '}et notre{' '}
+            En créant un compte, tu acceptes notre{' '}
             <Text style={s.legalLink}>Politique de confidentialité</Text>.
           </Text>
 
@@ -145,6 +162,12 @@ const s = StyleSheet.create({
   stepLabelActive: { fontFamily:fontFamily.hanken.semiBold, color:colors.sage[600] },
 
   form: { gap:spacing[4], marginBottom:spacing[6] },
+
+  checkboxRow: { flexDirection:'row', gap:spacing[3], alignItems:'flex-start', marginBottom:spacing[4], paddingHorizontal:2 },
+  checkbox: { width:20, height:20, borderRadius:radius.xs, borderWidth:2, borderColor:colors.ink[300], alignItems:'center', justifyContent:'center', marginTop:2, backgroundColor:'#fff' },
+  checkboxChecked: { backgroundColor:colors.sage[500], borderColor:colors.sage[500] },
+  checkboxLabel: { flex:1, fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.ink[600], lineHeight:fontSize.xs*lineHeight.relaxed },
+  errorText: { fontFamily:fontFamily.hanken.medium, fontSize:fontSize.xs, color:colors.status.danger, marginBottom:spacing[4], paddingHorizontal:2 },
 
   legal:     { marginTop:spacing[5], fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.ink[500], textAlign:'center', lineHeight:fontSize.xs*lineHeight.relaxed },
   legalLink: { fontFamily:fontFamily.hanken.medium, color:colors.sage[600] },

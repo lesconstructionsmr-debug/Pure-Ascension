@@ -26,7 +26,7 @@ interface Props {
   onComplete: (profile: UserProfile) => void;
 }
 
-const TOTAL_STEPS = 11;
+const TOTAL_STEPS = 15;
 
 /* ─── Option card (choix unique) ─────────────────────────────────────────── */
 function OptionCard({ label, sublabel, selected, onPress }: {
@@ -139,6 +139,13 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
   const [allergies, setAllergies]       = useState('');
   const [frequency, setFrequency]       = useState<TrainingFrequency | 0>(0);
   const [morphotype, setMorphotype]     = useState<Morphotype | null>(null);
+  const [healthCondition, setHealthCondition] = useState<string>('aucune');
+  const [cardioSports, setCardioSports]       = useState<('course' | 'velo' | 'trail' | 'general')[]>([]);
+  const [digestiveSymptoms, setDigestiveSymptoms] = useState<string[]>([]);
+  const [deepWhy, setDeepWhy]                 = useState('');
+
+  // Dériver le sport principal (premier sélectionné, ou 'general' par défaut)
+  const cardioSport = cardioSports[0] ?? 'general';
 
   const name = firstName.trim();
 
@@ -165,6 +172,16 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
       return next.includes(id) ? next.filter(d => d !== id) : [...next, id];
     });
 
+  // Q9 — Multi-sélection sport cardio
+  const toggleCardioSport = (id: 'course' | 'velo' | 'trail' | 'general') =>
+    setCardioSports(prev =>
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+
+  const toggleDigestiveSymptom = (id: string) =>
+    setDigestiveSymptoms(prev =>
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
   const canContinue = (): boolean => {
     switch (step) {
       case 1:  return name.length >= 2;
@@ -172,52 +189,64 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
       case 3:  return sex !== null;
       case 4:  return age >= 14 && age <= 90;
       case 5:  return Number(heightFt) >= 4 && Number(heightFt) <= 7 && Number(weightLb) >= 70 && Number(weightLb) <= 500;
-      // poids cible optionnel — s'il est saisi, il doit rester dans une plage réaliste
       case 6:  return activity !== null;
       case 7:  return experience !== null;
       case 8:  return equipment.length > 0;
-      case 9:  return true;  // restrictions optionnelles
-      case 10: return frequency >= 2;
-      case 11: return true;  // morphotype optionnel
+      case 9:  return cardioSports.length > 0;
+      case 10: return true;
+      case 11: return true;
+      case 12: return frequency >= 2;
+      case 13: return true;
+      case 14: return healthCondition !== null;
+      case 15: return true; // WHY profond est optionnel — ne bloque pas la génération
       default: return true;
     }
   };
 
   const handleComplete = () => {
-    // Conversion impérial → métrique (formules Mifflin-St Jeor en cm/kg)
-    const heightCm = Math.round(Number(heightFt) * 30.48 + Number(heightIn || 0) * 2.54);
-    const weightKg = Math.round(Number(weightLb.replace(',', '.')) * 0.45359 * 10) / 10;
-    const targetKg = targetLb
-      ? Math.round(Number(targetLb.replace(',', '.')) * 0.45359 * 10) / 10
-      : undefined;
+    try {
+      // Conversion impérial → métrique (formules Mifflin-St Jeor en cm/kg)
+      const heightCm = Math.round(Number(heightFt || 5) * 30.48 + Number(heightIn || 0) * 2.54);
+      const weightKg = Math.round(Number((weightLb || '150').replace(',', '.')) * 0.45359 * 10) / 10;
+      const targetKg = targetLb
+        ? Math.round(Number(targetLb.replace(',', '.')) * 0.45359 * 10) / 10
+        : undefined;
 
-    // Équipement → accès salle (le plus complet gagne)
-    const gymAccess = equipment.includes('gym') ? 'full'
-                    : equipment.includes('halteres') ? 'limited'
-                    : 'home';
+      // Équipement → accès salle (le plus complet gagne)
+      const gymAccess = equipment.includes('gym') ? 'full'
+                      : equipment.includes('halteres') ? 'limited'
+                      : 'home';
 
-    const dietaryRestrictions = diets.filter(d => d !== 'aucune') as DietaryRestriction[];
+      const dietaryRestrictions = diets.filter(d => d !== 'aucune') as DietaryRestriction[];
 
-    onComplete({
-      firstName: name,
-      sex: sex ?? 'nsp',
-      age,
-      heightCm,
-      currentWeightKg: weightKg,
-      targetWeightKg: targetKg,
-      morphotype: morphotype ?? undefined,
-      experience: experience!,
-      mainGoal: goal!.main,
-      goalLabel: goal!.label,
-      frequency: frequency as TrainingFrequency,
-      gymAccess,
-      equipment,
-      sessionDuration: 45,
-      activityLevel: activity!,
-      dietaryRestrictions,
-      allergies: allergies.trim() || undefined,
-      healthConditions: '',
-    });
+      onComplete({
+        firstName: name || 'Ami',
+        sex: sex ?? 'nsp',
+        age: age || 30,
+        heightCm,
+        currentWeightKg: weightKg,
+        targetWeightKg: targetKg,
+        morphotype: morphotype ?? undefined,
+        experience: experience ?? 'débutante',
+        mainGoal: goal?.main ?? 'muscle',
+        goalLabel: goal?.label ?? 'Prise de muscle',
+        frequency: (frequency || 3) as TrainingFrequency,
+        gymAccess,
+        equipment: equipment || [],
+        sessionDuration: 45,
+        activityLevel: activity ?? 'leger',
+        dietaryRestrictions,
+        allergies: allergies.trim() || undefined,
+        healthConditions: healthCondition || 'aucune',
+        cardioSport: cardioSports[0] ?? 'general', // sport principal
+        sportDiscipline: cardioSports.filter(s => s !== 'general').join(', ') || 'Général', // tous les sports sélectionnés
+        digestiveSymptoms: digestiveSymptoms || [],
+        deepWhy: deepWhy.trim() || 'Non renseigné',
+      });
+    } catch (err: any) {
+      console.error('Erreur lors de la complétion du diagnostic :', err);
+      alert('Une erreur est survenue lors de la création de votre profil. Veuillez réessayer.');
+    }
   };
 
   /* ── Titres conversationnels ── */
@@ -230,9 +259,13 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
     6:  { title: 'Ton quotidien, il ressemble à quoi ?', sub: 'Ton niveau d\'activité hors entraînement.' },
     7:  { title: 'Ton expérience d\'entraînement ?', sub: 'On adapte l\'intensité et la progression à ton niveau.' },
     8:  { title: 'Ton équipement disponible ?', sub: 'Sélectionne tout ce qui s\'applique — les exercices s\'adaptent.' },
-    9:  { title: 'Des restrictions alimentaires ?', sub: 'Ton plan nutrition les respectera à 100 %.' },
-    10: { title: name ? `${name}, combien de jours par semaine ?` : 'Combien de jours par semaine ?', sub: 'Sois réaliste — la constance bat l\'intensité.' },
-    11: { title: 'Dernier détail : ton type morphologique ?', sub: 'Optionnel — ça affine la répartition de tes macros.' },
+    9:  { title: 'Ta discipline cardio favorite ?', sub: 'Pour structurer tes zones cardiaques et optimiser tes performances.' },
+    10: { title: 'Des restrictions alimentaires ?', sub: 'Ton plan nutrition les respectera à 100 %.' },
+    11: { title: 'Symptômes digestifs ou fatigue ?', sub: 'Optionnel — pour détecter de l\'hypochlorhydrie ou de l\'intestin perméable.' },
+    12: { title: name ? `${name}, combien de jours par semaine ?` : 'Combien de jours par semaine ?', sub: 'Sois réaliste — la constance bat l\'intensité.' },
+    13: { title: 'Ton type morphologique ?', sub: 'Optionnel — ça affine la répartition de tes macros.' },
+    14: { title: 'Ton état de santé ?', sub: 'Des limitations physiques, douleurs thoraciques ou antécédents médicaux ?' },
+    15: { title: 'Ton "WHY" profond ?', sub: 'Ta motivation émotionnelle pour ne jamais abandonner lors des baisses de régime.' },
   };
 
   const progress = step / TOTAL_STEPS;
@@ -421,8 +454,39 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
               </View>
             )}
 
-            {/* ── Q9 Restrictions (multi) ── */}
+            {/* ── Q9 Cardio Sport ── */}
             {step === 9 && (
+              <View style={st.body}>
+                <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[500], marginBottom: spacing[1] }}>
+                  Plusieurs choix possibles ✓
+                </Text>
+                {([
+                  { id: 'course',  label: '🏃 Course à pied', sub: 'Optimiser mes temps de course, endurance et VO2 max' },
+                  { id: 'velo',    label: '🚴 Vélo de route / Cyclisme', sub: 'Puissance sur le vélo, endurance et cardio ciblé (FC -5 bpm)' },
+                  { id: 'trail',   label: '🏔️ Trail / Course en nature', sub: 'Résistance musculaire en montée et endurance extrême' },
+                  { id: 'general', label: '💪 Général / Musculation', sub: 'Cardio général et entretien métabolique standard' },
+                ] as { id: 'course' | 'velo' | 'trail' | 'general'; label: string; sub: string }[]).map(opt => (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => toggleCardioSport(opt.id)}
+                    style={[st.optionCard, cardioSports.includes(opt.id) && st.optionCardSelected]}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: cardioSports.includes(opt.id) }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[st.optionLabel, cardioSports.includes(opt.id) && { color: colors.sage[600] }]}>{opt.label}</Text>
+                      <Text style={st.optionSub}>{opt.sub}</Text>
+                    </View>
+                    <View style={[st.radio, cardioSports.includes(opt.id) && { borderColor: colors.sage[500], backgroundColor: colors.sage[500] }]}>
+                      {cardioSports.includes(opt.id) && <Check size={12} color="#fff" strokeWidth={3} />}
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            {/* ── Q10 Restrictions (multi) ── */}
+            {step === 10 && (
               <View style={st.body}>
                 <View style={st.chipsWrap}>
                   {[
@@ -454,8 +518,36 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
               </View>
             )}
 
-            {/* ── Q10 Fréquence ── */}
-            {step === 10 && (
+            {/* ── Q11 Troubles digestifs (multi) ── */}
+            {step === 11 && (
+              <View style={st.body}>
+                {[
+                  { id: 'ballonnements',      label: 'Ballonnements post-repas', sub: 'Gonflement de l\'estomac ou inconfort juste après manger.' },
+                  { id: 'reflux',             label: 'Reflux gastriques / Brûlures', sub: 'Remontées acides ou sensation de brûlure œsophagienne.' },
+                  { id: 'fatigue-post-prandiale', label: 'Fatigue post-prandiale', sub: 'Somnolence ou baisse d\'énergie marquée après les repas.' },
+                  { id: 'transit-irregulier', label: 'Transit irrégulier', sub: 'Constipation, alternance ou ballonnements chroniques.' },
+                ].map(opt => (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => toggleDigestiveSymptom(opt.id)}
+                    style={[st.optionCard, digestiveSymptoms.includes(opt.id) && st.optionCardSelected]}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: digestiveSymptoms.includes(opt.id) }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[st.optionLabel, digestiveSymptoms.includes(opt.id) && { color: colors.sage[600] }]}>{opt.label}</Text>
+                      <Text style={st.optionSub}>{opt.sub}</Text>
+                    </View>
+                    <View style={[st.checkbox, digestiveSymptoms.includes(opt.id) && st.checkboxOn]}>
+                      {digestiveSymptoms.includes(opt.id) && <Check size={13} color="#fff" strokeWidth={2.5} />}
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            {/* ── Q12 Fréquence ── */}
+            {step === 12 && (
               <View style={st.body}>
                 <View style={st.freqRow}>
                   {([2, 3, 4, 5, 6] as TrainingFrequency[]).map(f => (
@@ -485,8 +577,8 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
               </View>
             )}
 
-            {/* ── Q11 Morphotype (bonus) ── */}
-            {step === 11 && (
+            {/* ── Q13 Morphotype (bonus) ── */}
+            {step === 13 && (
               <View style={st.body}>
                 {([
                   { id: 'ectomorphe',  label: 'Ectomorphe',  sub: 'Mince naturellement, difficulté à prendre du poids' },
@@ -501,9 +593,60 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
                     onPress={() => setMorphotype(opt.id)}
                   />
                 ))}
-                <Pressable onPress={() => { setMorphotype(null); handleComplete(); }} style={st.skipLink} accessibilityRole="button">
+                <Pressable onPress={() => { setMorphotype(null); goNext(); }} style={st.skipLink} accessibilityRole="button">
                   <Text style={st.skipLinkText}>Je ne sais pas — passer</Text>
                 </Pressable>
+              </View>
+            )}
+
+            {/* ── Q14 État de santé ── */}
+            {step === 14 && (
+              <View style={st.body}>
+                {([
+                  { id: 'aucune',    label: 'Aucune limitation', sub: 'Je suis en pleine santé pour m\'entraîner.' },
+                  { id: 'cardiaque',  label: 'Limitations cardiaques', sub: 'Douleurs thoraciques ou troubles cardiovasculaires.' },
+                  { id: 'articulaire',label: 'Limitations articulaires', sub: 'Problèmes d\'os, de dos ou d\'articulations majeurs.' },
+                  { id: 'enceinte',   label: 'Grossesse / Post-partum', sub: 'Enceinte ou accouchement récent.' },
+                  { id: 'autre',      label: 'Autre limitation', sub: 'Tout autre problème nécessitant un avis médical.' },
+                ]).map(opt => (
+                  <OptionCard
+                    key={opt.id}
+                    label={opt.label}
+                    sublabel={opt.sub}
+                    selected={healthCondition === opt.id}
+                    onPress={() => setHealthCondition(opt.id)}
+                  />
+                ))}
+                
+                {healthCondition !== 'aucune' && (
+                  <View style={st.securityAlert}>
+                    <Text style={st.securityAlertText}>
+                      ⚠️ Pour ta sécurité, un accord médical écrit est fortement recommandé avant d'entamer ton programme Pure Ascension avec ces limitations.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* ── Q15 Le "WHY" profond ── */}
+            {step === 15 && (
+              <View style={st.body}>
+                <View style={st.allergyCard}>
+                  <Text style={st.fieldLabel}>Quelle est la raison profonde qui te pousse à te transformer aujourd'hui ?</Text>
+                  <TextInput
+                    style={st.allergyInput}
+                    value={deepWhy}
+                    onChangeText={setDeepWhy}
+                    placeholder="Écris ici ton pourquoi profond (ex: retrouver l'énergie pour jouer avec mes enfants, me réconcilier avec mon reflet dans le miroir...)"
+                    placeholderTextColor={colors.ink[400]}
+                    multiline
+                  />
+                  <View style={st.hintCard}>
+                    <Text style={st.hintText}>
+                      💡 La méthode des "5 Pourquoi" montre que notre vraie motivation est toujours émotionnelle et personnelle, pas seulement esthétique. Pose-toi la question plusieurs fois !
+                    </Text>
+                  </View>
+                </View>
               </View>
             )}
           </Animated.View>
@@ -624,6 +767,9 @@ const st = StyleSheet.create({
   skipLinkText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[500], textDecorationLine: 'underline' },
 
   navRow: { marginTop: spacing[6] },
+
+  securityAlert: { backgroundColor: '#fdf2e9', borderRadius: radius.md, padding: spacing[4], borderWidth: 1, borderColor: '#f5c299', marginTop: spacing[3] },
+  securityAlertText: { fontFamily: fontFamily.hanken.medium, fontSize: fontSize.sm, color: '#c4661f', lineHeight: 20, textAlign: 'center' },
 });
 
 export default OnboardingDiagnosticScreen;

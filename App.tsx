@@ -39,7 +39,15 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      documentTitle={{
+        formatter: (options, route) => {
+          const title = options?.title ?? route?.name;
+          if (title && title !== 'undefined') return `${title} | Pure Ascension`;
+          return 'Pure Ascension';
+        }
+      }}
+    >
       <StatusBar style="auto" />
       <RootNavigator />
     </NavigationContainer>

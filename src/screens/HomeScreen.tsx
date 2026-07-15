@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, Platform } from 'react-native';
-import { Activity, ChevronRight, Droplets, Plus, Minus } from 'lucide-react-native';
+import { Activity, ChevronRight, Droplets, Plus, Minus, Bot } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, letterSpacing, spacing } from '../theme/theme';
 import { Avatar }   from '../components/Avatar';
 import { Badge }    from '../components/Badge';
@@ -41,12 +41,13 @@ const RingItem: React.FC<{label:string;sublabel:string;value:number;fill:string;
   </View>
 );
 
-export const HomeScreen: React.FC<{ userName?: string }> = ({ userName }) => {
+export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const program = useProgramStore(s => s.program);
+  const storeName = useProgramStore(s => s.userName);
   const { mealsPct, mealsCount, workoutPct, waterPct, waterGlasses, addWater, removeWater } = useDailyProgress();
   const { streak } = useStreak();
 
-  const displayName = userName || 'toi';
+  const displayName = storeName || 'toi';
   const greeting    = getGreeting(displayName);
 
   // Aucun programme réel → jamais de données factices
@@ -150,6 +151,24 @@ export const HomeScreen: React.FC<{ userName?: string }> = ({ userName }) => {
           </>
         )}
 
+        {/* Coach IA */}
+        <Pressable
+          onPress={() => navigation?.navigate('AICoach')}
+          accessibilityRole="button"
+          style={s.coachBanner}
+        >
+          <View style={s.coachBannerLeft}>
+            <View style={s.coachBannerIcon}>
+              <Bot size={22} color="#fff" />
+            </View>
+            <View>
+              <Text style={s.coachBannerTitle}>Coach IA Pure Ascension 🌿</Text>
+              <Text style={s.coachBannerSub}>Posez une question à votre coach</Text>
+            </View>
+          </View>
+          <ChevronRight size={18} color={colors.sage[200]} />
+        </Pressable>
+
         <View style={{ height:spacing[10] }} />
       </ScrollView>
     </SafeAreaView>
@@ -168,5 +187,17 @@ const s = StyleSheet.create({
   subgreeting:     { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600], marginTop:spacing[0.5] },
   programTitle:       { fontFamily:fontFamily.spectral.regular,       fontSize:fontSize.xl, color:colors.sand[100], lineHeight:fontSize.xl*lineHeight.snug, marginBottom:spacing[5] },
   programTitleItalic: { fontFamily:fontFamily.spectral.regularItalic, color:colors.sand[50] },
+
+  coachBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.sage[800], borderRadius: 16, padding: spacing[4],
+  },
+  coachBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  coachBannerIcon: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: colors.sage[600], alignItems: 'center', justifyContent: 'center'
+  },
+  coachBannerTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: '#fff' },
+  coachBannerSub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.sage[300], marginTop: 2 },
 });
 export default HomeScreen;

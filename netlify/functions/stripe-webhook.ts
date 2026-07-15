@@ -12,8 +12,43 @@ if (!admin.apps.length) {
   try {
     const projectId = process.env.FIREBASE_PROJECT_ID;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    // Remplacer les sauts de ligne échappés dans la clé privée
-    const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+    
+    let privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').trim();
+    
+    console.log('--- DEBUG FIREBASE KEY ---');
+    console.log('Original Env Key Length:', (process.env.FIREBASE_PRIVATE_KEY || '').length);
+    console.log('Original Env Key Starts With:', (process.env.FIREBASE_PRIVATE_KEY || '').substring(0, 35));
+    
+    // Nettoyage en boucle pour retirer les guillemets et virgules résiduels du copier-coller JSON
+    while (
+      privateKey.startsWith('"') || 
+      privateKey.endsWith('"') || 
+      privateKey.startsWith("'") || 
+      privateKey.endsWith("'") || 
+      privateKey.endsWith(',')
+    ) {
+      if (privateKey.endsWith(',')) {
+        privateKey = privateKey.slice(0, -1).trim();
+      }
+      if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+        privateKey = privateKey.slice(1, -1).trim();
+      }
+      if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
+        privateKey = privateKey.slice(1, -1).trim();
+      }
+      if (privateKey.startsWith('"')) privateKey = privateKey.slice(1).trim();
+      if (privateKey.endsWith('"')) privateKey = privateKey.slice(0, -1).trim();
+      if (privateKey.startsWith("'")) privateKey = privateKey.slice(1).trim();
+      if (privateKey.endsWith("'")) privateKey = privateKey.slice(0, -1).trim();
+    }
+    
+    // Remplacer les sauts de ligne échappés
+    privateKey = privateKey.replace(/\\n/g, '\n');
+    
+    console.log('Cleaned Key Length:', privateKey.length);
+    console.log('Cleaned Key Starts With:', privateKey.substring(0, 35));
+    console.log('Cleaned Key Ends With:', privateKey.substring(privateKey.length - 35));
+    console.log('--------------------------');
 
     if (projectId && clientEmail && privateKey) {
       admin.initializeApp({
@@ -46,8 +81,13 @@ export const handler: Handler = async (event) => {
   let stripeEvent: Stripe.Event;
 
   try {
+    // Gérer l'encodage base64 automatique de Netlify/AWS Lambda pour le corps brut
+    const rawBody = event.isBase64Encoded
+      ? Buffer.from(event.body || '', 'base64').toString('utf8')
+      : event.body || '';
+
     // Vérifier la validité de l'événement Stripe
-    stripeEvent = stripe.webhooks.constructEvent(event.body || '', sig, webhookSecret);
+    stripeEvent = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch (err: any) {
     console.error(`❌ Erreur de validation de signature Stripe : ${err.message}`);
     return {

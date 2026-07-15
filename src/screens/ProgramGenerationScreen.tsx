@@ -135,7 +135,7 @@ export const ProgramGenerationScreen: React.FC<Props> = ({ profile, onDone }) =>
             <Text style={st.titleItalic}>programme</Text>
           </Text>
           <Text style={st.subtitle}>
-            Objectif : {profile.goalLabel ?? goalLabel[profile.mainGoal]} · {profile.frequency}×/semaine
+            Objectif : {(profile.goalLabel ?? goalLabel[profile.mainGoal || 'muscle']) || 'Gain musculaire'} · {profile.frequency || 3}×/semaine
           </Text>
         </View>
 

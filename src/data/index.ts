@@ -36,10 +36,15 @@ export interface UserProfile {
   activityLevel?: ActivityLevel;
   // Sport & discipline (optionnel, pertinent si objectif = performance)
   sportDiscipline?:    string;
+  cardioSport?:        'course' | 'velo' | 'trail' | 'general';
+  deepWhy?:            string;
+  digestiveSymptoms?:  string[];
+  lastProgramAdjustmentDate?: string;
+  adjustmentCount?:    number;
   // Santé & alimentation
   dietaryRestrictions: DietaryRestriction[];
   allergies?:          string;
-  healthConditions:    string;   // texte libre + options pré-def
+  healthConditions:    string;   // texte libre + options pré-def (ex: 'aucune', 'cardiaque', etc.)
   otherNotes?:         string;
 }
 
