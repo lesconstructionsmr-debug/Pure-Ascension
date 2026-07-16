@@ -389,7 +389,7 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
   /* ── Gestion du retour OAuth (URL ?strava=success|error) ── */
   useEffect(() => {
     const checkOAuthReturn = () => {
-      if (typeof window === 'undefined') return;
+      if (typeof window === 'undefined' || !window.location || !window.history) return;
       const params = new URLSearchParams(window.location.search);
       const stravaStatus = params.get('strava');
       if (stravaStatus === 'success') {
