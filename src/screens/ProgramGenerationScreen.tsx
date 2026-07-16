@@ -11,8 +11,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Leaf } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius } from '../theme/theme';
+import { PureAscensionLogo } from '../components/PureAscensionLogo';
 import { UserProfile } from '../data';
 
 /* ─── Props ──────────────────────────────────────────────────────────────── */
@@ -122,7 +122,7 @@ export const ProgramGenerationScreen: React.FC<Props> = ({ profile, onDone }) =>
         <View style={st.topArea}>
           <Animated.View style={[st.iconWrap, { transform: [{ scale: iconPulse }] }]}>
             <View style={st.iconInner}>
-              <Leaf size={36} color={colors.sage[300]} strokeWidth={1.2} />
+              <PureAscensionLogo size={52} color="#D2C4A7" strokeWidth={3} />
             </View>
           </Animated.View>
           <Text style={st.brandName}>Pure Ascension</Text>
@@ -193,13 +193,11 @@ const st = StyleSheet.create({
     gap: spacing[4],
   },
   iconWrap: {
-    width: 96, height: 96, borderRadius: 48,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    width: 96, height: 96,
     alignItems: 'center', justifyContent: 'center',
   },
   iconInner: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    width: 72, height: 72,
     alignItems: 'center', justifyContent: 'center',
   },
   brandName: {

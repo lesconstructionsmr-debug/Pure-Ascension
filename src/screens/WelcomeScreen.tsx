@@ -1,8 +1,8 @@
 import React from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { Leaf } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius } from '../theme/theme';
 import { Button } from '../components/Button';
+import { PureAscensionLogo } from '../components/PureAscensionLogo';
 
 interface Props { onLogin: () => void; onSignup: () => void; }
 
@@ -13,7 +13,7 @@ export const WelcomeScreen: React.FC<Props> = ({ onLogin, onSignup }) => (
       {/* Logo */}
       <View style={s.logoArea}>
         <View style={s.logoIcon}>
-          <Leaf size={32} color={colors.sage[500]} strokeWidth={1.5} />
+          <PureAscensionLogo size={48} color={colors.sage[600]} strokeWidth={3} />
         </View>
         <Text style={s.logoText}>Pure Ascension</Text>
         <Text style={s.logoTagline}>Équilibre · Structure · Connexion à soi</Text>
@@ -55,7 +55,7 @@ const s = StyleSheet.create({
   content: { flex:1, paddingHorizontal:spacing[6], paddingTop:spacing[12], paddingBottom:spacing[8], justifyContent:'space-between' },
 
   logoArea:    { alignItems:'center', gap:spacing[3] },
-  logoIcon:    { width:64, height:64, borderRadius:32, backgroundColor:colors.sage[100], alignItems:'center', justifyContent:'center' },
+  logoIcon:    { width:64, height:64, alignItems:'center', justifyContent:'center' },
   logoText:    { fontFamily:fontFamily.spectral.medium, fontSize:fontSize.xl, color:colors.ink[900], letterSpacing:0.5 },
   logoTagline: { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600], letterSpacing:1, textTransform:'uppercase' },
 

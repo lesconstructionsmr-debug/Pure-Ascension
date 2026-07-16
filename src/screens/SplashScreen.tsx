@@ -5,8 +5,9 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { Leaf, ArrowRight } from 'lucide-react-native';
+import { ArrowRight } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius } from '../theme/theme';
+import { PureAscensionLogo } from '../components/PureAscensionLogo';
 
 interface Props {
   onStart: () => void;
@@ -37,7 +38,7 @@ export const SplashScreen: React.FC<Props> = ({ onStart, onLogin }) => {
         <View style={st.centerArea}>
           <Animated.View style={[st.logoWrap, { transform: [{ scale: pulse }] }]}>
             <View style={st.logoInner}>
-              <Leaf size={44} color={colors.sage[300]} strokeWidth={1.2} />
+              <PureAscensionLogo size={68} color="#D2C4A7" strokeWidth={3} />
             </View>
           </Animated.View>
           <Text style={st.brand}>Pure Ascension</Text>
@@ -75,13 +76,11 @@ const st = StyleSheet.create({
 
   centerArea: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing[4] },
   logoWrap: {
-    width: 112, height: 112, borderRadius: 56,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    width: 112, height: 112,
     alignItems: 'center', justifyContent: 'center',
   },
   logoInner: {
-    width: 84, height: 84, borderRadius: 42,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    width: 84, height: 84,
     alignItems: 'center', justifyContent: 'center',
   },
   brand: {
