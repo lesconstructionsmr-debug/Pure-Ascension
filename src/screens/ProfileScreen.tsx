@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import {
   Bell, ChevronRight, ClipboardList, History, Lock,
-  Sparkles, Target, Zap, CheckCircle, RefreshCw, Activity
+  Sparkles, Target, Zap, CheckCircle, RefreshCw, Activity, LogOut
 } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 import { Avatar }          from '../components/Avatar';
@@ -15,6 +15,7 @@ import { Button }          from '../components/Button';
 import { useProgramStore } from '../store/useProgramStore';
 import { useStreak }       from '../hooks/useStreak';
 import { auth, db }        from '../services/firebase';
+import { logOut }          from '../services/authService';
 import { doc, getDoc, onSnapshot, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 /* ─── Constantes Strava ──────────────────────────────────────────────────── */
@@ -424,6 +425,39 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
             <ChevronRight size={18} color={colors.sage[600]} />
           </Pressable>
         </Card>
+
+        {/* ── Bouton Déconnexion ────────────────────────────────────────── */}
+        <Pressable
+          onPress={async () => {
+            try {
+              await logOut();
+            } catch (err) {
+              Alert.alert('Erreur', 'Impossible de se déconnecter.');
+            }
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Se déconnecter"
+          style={({ pressed }) => [
+            {
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: spacing[4],
+              borderRadius: radius.xl,
+              backgroundColor: '#fff',
+              borderWidth: 1.5,
+              borderColor: colors.clay[200],
+              gap: spacing[2],
+              marginTop: spacing[1],
+            },
+            pressed && { backgroundColor: colors.clay[50] }
+          ]}
+        >
+          <LogOut size={18} color={colors.clay[500]} strokeWidth={2} />
+          <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.clay[600] }}>
+            Se déconnecter de Pure Ascension
+          </Text>
+        </Pressable>
 
         {/* ── Badge bêta ───────────────────────────────────────────────── */}
         <View style={{ alignItems: 'center', gap: spacing[2] }}>
