@@ -7,6 +7,7 @@ import { Button }   from '../components/Button';
 import { Card }     from '../components/Card';
 import { Progress } from '../components/Progress';
 import { type Exercise } from '../data';
+import Svg, { Path, Line, Circle, Rect } from 'react-native-svg';
 import { EmptyState } from '../components/EmptyState';
 import { useProgramStore } from '../store/useProgramStore';
 import { getTodaySession, saveProgram } from '../services/programService';
@@ -34,18 +35,145 @@ export function getMuscleGroup(name: string): { label: string; icon: string; bg:
 
 export const ExerciseImage: React.FC<{ name: string; size?: number }> = ({ name, size = 44 }) => {
   const group = getMuscleGroup(name);
+  const color = group.color;
+  const strokeWidth = 3.5;
+  const n = name.toLowerCase();
+
   return (
     <View style={{
       width: size, height: size, borderRadius: radius.md,
       backgroundColor: group.bg, alignItems: 'center', justifyContent: 'center',
-      borderWidth: 1, borderColor: group.color + '22'
+      borderWidth: 1, borderColor: group.color + '22',
+      overflow: 'hidden'
     }}>
-      {group.icon === 'legs' && <Dumbbell size={size * 0.45} color={group.color} />}
-      {group.icon === 'push' && <Sparkles size={size * 0.45} color={group.color} />}
-      {group.icon === 'pull' && <Zap size={size * 0.45} color={group.color} />}
-      {group.icon === 'arms' && <Dumbbell size={size * 0.45} color={group.color} />}
-      {group.icon === 'core' && <Flame size={size * 0.45} color={group.color} />}
-      {group.icon === 'cardio' && <Activity size={size * 0.45} color={group.color} />}
+      <Svg width={size * 0.8} height={size * 0.8} viewBox="0 0 100 100" fill="none">
+        {(() => {
+          // 1. HIP THRUST
+          if (n.includes('thrust') || n.includes('fessier') || n.includes('pont')) {
+            return (
+              <>
+                <Line x1="10" y1="80" x2="90" y2="80" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Rect x="15" y="60" width="18" height="20" rx="3" stroke={color} strokeWidth={strokeWidth} />
+                <Circle cx="33" cy="50" r="5" stroke={color} strokeWidth={strokeWidth} />
+                <Line x1="33" y1="55" x2="65" y2="55" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="65" y1="55" x2="78" y2="55" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="78" y1="55" x2="78" y2="80" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              </>
+            );
+          }
+          // 2. GAINAGE / PLANCHE
+          if (n.includes('gainage') || n.includes('planche') || n.includes('plank')) {
+            return (
+              <>
+                <Line x1="10" y1="80" x2="90" y2="80" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="20" y1="80" x2="30" y2="80" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="30" y1="80" x2="30" y2="60" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Circle cx="32" cy="48" r="5" stroke={color} strokeWidth={strokeWidth} />
+                <Line x1="30" y1="60" x2="75" y2="60" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="75" y1="60" x2="85" y2="80" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              </>
+            );
+          }
+          // 3. SQUAT / FENTES
+          if (n.includes('squat') || n.includes('fente') || n.includes('jambes') || n.includes('legs')) {
+            return (
+              <>
+                <Line x1="10" y1="85" x2="90" y2="85" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Circle cx="50" cy="25" r="5" stroke={color} strokeWidth={strokeWidth} />
+                <Line x1="50" y1="30" x2="45" y2="50" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="45" y1="50" x2="62" y2="60" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="62" y1="60" x2="58" y2="85" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="45" y1="40" x2="68" y2="40" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              </>
+            );
+          }
+          // 4. GOOD MORNING / DEADLIFT
+          if (n.includes('good morning') || n.includes('deadlift') || n.includes('soulevé') || n.includes('ischio')) {
+            return (
+              <>
+                <Line x1="10" y1="85" x2="90" y2="85" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="50" y1="85" x2="50" y2="58" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="50" y1="58" x2="28" y2="50" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Circle cx="20" cy="47" r="5" stroke={color} strokeWidth={strokeWidth} />
+                <Line x1="38" y1="53" x2="38" y2="76" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Circle cx="38" cy="76" r="4" fill={color} />
+              </>
+            );
+          }
+          // 5. POMPES / PUSH-UP / DIPS
+          if (n.includes('pompe') || n.includes('push-up') || n.includes('dips') || n.includes('développé') || n.includes('pec')) {
+            return (
+              <>
+                <Line x1="10" y1="80" x2="90" y2="80" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="28" y1="80" x2="32" y2="68" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="32" y1="68" x2="42" y2="58" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Circle cx="36" cy="48" r="5" stroke={color} strokeWidth={strokeWidth} />
+                <Line x1="42" y1="58" x2="78" y2="68" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="78" y1="68" x2="85" y2="80" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              </>
+            );
+          }
+          // 6. CARDIO / RUNNING
+          if (n.includes('course') || n.includes('running') || n.includes('footing') || n.includes('vma') || n.includes('tempo') || n.includes('cardio') || n.includes('sortie')) {
+            return (
+              <>
+                <Line x1="10" y1="85" x2="90" y2="85" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Circle cx="52" cy="24" r="5" stroke={color} strokeWidth={strokeWidth} />
+                <Line x1="52" y1="29" x2="48" y2="52" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="48" y1="52" x2="65" y2="62" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="65" y1="62" x2="58" y2="85" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="48" y1="52" x2="34" y2="68" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="34" y1="68" x2="24" y2="78" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="50" y1="34" x2="62" y2="45" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              </>
+            );
+          }
+          // 7. TRACTION / PULL-UP / TIRAGE
+          if (n.includes('traction') || n.includes('tirage') || n.includes('rowing') || n.includes('pull')) {
+            return (
+              <>
+                <Line x1="20" y1="15" x2="80" y2="15" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Circle cx="50" cy="38" r="5" stroke={color} strokeWidth={strokeWidth} />
+                <Line x1="50" y1="43" x2="50" y2="68" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="50" y1="68" x2="42" y2="85" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="50" y1="68" x2="58" y2="85" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="50" y1="43" x2="38" y2="28" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="38" y1="28" x2="38" y2="15" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="50" y1="43" x2="62" y2="28" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="62" y1="28" x2="62" y2="15" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              </>
+            );
+          }
+          // 8. STRETCH / PSOAS / MOBILITE
+          if (n.includes('étirement') || n.includes('stretch') || n.includes('rotation') || n.includes('psoas') || n.includes('mobil') || n.includes('foam')) {
+            return (
+              <>
+                <Line x1="10" y1="80" x2="90" y2="80" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Circle cx="45" cy="25" r="5" stroke={color} strokeWidth={strokeWidth} />
+                <Line x1="45" y1="30" x2="45" y2="55" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="45" y1="55" x2="28" y2="60" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="28" y1="60" x2="28" y2="80" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="45" y1="55" x2="68" y2="65" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+                <Line x1="68" y1="65" x2="80" y2="80" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              </>
+            );
+          }
+          // 9. FALLBACK (DUMBBELL STANDING)
+          return (
+            <>
+              <Line x1="10" y1="85" x2="90" y2="85" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              <Circle cx="50" cy="28" r="5" stroke={color} strokeWidth={strokeWidth} />
+              <Line x1="50" y1="33" x2="50" y2="60" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              <Line x1="50" y1="60" x2="42" y2="85" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              <Line x1="50" y1="60" x2="58" y2="85" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              <Line x1="50" y1="38" x2="35" y2="48" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              <Circle cx="35" cy="48" r="3.5" fill={color} />
+              <Line x1="50" y1="38" x2="65" y2="48" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+              <Circle cx="65" cy="48" r="3.5" fill={color} />
+            </>
+          );
+        })()}
+      </Svg>
     </View>
   );
 };
