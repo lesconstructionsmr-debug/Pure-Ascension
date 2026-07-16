@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Pure Ascension",
-    "slug": "pure-ascension",
+    "slug": "max-ro",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,6 +24,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a030d00b-c1e1-4d54-9b58-261100d1052f"
+      }
+    },
+    "owner": "maxgrowthplans-team"
   }
 }
