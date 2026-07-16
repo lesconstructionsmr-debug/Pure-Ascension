@@ -318,35 +318,47 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
   const doneAnim       = useRef(new Animated.Value(0)).current;
   const celebrateAnim  = useRef(new Animated.Value(0)).current;
 
+  // Background-resilient stopwatch time trackers
+  const startTimeRef = useRef<number>(Date.now());
+  const accumulatedTimeRef = useRef<number>(0);
+  const restStartRef = useRef<number>(Date.now());
+
   const exercise = exercises[currentExerciseIdx];
   const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
   const doneSets  = completedSets.size;
   const progress  = totalSets > 0 ? doneSets / totalSets : 0;
 
-  // Elapsed timer
+  // Elapsed timer with background timestamp resilience
   useEffect(() => {
-    elapsedRef.current = setInterval(() => {
-      if (!isPaused) setElapsedSec(s => s + 1);
-    }, 1000);
+    if (isPaused) {
+      accumulatedTimeRef.current += Math.floor((Date.now() - startTimeRef.current) / 1000);
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
+    } else {
+      startTimeRef.current = Date.now();
+      elapsedRef.current = setInterval(() => {
+        const delta = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        setElapsedSec(accumulatedTimeRef.current + delta);
+      }, 1000);
+    }
     return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
   }, [isPaused]);
 
-  // Rest countdown
+  // Rest countdown with background timestamp resilience
   useEffect(() => {
     if (!isResting || isPaused) {
       if (timerRef.current) clearInterval(timerRef.current);
       return;
     }
+    restStartRef.current = Date.now();
     timerRef.current = setInterval(() => {
-      setRestTime(t => {
-        if (t <= 1) {
-          clearInterval(timerRef.current!);
-          setIsResting(false);
-          setRestTime(REST_DURATION);
-          return REST_DURATION;
-        }
-        return t - 1;
-      });
+      const elapsed = Math.floor((Date.now() - restStartRef.current) / 1000);
+      const remaining = Math.max(0, REST_DURATION - elapsed);
+      setRestTime(remaining);
+      if (remaining === 0) {
+        clearInterval(timerRef.current!);
+        setIsResting(false);
+        setRestTime(REST_DURATION);
+      }
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isResting, isPaused]);

@@ -16,7 +16,7 @@ import { useProgramStore } from '../store/useProgramStore';
 import { useStreak }       from '../hooks/useStreak';
 import { auth, db }        from '../services/firebase';
 import { logOut }          from '../services/authService';
-import { doc, getDoc, onSnapshot, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, updateDoc, collection, addDoc, serverTimestamp, query, getDocs, where, orderBy } from 'firebase/firestore';
 
 /* ─── Constantes Strava ──────────────────────────────────────────────────── */
 const STRAVA_ORANGE = '#FC4C02';
@@ -198,12 +198,68 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
   const program = useProgramStore(s => s.program);
   const storeName = useProgramStore(s => s.userName);
   const storeEmail = useProgramStore(s => s.userEmail);
-  const { streak } = useStreak();
-  const isNewUser   = true;
+  const isNewUser   = !program;
   const displayName = storeName || 'Mon profil';
   const displayEmail= storeEmail || '';
-  const sessions = 0;
-  const wLabel   = '— kg';
+
+  /* Dynamic stats from Firestore progress subcollection */
+  const [streakDays, setStreakDays] = useState(1);
+  const [sessionsCount, setSessionsCount] = useState(0);
+  const [weightEvolution, setWeightEvolution] = useState('— lb');
+
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+
+    // 1. Écoute du streak en temps réel
+    const unsubUser = onSnapshot(doc(db, 'users', uid), (snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        if (d.streakDays !== undefined) {
+          setStreakDays(d.streakDays);
+        }
+      }
+    });
+
+    // 2. Calcul du poids et des séances d'entraînement
+    const loadProgressStats = async () => {
+      try {
+        const progressRef = collection(db, 'users', uid, 'progress');
+        const q = query(progressRef, orderBy('date', 'asc'));
+        const snap = await getDocs(q);
+        
+        let completedWorkouts = 0;
+        let weights: number[] = [];
+        
+        snap.forEach(docSnap => {
+          const d = docSnap.data();
+          if (d.workoutDone) {
+            completedWorkouts += 1;
+          }
+          if (typeof d.weight === 'number' && d.weight > 0) {
+            weights.push(d.weight);
+          }
+        });
+        
+        setSessionsCount(completedWorkouts);
+        
+        if (weights.length >= 2) {
+          const change = weights[weights.length - 1] - weights[0];
+          const sign = change > 0 ? '+' : '';
+          setWeightEvolution(`${sign}${change.toFixed(1)} lb`);
+        } else if (weights.length === 1) {
+          setWeightEvolution('0.0 lb');
+        } else {
+          setWeightEvolution('— lb');
+        }
+      } catch (err) {
+        console.error('Erreur chargement stats profil:', err);
+      }
+    };
+    loadProgressStats();
+
+    return () => unsubUser();
+  }, [program]);
 
   /* Feedback state */
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
@@ -363,11 +419,11 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
           </View>
           <View style={{ height: 1, backgroundColor: colors.ink[200], marginBottom: spacing[5] }} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
-            <Stat value={streak}   label="Jours" />
+            <Stat value={`${streakDays} j`} label="Streak" />
             <View style={{ width: 1, height: 40, backgroundColor: colors.ink[200] }} />
-            <Stat value={wLabel}   label="Évolution" />
+            <Stat value={weightEvolution}   label="Poids" />
             <View style={{ width: 1, height: 40, backgroundColor: colors.ink[200] }} />
-            <Stat value={sessions} label="Séances" />
+            <Stat value={String(sessionsCount)} label="Séances" />
           </View>
         </Card>
 
