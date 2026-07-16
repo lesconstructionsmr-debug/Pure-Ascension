@@ -17,6 +17,146 @@ import { EmptyState } from '../components/EmptyState';
 import { useProgramStore } from '../store/useProgramStore';
 import { getTodaySession } from '../services/programService';
 import { getMuscleGroup, ExerciseImage } from './WorkoutsScreen';
+import Svg, { Circle as SvgCircle, Path as SvgPath, Line as SvgLine, Rect as SvgRect, G } from 'react-native-svg';
+
+const ExerciseVisual: React.FC<{ name: string; color: string }> = ({ name, color }) => {
+  const n = name.toLowerCase();
+
+  if (n.includes('squat') || n.includes('fente') || n.includes('presse') || n.includes('leg') || n.includes('ischio') || n.includes('mollet') || n.includes('quad') || n.includes('fessier')) {
+    // SQUAT (Side View, bent posture)
+    return (
+      <Svg width={120} height={90} viewBox="0 0 120 90">
+        {/* Ground */}
+        <SvgLine x1={20} y1={80} x2={100} y2={80} stroke={colors.ink[200]} strokeWidth={2} />
+        {/* Head */}
+        <SvgCircle cx={65} cy={28} r={5} fill={color} />
+        {/* Spine/Torso */}
+        <SvgLine x1={65} y1={33} x2={52} y2={52} stroke={color} strokeWidth={4} strokeLinecap="round" />
+        {/* Thighs (deep bent) */}
+        <SvgLine x1={52} y1={52} x2={70} y2={60} stroke={color} strokeWidth={4} strokeLinecap="round" />
+        {/* Calves */}
+        <SvgLine x1={70} y1={60} x2={65} y2={80} stroke={color} strokeWidth={4} strokeLinecap="round" />
+        {/* Feet */}
+        <SvgLine x1={58} y1={80} x2={68} y2={80} stroke={color} strokeWidth={3} strokeLinecap="round" />
+        {/* Barbell held on back */}
+        <SvgCircle cx={60} cy={35} r={3} fill="#78716c" />
+        <SvgRect x={58} y={23} width={4} height={24} rx={1} fill="#57534e" transform="rotate(15 60 35)" />
+      </Svg>
+    );
+  }
+
+  if (n.includes('développé') || n.includes('push-up') || n.includes('pompe') || n.includes('chest') || n.includes('dips') || n.includes('pec')) {
+    // PUSHUP / BENCH (Horizontal pushing view)
+    const isPushup = n.includes('pompe') || n.includes('push-up');
+    return (
+      <Svg width={120} height={90} viewBox="0 0 120 90">
+        {/* Ground/Bench */}
+        <SvgLine x1={20} y1={76} x2={100} y2={76} stroke={colors.ink[200]} strokeWidth={2} />
+        {isPushup ? (
+          // Pushup (diagonal body)
+          <G>
+            {/* Head */}
+            <SvgCircle cx={82} cy={40} r={5} fill={color} />
+            {/* Spine/Body */}
+            <SvgLine x1={78} y1={44} x2={44} y2={62} stroke={color} strokeWidth={4} strokeLinecap="round" />
+            {/* Feet */}
+            <SvgLine x1={44} y1={62} x2={34} y2={76} stroke={color} strokeWidth={4} strokeLinecap="round" />
+            {/* Arm pushing */}
+            <SvgLine x1={72} y1={47} x2={68} y2={76} stroke={color} strokeWidth={4} strokeLinecap="round" />
+          </G>
+        ) : (
+          // Bench Press (flat body, bar in hands)
+          <G>
+            {/* Bench structure */}
+            <SvgRect x={30} y={62} width={60} height={14} fill="#e7e5e4" />
+            {/* Head */}
+            <SvgCircle cx={42} cy={53} r={5} fill={color} />
+            {/* Torso */}
+            <SvgLine x1={47} y1={58} x2={78} y2={58} stroke={color} strokeWidth={4} strokeLinecap="round" />
+            {/* Arms up holding bar */}
+            <SvgLine x1={60} y1={58} x2={60} y2={40} stroke={color} strokeWidth={4} strokeLinecap="round" />
+            {/* Barbell */}
+            <SvgLine x1={35} y1={36} x2={85} y2={36} stroke="#57534e" strokeWidth={3} />
+            <SvgCircle cx={35} cy={36} r={4} fill="#292524" />
+            <SvgCircle cx={85} cy={36} r={4} fill="#292524" />
+          </G>
+        )}
+      </Svg>
+    );
+  }
+
+  if (n.includes('gainage') || n.includes('crunch') || n.includes('abdo') || n.includes('core') || n.includes('planche') || n.includes('sit-up')) {
+    // PLANK (Straight horizontal body posture)
+    return (
+      <Svg width={120} height={90} viewBox="0 0 120 90">
+        {/* Ground */}
+        <SvgLine x1={20} y1={70} x2={100} y2={70} stroke={colors.ink[200]} strokeWidth={2} />
+        {/* Head */}
+        <SvgCircle cx={80} cy={48} r={5} fill={color} />
+        {/* Straight Spine */}
+        <SvgLine x1={75} y1={53} x2={35} y2={53} stroke={color} strokeWidth={4} strokeLinecap="round" />
+        {/* Elbow / Forearm supporting */}
+        <SvgLine x1={70} y1={53} x2={70} y2={70} stroke={color} strokeWidth={4} strokeLinecap="round" />
+        {/* Toes supporting */}
+        <SvgLine x1={35} y1={53} x2={35} y2={70} stroke={color} strokeWidth={4} strokeLinecap="round" />
+      </Svg>
+    );
+  }
+
+  if (n.includes('traction') || n.includes('tirage') || n.includes('rowing') || n.includes('lombaires') || n.includes('back') || n.includes('pull')) {
+    // TRACTION / ROW (Hanging pull posture)
+    return (
+      <Svg width={120} height={90} viewBox="0 0 120 90">
+        {/* Bar */}
+        <SvgLine x1={30} y1={25} x2={90} y2={25} stroke="#78716c" strokeWidth={3} />
+        {/* Head */}
+        <SvgCircle cx={60} cy={36} r={5} fill={color} />
+        {/* Spine */}
+        <SvgLine x1={60} y1={41} x2={60} y2={62} stroke={color} strokeWidth={4} strokeLinecap="round" />
+        {/* Arms pulling */}
+        <SvgPath d="M 45 25 L 48 40 L 60 41" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+        <SvgPath d="M 75 25 L 72 40 L 60 41" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+        {/* Bent legs hanging */}
+        <SvgPath d="M 60 62 L 56 74 L 64 80" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+      </Svg>
+    );
+  }
+
+  if (n.includes('biceps') || n.includes('triceps') || n.includes('curl') || n.includes('bras') || n.includes('shoulder') || n.includes('élévation') || n.includes('épaules') || n.includes('delto')) {
+    // BICEPS CURL (Standing arm-bending dumbbell)
+    return (
+      <Svg width={120} height={90} viewBox="0 0 120 90">
+        {/* Head */}
+        <SvgCircle cx={60} cy={26} r={5} fill={color} />
+        {/* Spine */}
+        <SvgLine x1={60} y1={31} x2={60} y2={60} stroke={color} strokeWidth={4} strokeLinecap="round" />
+        {/* Bent arm holding weight */}
+        <SvgPath d="M 60 38 L 68 53 L 60 44" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+        {/* Dumbbell */}
+        <SvgLine x1={56} y1={42} x2={64} y2={46} stroke="#78716c" strokeWidth={3} />
+        <SvgCircle cx={56} cy={42} r={3} fill="#292524" />
+        <SvgCircle cx={64} cy={46} r={3} fill="#292524" />
+        {/* Legs */}
+        <SvgLine x1={60} y1={60} x2={60} y2={80} stroke={color} strokeWidth={4} strokeLinecap="round" />
+      </Svg>
+    );
+  }
+
+  // DEFAULT / CARDIO / GENERAL
+  return (
+    <Svg width={120} height={90} viewBox="0 0 120 90">
+      {/* Head */}
+      <SvgCircle cx={60} cy={26} r={5} fill={color} />
+      {/* Torso */}
+      <SvgLine x1={60} y1={31} x2={60} y2={56} stroke={color} strokeWidth={4} strokeLinecap="round" />
+      {/* Arms raised */}
+      <SvgPath d="M 42 36 L 60 40 L 78 36" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" />
+      {/* Legs running */}
+      <SvgPath d="M 60 56 L 50 74 L 38 78" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+      <SvgPath d="M 60 56 L 68 70 L 76 80" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+};
 
 const MovementDiagram: React.FC<{ name: string }> = ({ name }) => {
   const group = getMuscleGroup(name);
@@ -79,55 +219,62 @@ const MovementDiagram: React.FC<{ name: string }> = ({ name }) => {
         height: 120,
         backgroundColor: '#fff',
         borderRadius: radius.md,
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
         borderWidth: 1,
         borderColor: colors.ink[150],
         position: 'relative',
         overflow: 'hidden'
       }}>
-        {/* Dynamic arrows based on path direction */}
-        {pathDirection === 'down-up' && (
-          <View style={{ alignItems: 'center', gap: spacing[2] }}>
-            <ArrowDown size={28} color={group.color} strokeWidth={2.5} />
-            <Dumbbell size={24} color={colors.ink[400]} />
-            <ArrowUp size={28} color={group.color} strokeWidth={2.5} />
-          </View>
-        )}
-        {pathDirection === 'up-down' && (
-          <View style={{ alignItems: 'center', gap: spacing[2] }}>
-            <ArrowUp size={28} color={group.color} strokeWidth={2.5} />
-            <Dumbbell size={24} color={colors.ink[400]} />
-            <ArrowDown size={28} color={group.color} strokeWidth={2.5} />
-          </View>
-        )}
-        {pathDirection === 'horizontal' && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[4] }}>
-            <ChevronLeft size={24} color={group.color} strokeWidth={2.5} />
-            <Dumbbell size={24} color={colors.ink[400]} />
-            <ChevronRight size={24} color={group.color} strokeWidth={2.5} />
-          </View>
-        )}
-        {pathDirection === 'isometric' && (
-          <View style={{ alignItems: 'center', gap: spacing[1] }}>
-            <View style={{ width: 80, height: 8, borderRadius: 4, backgroundColor: group.color }} />
-            <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: group.color, marginTop: 4 }}>
-              EFFORT ISOMÉTRIQUE (STATIQUE)
-            </Text>
-          </View>
-        )}
-        {pathDirection === 'vertical' && (
-          <View style={{ alignItems: 'center', gap: spacing[2] }}>
-            <Dumbbell size={24} color={group.color} />
-            <Text style={{ fontFamily: fontFamily.hanken.medium, fontSize: fontSize.xs, color: colors.ink[500] }}>
-              Mouvement alterné
-            </Text>
-          </View>
-        )}
+        {/* Left Side: SVG Visual */}
+        <View style={{ width: 130, height: '100%', alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: colors.ink[100] }}>
+          <ExerciseVisual name={name} color={group.color} />
+        </View>
+
+        {/* Right Side: Directional Vectors */}
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[2] }}>
+          {pathDirection === 'down-up' && (
+            <View style={{ alignItems: 'center', gap: spacing[1.5] }}>
+              <ArrowDown size={20} color={group.color} strokeWidth={2.5} />
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 10, color: colors.ink[500], letterSpacing: 0.5 }}>FLEXION / EXTENSION</Text>
+              <ArrowUp size={20} color={group.color} strokeWidth={2.5} />
+            </View>
+          )}
+          {pathDirection === 'up-down' && (
+            <View style={{ alignItems: 'center', gap: spacing[1.5] }}>
+              <ArrowUp size={20} color={group.color} strokeWidth={2.5} />
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 10, color: colors.ink[500], letterSpacing: 0.5 }}>POUSSÉE VERTICALE</Text>
+              <ArrowDown size={20} color={group.color} strokeWidth={2.5} />
+            </View>
+          )}
+          {pathDirection === 'horizontal' && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
+              <ChevronLeft size={20} color={group.color} strokeWidth={2.5} />
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 10, color: colors.ink[500], letterSpacing: 0.5 }}>TIRAGE</Text>
+              <ChevronRight size={20} color={group.color} strokeWidth={2.5} />
+            </View>
+          )}
+          {pathDirection === 'isometric' && (
+            <View style={{ alignItems: 'center', gap: spacing[1.5] }}>
+              <View style={{ width: 60, height: 6, borderRadius: 3, backgroundColor: group.color }} />
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 10, color: group.color, letterSpacing: 0.5 }}>
+                ISOMÉTRIE (STATIQUE)
+              </Text>
+            </View>
+          )}
+          {pathDirection === 'vertical' && (
+            <View style={{ alignItems: 'center', gap: spacing[1.5] }}>
+              <Dumbbell size={20} color={group.color} />
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 10, color: colors.ink[500], letterSpacing: 0.5 }}>
+                ALTERNE / BILATÉRAL
+              </Text>
+            </View>
+          )}
+        </View>
 
         <View style={{ position: 'absolute', bottom: 6, right: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <ShieldCheck size={12} color={colors.sage[600]} />
-          <Text style={{ fontFamily: fontFamily.hanken.medium, fontSize: 10, color: colors.sage[600] }}>Alignement sécurisé</Text>
+          <Text style={{ fontFamily: fontFamily.hanken.medium, fontSize: 9, color: colors.sage[600] }}>Alignement sécurisé</Text>
         </View>
       </View>
 
