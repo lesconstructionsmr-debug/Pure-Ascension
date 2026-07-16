@@ -3,11 +3,12 @@ import {
   KeyboardAvoidingView, Platform, Pressable, SafeAreaView,
   ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { Mail, Lock, ChevronLeft } from 'lucide-react-native';
+import { Mail, Lock, ChevronLeft, Sparkles } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius } from '../theme/theme';
 import { Button }  from '../components/Button';
 import { Input }   from '../components/Input';
-import { signIn, signInWithGoogle } from '../services/authService';
+import { signIn, signUp, signInWithGoogle } from '../services/authService';
+import { setupDemoUser } from '../services/demoService';
 
 interface Props { onBack: () => void; onSuccess: () => void; onForgot: () => void; }
 
@@ -33,6 +34,36 @@ export const LoginScreen: React.FC<Props> = ({ onBack, onSuccess, onForgot }) =>
       } else {
         setError('Une erreur est survenue. Réessaie.');
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setError('');
+    setLoading(true);
+    const demoEmail = 'demo@pureascension.com';
+    const demoPass = 'puredemo';
+    try {
+      let user;
+      try {
+        user = await signIn(demoEmail, demoPass);
+      } catch (err: any) {
+        const code = err?.code ?? '';
+        if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+          user = await signUp(demoEmail, demoPass, 'Benoît Bêta');
+        } else {
+          throw err;
+        }
+      }
+      
+      if (user) {
+        await setupDemoUser(user.uid);
+        onSuccess();
+      }
+    } catch (err: any) {
+      console.error('Erreur connexion démo:', err);
+      setError('Impossible de lancer le mode démo. Vérifie ta connexion.');
     } finally {
       setLoading(false);
     }
@@ -118,6 +149,18 @@ export const LoginScreen: React.FC<Props> = ({ onBack, onSuccess, onForgot }) =>
                 setLoading(false);
               }
             }}
+          />
+
+          <View style={{ height: spacing[3] }} />
+
+          {/* Demo Mode Sign-In */}
+          <Button
+            variant="secondary"
+            size="lg"
+            label="⚡ Lancer le Mode Démo"
+            fullWidth
+            loading={loading}
+            onPress={handleDemoLogin}
           />
 
         </ScrollView>

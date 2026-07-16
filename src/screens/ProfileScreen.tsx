@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Pressable, SafeAreaView, ScrollView, StyleSheet,
-  Text, View, Linking, ActivityIndicator, Alert
+  Text, View, Linking, ActivityIndicator, Alert, TextInput, Modal
 } from 'react-native';
 import {
   Bell, ChevronRight, ClipboardList, History, Lock,
@@ -11,10 +11,11 @@ import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } fr
 import { Avatar }          from '../components/Avatar';
 import { Card }            from '../components/Card';
 import { Stat }            from '../components/Stat';
+import { Button }          from '../components/Button';
 import { useProgramStore } from '../store/useProgramStore';
 import { useStreak }       from '../hooks/useStreak';
 import { auth, db }        from '../services/firebase';
-import { doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 /* ─── Constantes Strava ──────────────────────────────────────────────────── */
 const STRAVA_ORANGE = '#FC4C02';
@@ -203,6 +204,36 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
   const sessions = 0;
   const wLabel   = '— kg';
 
+  /* Feedback state */
+  const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackCategory, setFeedbackCategory] = useState<'bug' | 'suggestion' | 'autre'>('suggestion');
+  const [feedbackSending, setFeedbackSending] = useState(false);
+
+  const handleSubmitFeedback = async () => {
+    if (!feedbackText.trim()) return;
+    setFeedbackSending(true);
+    try {
+      const uid = auth.currentUser?.uid;
+      await addDoc(collection(db, 'feedbacks'), {
+        userId: uid || 'anonymous',
+        userEmail: displayEmail,
+        userName: displayName,
+        category: feedbackCategory,
+        text: feedbackText.trim(),
+        createdAt: serverTimestamp(),
+      });
+      Alert.alert('Merci !', 'Ton retour a bien été envoyé à l\'équipe de Pure Ascension.');
+      setFeedbackText('');
+      setFeedbackModalVisible(false);
+    } catch (err) {
+      console.error('Erreur envoi feedback:', err);
+      Alert.alert('Erreur', 'Impossible d\'envoyer le retour. Réessaye.');
+    } finally {
+      setFeedbackSending(false);
+    }
+  };
+
   /* Strava state */
   const [stravaData, setStravaData] = useState<StravaData | null>(null);
   const [stravaLoading, setStravaLoading] = useState(true);
@@ -378,6 +409,22 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
           </Card>
         </View>
 
+        {/* ── Feedback Bêta ──────────────────────────────────────────────── */}
+        <Card elevation="sm" padding={spacing[4]} style={{ borderColor: colors.sage[300], borderWidth: 1.5, backgroundColor: colors.sage[50] }}>
+          <Pressable onPress={() => setFeedbackModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }} accessibilityRole="button">
+            <ClipboardList size={22} color={colors.sage[600]} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.sage[900] }}>
+                Donner mon avis / Signaler un bug
+              </Text>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.sage[700], marginTop: 2 }}>
+                Une suggestion, une idée ou un problème technique ? Dis-le nous !
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.sage[600]} />
+          </Pressable>
+        </Card>
+
         {/* ── Badge bêta ───────────────────────────────────────────────── */}
         <View style={{ alignItems: 'center', gap: spacing[2] }}>
           <BetaBadge />
@@ -385,6 +432,76 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
         </View>
         <View style={{ height: spacing[10] }} />
       </ScrollView>
+
+      {/* Modal Feedback */}
+      <Modal
+        visible={feedbackModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => { setFeedbackModalVisible(false); setFeedbackText(''); }}
+      >
+        <View style={{ flex: 1, backgroundColor: '#fbf8f3', padding: spacing[5] }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[6] }}>
+            <Text style={{ fontFamily: fontFamily.spectral.bold, fontSize: fontSize.xl, color: colors.ink[900] }}>
+              Faire un retour
+            </Text>
+            <Pressable onPress={() => { setFeedbackModalVisible(false); setFeedbackText(''); }} accessibilityRole="button">
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[600] }}>
+                Fermer
+              </Text>
+            </Pressable>
+          </View>
+
+          <Text style={{ fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.sm, color: colors.ink[800], marginBottom: spacing[2] }}>
+            Catégorie
+          </Text>
+          <View style={{ flexDirection: 'row', gap: spacing[2], marginBottom: spacing[5] }}>
+            {(['suggestion', 'bug', 'autre'] as const).map(cat => {
+              const active = feedbackCategory === cat;
+              return (
+                <Pressable
+                  key={cat}
+                  onPress={() => setFeedbackCategory(cat)}
+                  style={[{
+                    flex: 1, alignItems: 'center', paddingVertical: spacing[2.5], borderRadius: radius.md,
+                    backgroundColor: '#fff', borderWidth: 1.5, borderColor: colors.ink[200]
+                  }, active && { backgroundColor: colors.sage[500], borderColor: colors.sage[500] }]}
+                >
+                  <Text style={[{ fontFamily: fontFamily.hanken.medium, fontSize: fontSize.sm, color: colors.ink[600] }, active && { color: '#fff', fontFamily: fontFamily.hanken.bold }]}>
+                    {cat === 'suggestion' ? '💡 Idée' : cat === 'bug' ? '🐛 Bug' : '❓ Autre'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={{ fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.sm, color: colors.ink[800], marginBottom: spacing[2] }}>
+            Ton message
+          </Text>
+          <TextInput
+            style={{
+              backgroundColor: '#fff', borderWidth: 1.5, borderColor: colors.ink[200], borderRadius: radius.lg,
+              padding: spacing[3], height: 160, textAlignVertical: 'top', fontFamily: fontFamily.hanken.regular,
+              fontSize: fontSize.base, color: colors.ink[900], marginBottom: spacing[6]
+            }}
+            value={feedbackText}
+            onChangeText={setFeedbackText}
+            placeholder="Dis-nous tout (ex: le bouton d'ajout de repas ne réagit pas, j'adorerais avoir une option...)"
+            placeholderTextColor={colors.ink[400]}
+            multiline
+          />
+
+          <Button
+            variant="primary"
+            size="lg"
+            label="Envoyer mon retour"
+            fullWidth
+            loading={feedbackSending}
+            disabled={!feedbackText.trim()}
+            onPress={handleSubmitFeedback}
+          />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
