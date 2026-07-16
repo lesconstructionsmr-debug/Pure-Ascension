@@ -45,4 +45,4 @@ yarn-error.*
 .netlify
 
 # Firebase admin SDK secret
-pure-ascension-firebase-adminsdk-*.json
+pure-ascension-*.json
