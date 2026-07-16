@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Pressable, SafeAreaView, ScrollView, StyleSheet,
-  Text, TextInput, View
+  Text, TextInput, View, Modal
 } from 'react-native';
 import { Search, Lock, ChevronRight, Plus, ArrowLeft, Check, Sparkles, Heart, CheckCircle2 } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, spacing, radius, shadows } from '../theme/theme';
@@ -11,7 +11,7 @@ import { useCalorie } from '../context/CalorieContext';
 export interface Recipe {
   id: string;
   name: string;
-  category: 'reset' | 'hormone' | 'satiete';
+  category: 'petit-dej' | 'diner' | 'collation' | 'souper';
   categoryLabel: string;
   kcal: number;
   proteins: number;
@@ -28,8 +28,8 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rec-1',
     name: 'Bouillon d\'Os Détox & Collagène',
-    category: 'reset',
-    categoryLabel: 'Reset Métabolique (14j)',
+    category: 'petit-dej',
+    categoryLabel: 'Petit-déjeuner',
     kcal: 75,
     proteins: 14,
     carbs: 1,
@@ -54,8 +54,8 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rec-2',
     name: 'Saumon Vapeur au Curcuma & Brocoli',
-    category: 'reset',
-    categoryLabel: 'Reset Métabolique (14j)',
+    category: 'diner',
+    categoryLabel: 'Dîner',
     kcal: 340,
     proteins: 36,
     carbs: 8,
@@ -80,8 +80,8 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rec-3',
     name: 'Assiette Signature Estrogène-Balance',
-    category: 'hormone',
-    categoryLabel: 'Équilibre Hormonal',
+    category: 'souper',
+    categoryLabel: 'Souper',
     kcal: 440,
     proteins: 40,
     carbs: 35,
@@ -107,8 +107,8 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rec-4',
     name: 'Salade Arc-en-ciel au Thon Grillé',
-    category: 'hormone',
-    categoryLabel: 'Équilibre Hormonal',
+    category: 'diner',
+    categoryLabel: 'Dîner',
     kcal: 460,
     proteins: 38,
     carbs: 32,
@@ -134,8 +134,8 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rec-5',
     name: 'Pouding de Chia aux Bleuets & Cannelle',
-    category: 'satiete',
-    categoryLabel: 'Collation Satiété',
+    category: 'collation',
+    categoryLabel: 'Collation',
     kcal: 195,
     proteins: 7,
     carbs: 18,
@@ -160,8 +160,8 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rec-6',
     name: 'Skyr Protéiné aux Amandes',
-    category: 'satiete',
-    categoryLabel: 'Collation Satiété',
+    category: 'collation',
+    categoryLabel: 'Collation',
     kcal: 220,
     proteins: 24,
     carbs: 12,
@@ -185,8 +185,8 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rec-7',
     name: 'Potage Crémeux de Courge au Lait de Coco',
-    category: 'reset',
-    categoryLabel: 'Reset Métabolique (14j)',
+    category: 'souper',
+    categoryLabel: 'Souper',
     kcal: 180,
     proteins: 4,
     carbs: 22,
@@ -211,8 +211,8 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rec-8',
     name: 'Sardines Grillées aux Herbes & Concombre',
-    category: 'reset',
-    categoryLabel: 'Reset Métabolique (14j)',
+    category: 'diner',
+    categoryLabel: 'Dîner',
     kcal: 290,
     proteins: 28,
     carbs: 4,
@@ -236,8 +236,8 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rec-9',
     name: 'Poulet Mariné au Romarin & Quinoa',
-    category: 'hormone',
-    categoryLabel: 'Équilibre Hormonal',
+    category: 'souper',
+    categoryLabel: 'Souper',
     kcal: 420,
     proteins: 38,
     carbs: 36,
@@ -261,8 +261,8 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rec-10',
     name: 'Bol de Kéfir aux Graines & Grenade',
-    category: 'hormone',
-    categoryLabel: 'Équilibre Hormonal',
+    category: 'petit-dej',
+    categoryLabel: 'Petit-déjeuner',
     kcal: 260,
     proteins: 12,
     carbs: 22,
@@ -286,8 +286,8 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rec-11',
     name: 'Omelette Légère aux Épinards & Avocat',
-    category: 'satiete',
-    categoryLabel: 'Collation Satiété',
+    category: 'petit-dej',
+    categoryLabel: 'Petit-déjeuner',
     kcal: 310,
     proteins: 20,
     carbs: 6,
@@ -311,8 +311,8 @@ export const RECIPES: Recipe[] = [
   {
     id: 'rec-12',
     name: 'Smoothie Vert Vitalité & Whey',
-    category: 'satiete',
-    categoryLabel: 'Collation Satiété',
+    category: 'collation',
+    categoryLabel: 'Collation',
     kcal: 280,
     proteins: 26,
     carbs: 14,
@@ -433,9 +433,10 @@ interface Props {
 export const RecipeBookScreen: React.FC<Props> = ({ navigation }) => {
   const isPremium = useProgramStore(s => s.isPremium);
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'reset' | 'hormone' | 'satiete' | 'flexible'>('reset');
+  const [activeTab, setActiveTab] = useState<'petit-dej' | 'diner' | 'collation' | 'souper'>('petit-dej');
   const { addEntry } = useCalorie();
   const [addedId, setAddedId] = useState<string | null>(null);
+  const [showFlexibilityModal, setShowFlexibilityModal] = useState(false);
 
   const filteredRecipes = RECIPES.filter(
     r =>
@@ -471,41 +472,41 @@ export const RecipeBookScreen: React.FC<Props> = ({ navigation }) => {
           <ArrowLeft size={20} color={colors.ink[700]} />
         </Pressable>
         <Text style={st.headerTitle}>Livre de Recettes</Text>
-        <View style={{ width: 40 }} />
+        <Pressable onPress={() => setShowFlexibilityModal(true)} style={st.backBtn} accessibilityRole="button">
+          <Sparkles size={18} color={colors.sage[600]} />
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
         {/* Search */}
-        {activeTab !== 'flexible' && (
-          <View style={st.searchContainer}>
-            <Search size={18} color={colors.ink[400]} />
-            <TextInput
-              style={st.searchInput}
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Rechercher une recette saine..."
-              placeholderTextColor={colors.ink[400]}
-            />
-          </View>
-        )}
+        <View style={st.searchContainer}>
+          <Search size={18} color={colors.ink[400]} />
+          <TextInput
+            style={st.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Rechercher une recette saine..."
+            placeholderTextColor={colors.ink[400]}
+          />
+        </View>
 
         {/* Categories / Tabs */}
         <View style={st.tabsRow}>
-          {(['reset', 'hormone', 'satiete', 'flexible'] as const).map(tab => (
+          {(['petit-dej', 'diner', 'collation', 'souper'] as const).map(tab => (
             <Pressable
               key={tab}
               onPress={() => setActiveTab(tab)}
               style={[st.tabBtn, activeTab === tab && st.tabBtnActive]}
             >
               <Text style={[st.tabText, activeTab === tab && st.tabTextActive]}>
-                {tab === 'reset' ? 'Reset 14j' : tab === 'hormone' ? 'Équilibre' : tab === 'satiete' ? 'Satiété' : 'Flexibilité'}
+                {tab === 'petit-dej' ? 'Petit-déj' : tab === 'diner' ? 'Dîner' : tab === 'collation' ? 'Collation' : 'Souper'}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        {/* Upsell Banner for non-premium (hidden for flexible tab) */}
-        {!isPremium && activeTab !== 'flexible' && (
+        {/* Upsell Banner for non-premium */}
+        {!isPremium && (
           <Pressable onPress={() => useProgramStore.getState().setShowPaywall(true)} style={st.upsellCard}>
             <View style={st.lockCircle}>
               <Lock size={20} color={colors.sage[600]} />
@@ -519,80 +520,101 @@ export const RecipeBookScreen: React.FC<Props> = ({ navigation }) => {
             <ChevronRight size={18} color={colors.ink[400]} />
           </Pressable>
         )}
-        {activeTab === 'flexible' ? (
-          <FlexibilityGuide />
-        ) : (
-          /* Recipes list */
-          <View style={st.list}>
-            {filteredRecipes.map(recipe => {
-              const isAdded = addedId === recipe.id;
-              return (
-                <Pressable
-                  key={recipe.id}
-                  onPress={() => handleRecipePress(recipe)}
-                  style={[st.recipeCard, !isPremium && st.recipeCardLocked]}
-                >
-                  <View style={st.recipeHeader}>
-                    <View style={{ flex: 1 }}>
-                      <View style={st.tagRow}>
-                        <Text style={st.recipeCategory}>{recipe.categoryLabel}</Text>
-                        {!isPremium && (
-                          <View style={st.lockTag}>
-                            <Lock size={10} color="#fff" />
-                            <Text style={st.lockTagText}>Premium</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={st.recipeName}>{recipe.name}</Text>
+
+        {/* Recipes list */}
+        <View style={st.list}>
+          {filteredRecipes.map(recipe => {
+            const isAdded = addedId === recipe.id;
+            return (
+              <Pressable
+                key={recipe.id}
+                onPress={() => handleRecipePress(recipe)}
+                style={[st.recipeCard, !isPremium && st.recipeCardLocked]}
+              >
+                <View style={st.recipeHeader}>
+                  <View style={{ flex: 1 }}>
+                    <View style={st.tagRow}>
+                      <Text style={st.recipeCategory}>{recipe.categoryLabel}</Text>
+                      {!isPremium && (
+                        <View style={st.lockTag}>
+                          <Lock size={10} color="#fff" />
+                          <Text style={st.lockTagText}>Premium</Text>
+                        </View>
+                      )}
                     </View>
+                    <Text style={st.recipeName}>{recipe.name}</Text>
                   </View>
+                </View>
 
-                  <Text style={st.recipeDesc} numberOfLines={2}>{recipe.description}</Text>
+                <Text style={st.recipeDesc} numberOfLines={2}>{recipe.description}</Text>
 
-                  {/* Macros row */}
-                  <View style={st.macrosRow}>
-                    <View style={st.macro}>
-                      <Text style={st.macroValue}>{recipe.kcal}</Text>
-                      <Text style={st.macroLabel}>kcal</Text>
-                    </View>
-                    <View style={st.macroLine} />
-                    <View style={st.macro}>
-                      <Text style={st.macroValue}>{recipe.proteins}g</Text>
-                      <Text style={st.macroLabel}>Prot</Text>
-                    </View>
-                    <View style={st.macroLine} />
-                    <View style={st.macro}>
-                      <Text style={st.macroValue}>{recipe.carbs}g</Text>
-                      <Text style={st.macroLabel}>Gluc</Text>
-                    </View>
-                    <View style={st.macroLine} />
-                    <View style={st.macro}>
-                      <Text style={st.macroValue}>{recipe.fats}g</Text>
-                      <Text style={st.macroLabel}>Lip</Text>
-                    </View>
+                {/* Macros row */}
+                <View style={st.macrosRow}>
+                  <View style={st.macro}>
+                    <Text style={st.macroValue}>{recipe.kcal}</Text>
+                    <Text style={st.macroLabel}>kcal</Text>
                   </View>
+                  <View style={st.macroLine} />
+                  <View style={st.macro}>
+                    <Text style={st.macroValue}>{recipe.proteins}g</Text>
+                    <Text style={st.macroLabel}>Prot</Text>
+                  </View>
+                  <View style={st.macroLine} />
+                  <View style={st.macro}>
+                    <Text style={st.macroValue}>{recipe.carbs}g</Text>
+                    <Text style={st.macroLabel}>Gluc</Text>
+                  </View>
+                  <View style={st.macroLine} />
+                  <View style={st.macro}>
+                    <Text style={st.macroValue}>{recipe.fats}g</Text>
+                    <Text style={st.macroLabel}>Lip</Text>
+                  </View>
+                </View>
 
-                  {/* Interactive buttons */}
-                  {isPremium && (
-                    <View style={st.cardFooter}>
-                      <Pressable
-                        onPress={() => handleAdd(recipe)}
-                        style={[st.addBtn, isAdded && st.addBtnSuccess]}
-                        accessibilityRole="button"
-                      >
-                        <Plus size={16} color="#fff" />
-                        <Text style={st.addBtnText}>
-                          {isAdded ? 'Ajouté !' : 'Ajouter au journal'}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
+                {/* Interactive buttons */}
+                {isPremium && (
+                  <View style={st.cardFooter}>
+                    <Pressable
+                      onPress={() => handleAdd(recipe)}
+                      style={[st.addBtn, isAdded && st.addBtnSuccess]}
+                      accessibilityRole="button"
+                    >
+                      <Plus size={16} color="#fff" />
+                      <Text style={st.addBtnText}>
+                        {isAdded ? 'Ajouté !' : 'Ajouter au journal'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
       </ScrollView>
+
+      {/* Modal Equivalences & Flexibilité */}
+      <Modal
+        visible={showFlexibilityModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowFlexibilityModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#fbf8f3' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing[5], borderBottomWidth: 1, borderBottomColor: colors.ink[200], backgroundColor: '#fff' }}>
+            <Text style={{ fontFamily: fontFamily.spectral.bold, fontSize: fontSize.xl, color: colors.ink[900] }}>
+              💡 Équivalences & Flexibilité
+            </Text>
+            <Pressable onPress={() => setShowFlexibilityModal(false)} accessibilityRole="button">
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[600] }}>
+                Fermer
+              </Text>
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[8] }} showsVerticalScrollIndicator={false}>
+            <FlexibilityGuide />
+          </ScrollView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
