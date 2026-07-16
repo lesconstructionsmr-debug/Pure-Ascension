@@ -267,6 +267,9 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
   const [feedbackCategory, setFeedbackCategory] = useState<'bug' | 'suggestion' | 'autre'>('suggestion');
   const [feedbackSending, setFeedbackSending] = useState(false);
 
+  /* Privacy Policy state */
+  const [privacyVisible, setPrivacyVisible] = useState(false);
+
   const handleSubmitFeedback = async () => {
     if (!feedbackText.trim()) return;
     setFeedbackSending(true);
@@ -448,7 +451,13 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
             {SETTINGS.map((item, idx, arr) => (
               <View key={item.id}>
                 <Pressable
-                  onPress={() => item.route && navigation?.navigate(item.route, { isNewUser })}
+                  onPress={() => {
+                    if (item.route) {
+                      navigation?.navigate(item.route, { isNewUser });
+                    } else if (item.id === 's-5') {
+                      setPrivacyVisible(true);
+                    }
+                  }}
                   accessibilityRole="button"
                   accessibilityLabel={item.label}
                   style={({ pressed }) => [
@@ -590,6 +599,81 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
             disabled={!feedbackText.trim()}
             onPress={handleSubmitFeedback}
           />
+        </View>
+      </Modal>
+
+      {/* Modal Confidentialité */}
+      <Modal
+        visible={privacyVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setPrivacyVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#fbf8f3', padding: spacing[5] }}>
+          {/* Header */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[5] }}>
+            <Text style={{ fontFamily: fontFamily.spectral.bold, fontSize: fontSize.xl, color: colors.ink[900] }}>
+              Confidentialité & CGU
+            </Text>
+            <Pressable onPress={() => setPrivacyVisible(false)} accessibilityRole="button">
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[600] }}>
+                Fermer
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Content */}
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: spacing[4], paddingBottom: spacing[8] }}>
+            <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600], lineHeight: 20 }}>
+              Dernière mise à jour : Juillet 2026
+            </Text>
+
+            <View style={{ gap: spacing[1] }}>
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                1. Collecte des données
+              </Text>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
+                Pure Ascension collecte vos informations d'onboarding (nom, email, mensurations, objectifs physiques) ainsi que vos bilans naturopathiques pour personnaliser vos plans d'entraînements et de nutrition. Ces informations sont stockées de façon sécurisée sur Google Cloud Firestore.
+              </Text>
+            </View>
+
+            <View style={{ gap: spacing[1] }}>
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                2. Intégrations tierces
+              </Text>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
+                • **Strava** : Si vous connectez votre compte, nous lisons vos activités sportives pour mettre à jour vos dépenses caloriques journalières de manière automatisée.
+                {"\n"}• **Stripe** : Vos transactions de paiement d'abonnement sont traitées de manière 100% sécurisée par Stripe. Aucune donnée de carte bancaire ne transite sur nos serveurs.
+              </Text>
+            </View>
+
+            <View style={{ gap: spacing[1] }}>
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                3. Utilisation de l'IA (Gemini)
+              </Text>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
+                Les questions posées à l'IA Coach de Pure Ascension sont traitées via l'API sécurisée de Google Gemini. Vos données d'entraînement et objectifs y sont attachés sous forme de contexte strict pour formuler des réponses adaptées. Vos données ne sont pas utilisées pour entraîner le modèle public.
+              </Text>
+            </View>
+
+            <View style={{ gap: spacing[1] }}>
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                4. Sécurité & Droits
+              </Text>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
+                Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression totale de vos données. Vous pouvez à tout moment demander la purge complète de vos informations depuis notre service support ou en supprimant votre compte.
+              </Text>
+            </View>
+
+            <View style={{ gap: spacing[1] }}>
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                5. Responsabilité & Santé
+              </Text>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
+                Les conseils d'entraînement et d'alimentation prodigués par l'application sont à titre indicatif et ne remplacent en aucun cas un avis médical professionnel. Consultez votre médecin traitant avant de débuter tout nouveau programme sportif intense ou d'effectuer des changements nutritionnels notables.
+              </Text>
+            </View>
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>
