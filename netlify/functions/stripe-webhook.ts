@@ -112,21 +112,9 @@ export const handler: Handler = async (event) => {
         return { statusCode: 200, body: 'Ignored: No client_reference_id' };
       }
 
-      // Récupérer le détail de la ligne d'achat pour connaître le prix/produit
-      const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
-      const priceId = lineItems.data[0]?.price?.id;
-
-      let planLevel = 'free';
-      let isPremium = false;
-
-      if (priceId === process.env.STRIPE_PRICE_STANDARD) {
-        planLevel = 'standard';
-      } else if (priceId === process.env.STRIPE_PRICE_PREMIUM) {
-        planLevel = 'premium';
-        isPremium = true;
-      } else {
-        console.warn(`⚠️ ID de prix inconnu : ${priceId}`);
-      }
+      // Extraire le planLevel directement depuis les métadonnées de la session de checkout (évite l'appel réseau listLineItems)
+      const planLevel = session.metadata?.planLevel || 'free';
+      const isPremium = planLevel === 'premium';
 
       console.log(`Activation de l'abonnement pour l'utilisateur ${uid} - Plan: ${planLevel} (Subscription: ${subscriptionId})`);
 

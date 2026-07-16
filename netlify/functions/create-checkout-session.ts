@@ -80,6 +80,9 @@ export const handler: Handler = async (event) => {
       ],
       client_reference_id: uid,
       customer_email: email,
+      metadata: {
+        planLevel: plan,
+      },
       // Stripe redirigera ici après validation ou annulation
       success_url: `${baseUrl}/?payment=success`,
       cancel_url: `${baseUrl}/?payment=cancel`,

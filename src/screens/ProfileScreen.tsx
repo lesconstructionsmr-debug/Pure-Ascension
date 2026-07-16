@@ -16,7 +16,7 @@ import { useProgramStore } from '../store/useProgramStore';
 import { useStreak }       from '../hooks/useStreak';
 import { auth, db }        from '../services/firebase';
 import { logOut }          from '../services/authService';
-import { doc, getDoc, onSnapshot, updateDoc, collection, addDoc, serverTimestamp, query, getDocs, where, orderBy } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, updateDoc, collection, addDoc, serverTimestamp, query, getDocs, where, orderBy, deleteDoc } from 'firebase/firestore';
 
 /* ─── Constantes Strava ──────────────────────────────────────────────────── */
 const STRAVA_ORANGE = '#FC4C02';
@@ -521,6 +521,68 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
           <LogOut size={18} color={colors.clay[500]} strokeWidth={2} />
           <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.clay[600] }}>
             Se déconnecter de Pure Ascension
+          </Text>
+        </Pressable>
+
+        {/* ── Bouton Suppression de Compte ────────────────────────────────── */}
+        <Pressable
+          onPress={() => {
+            Alert.alert(
+              'Supprimer le compte',
+              'Cette action supprimera définitivement tes données de progression, rituels et repas de Pure Ascension. Es-tu sûr·e de vouloir continuer ?',
+              [
+                { text: 'Annuler', style: 'cancel' },
+                {
+                  text: 'Supprimer mon compte',
+                  style: 'destructive',
+                  onPress: async () => {
+                    const user = auth.currentUser;
+                    if (user) {
+                      try {
+                        const uid = user.uid;
+                        // Supprimer le document de profil dans Firestore
+                        await deleteDoc(doc(db, 'users', uid));
+                        // Supprimer l'utilisateur de Firebase Auth
+                        await user.delete();
+                        Alert.alert('Compte supprimé', 'Toutes vos données ont été purgées avec succès. À bientôt !');
+                      } catch (err: any) {
+                        console.error('Erreur suppression compte:', err);
+                        if (err.code === 'auth/requires-recent-login') {
+                          Alert.alert(
+                            'Action requise',
+                            'Pour supprimer ton compte, tu devez vous reconnecter récemment pour des raisons de sécurité. Déconnecte-toi et reconnecte-toi pour réessayer.'
+                          );
+                        } else {
+                          Alert.alert('Erreur', 'Impossible de supprimer le compte. Veuillez réessayer.');
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            );
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Supprimer le compte définitivement"
+          style={({ pressed }) => [
+            {
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: spacing[4],
+              borderRadius: radius.xl,
+              backgroundColor: '#fff',
+              borderWidth: 1.5,
+              borderColor: colors.clay[100],
+              gap: spacing[2],
+              marginTop: spacing[3],
+              marginBottom: spacing[2],
+            },
+            pressed && { backgroundColor: '#fff5f2' }
+          ]}
+        >
+          <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.clay[500] }}>
+            Supprimer mon compte définitivement
           </Text>
         </Pressable>
 
