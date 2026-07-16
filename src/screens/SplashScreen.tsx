@@ -38,7 +38,7 @@ export const SplashScreen: React.FC<Props> = ({ onStart, onLogin }) => {
         <View style={st.centerArea}>
           <Animated.View style={[st.logoWrap, { transform: [{ scale: pulse }] }]}>
             <View style={st.logoInner}>
-              <PureAscensionLogo size={180} color="#D2C4A7" strokeWidth={2.8} />
+              <PureAscensionLogo size={280} color="#D2C4A7" strokeWidth={2.8} />
             </View>
           </Animated.View>
           <Text style={st.brand}>Pure Ascension</Text>
@@ -76,11 +76,11 @@ const st = StyleSheet.create({
 
   centerArea: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing[4] },
   logoWrap: {
-    width: 240, height: 240,
+    width: 340, height: 340,
     alignItems: 'center', justifyContent: 'center',
   },
   logoInner: {
-    width: 200, height: 200,
+    width: 300, height: 300,
     alignItems: 'center', justifyContent: 'center',
   },
   brand: {
