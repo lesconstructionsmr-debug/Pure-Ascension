@@ -43,3 +43,6 @@ yarn-error.*
 
 # Local Netlify folder
 .netlify
+
+# Firebase admin SDK secret
+pure-ascension-firebase-adminsdk-*.json

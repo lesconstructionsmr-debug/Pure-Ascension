@@ -39,5 +39,11 @@ service cloud.firestore {
       // Règles pour le programme d'entraînement/nutrition stocké sous l'utilisateur
       // Le programme lui-même peut être stocké dans le document utilisateur (users/{uid}.program)
     }
+
+    // Règles pour les retours (feedbacks)
+    match /feedbacks/{feedbackId} {
+      allow create: if request.auth != null;
+      allow read: if false; // Les utilisateurs ne peuvent pas lire les retours des autres
+    }
   }
 }

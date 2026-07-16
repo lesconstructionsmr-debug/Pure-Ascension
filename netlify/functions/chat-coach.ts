@@ -97,7 +97,7 @@ export const handler: Handler = async (event) => {
       const userSnap = await userRef.get();
       const userData = userSnap.data() || {};
 
-      const plan: string = userData.plan || 'free';
+      const plan: string = userData.planLevel || userData.plan || 'free';
       const limit = DAILY_LIMITS[plan] ?? DAILY_LIMITS.free;
 
       const lastResetDate: string = userData.aiMessagesResetDate || '';
