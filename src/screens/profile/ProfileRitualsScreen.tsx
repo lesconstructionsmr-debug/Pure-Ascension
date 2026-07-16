@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Animated, Pressable, SafeAreaView,
-  ScrollView, StyleSheet, Text, View,
+  ScrollView, StyleSheet, Text, View, Alert, TextInput, Modal
 } from 'react-native';
 import {
   ChevronLeft, Sun, Moon, Wind, BookOpen,
@@ -58,10 +58,18 @@ const RITUALS: Ritual[] = [
 ];
 
 export const ProfileRitualsScreen: React.FC<Props> = ({ onBack }) => {
+  const [rituals, setRituals] = useState<Ritual[]>(RITUALS);
   const [completed, setCompleted] = useState<Set<string>>(
     new Set(RITUALS.filter(r => r.completedToday).map(r => r.id))
   );
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Form states
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newDuration, setNewDuration] = useState('10 min');
+  const [newTags, setNewTags] = useState('bien-être');
 
   const toggle = (id: string) => {
     setCompleted(prev => {
@@ -71,8 +79,32 @@ export const ProfileRitualsScreen: React.FC<Props> = ({ onBack }) => {
     });
   };
 
+  const handleCreateRitual = () => {
+    if (!newTitle.trim()) {
+      Alert.alert('Erreur', 'Le titre est obligatoire.');
+      return;
+    }
+    const newRitual: Ritual = {
+      id: 'custom-' + Date.now(),
+      icon: Sun, // Default icon
+      title: newTitle.trim(),
+      desc: newDesc.trim() || 'Mon rituel bien-être personnalisé.',
+      duration: newDuration.trim(),
+      color: colors.sage[500],
+      bg: colors.sage[100],
+      tags: newTags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
+      completedToday: false,
+    };
+    setRituals(prev => [...prev, newRitual]);
+    setNewTitle('');
+    setNewDesc('');
+    setNewDuration('10 min');
+    setNewTags('bien-être');
+    setAddModalVisible(false);
+  };
+
   const doneCount = completed.size;
-  const totalCount = RITUALS.length;
+  const totalCount = rituals.length;
 
   return (
     <SafeAreaView style={s.safe}>
@@ -110,7 +142,7 @@ export const ProfileRitualsScreen: React.FC<Props> = ({ onBack }) => {
         </Text>
 
         {/* Ritual cards */}
-        {RITUALS.map(ritual => {
+        {rituals.map(ritual => {
           const isDone = completed.has(ritual.id);
           const isExpanded = expanded === ritual.id;
           const Icon = ritual.icon;
@@ -167,7 +199,11 @@ export const ProfileRitualsScreen: React.FC<Props> = ({ onBack }) => {
         })}
 
         {/* Add ritual CTA */}
-        <Pressable style={s.addCard} accessibilityRole="button">
+        <Pressable
+          style={s.addCard}
+          accessibilityRole="button"
+          onPress={() => setAddModalVisible(true)}
+        >
           <View style={s.addIcon}>
             <Plus size={20} color={colors.sage[500]} strokeWidth={2} />
           </View>
@@ -176,6 +212,102 @@ export const ProfileRitualsScreen: React.FC<Props> = ({ onBack }) => {
 
         <View style={{ height:40 }} />
       </ScrollView>
+
+      {/* Modal Add Ritual */}
+      <Modal
+        visible={addModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setAddModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#fbf8f3', padding: spacing[5], gap: spacing[4] }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[2] }}>
+            <Text style={{ fontFamily: fontFamily.spectral.bold, fontSize: fontSize.xl, color: colors.ink[900] }}>
+              Nouveau Rituel
+            </Text>
+            <Pressable onPress={() => setAddModalVisible(false)} accessibilityRole="button">
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[600] }}>
+                Fermer
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={{ gap: spacing[1] }}>
+            <Text style={{ fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.sm, color: colors.ink[800] }}>
+              Titre du rituel
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: '#fff', borderWidth: 1.5, borderColor: colors.ink[200], borderRadius: radius.lg,
+                padding: spacing[3], fontFamily: fontFamily.hanken.regular, fontSize: fontSize.base, color: colors.ink[900]
+              }}
+              value={newTitle}
+              onChangeText={setNewTitle}
+              placeholder="Ex: Tisane relaxante"
+              placeholderTextColor={colors.ink[400]}
+            />
+          </View>
+
+          <View style={{ gap: spacing[1] }}>
+            <Text style={{ fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.sm, color: colors.ink[800] }}>
+              Description / Consignes
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: '#fff', borderWidth: 1.5, borderColor: colors.ink[200], borderRadius: radius.lg,
+                padding: spacing[3], height: 80, textAlignVertical: 'top', fontFamily: fontFamily.hanken.regular,
+                fontSize: fontSize.base, color: colors.ink[900]
+              }}
+              value={newDesc}
+              onChangeText={setNewDesc}
+              placeholder="Ex: Préparer une infusion de camomille ou verveine et la déguster loin des écrans."
+              placeholderTextColor={colors.ink[400]}
+              multiline
+            />
+          </View>
+
+          <View style={{ gap: spacing[1] }}>
+            <Text style={{ fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.sm, color: colors.ink[800] }}>
+              Durée indicative
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: '#fff', borderWidth: 1.5, borderColor: colors.ink[200], borderRadius: radius.lg,
+                padding: spacing[3], fontFamily: fontFamily.hanken.regular, fontSize: fontSize.base, color: colors.ink[900]
+              }}
+              value={newDuration}
+              onChangeText={setNewDuration}
+              placeholder="Ex: 15 min"
+              placeholderTextColor={colors.ink[400]}
+            />
+          </View>
+
+          <View style={{ gap: spacing[1] }}>
+            <Text style={{ fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.sm, color: colors.ink[800] }}>
+              Tags (séparés par des virgules)
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: '#fff', borderWidth: 1.5, borderColor: colors.ink[200], borderRadius: radius.lg,
+                padding: spacing[3], fontFamily: fontFamily.hanken.regular, fontSize: fontSize.base, color: colors.ink[900],
+                marginBottom: spacing[4]
+              }}
+              value={newTags}
+              onChangeText={setNewTags}
+              placeholder="Ex: soir, détente, tisane"
+              placeholderTextColor={colors.ink[400]}
+            />
+          </View>
+
+          <Button
+            variant="primary"
+            size="lg"
+            label="Ajouter ce rituel"
+            fullWidth
+            onPress={handleCreateRitual}
+          />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
