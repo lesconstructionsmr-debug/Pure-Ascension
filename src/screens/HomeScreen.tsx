@@ -14,7 +14,8 @@ import { EmptyState } from '../components/EmptyState';
 import { useProgramStore } from '../store/useProgramStore';
 import { getProgramProgress, getTodaySession, generateProgram } from '../services/programService';
 import { saveUserProfileAndProgram } from '../services/dbService';
-import { auth } from '../services/firebase';
+import { auth, db } from '../services/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 function getGreeting(name: string): string {
   const h = new Date().getHours();
@@ -48,7 +49,21 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const profile = useProgramStore(s => s.profile);
   const storeName = useProgramStore(s => s.userName);
   const { mealsPct, mealsCount, workoutPct, waterPct, waterGlasses, addWater, removeWater } = useDailyProgress();
-  const { streak } = useStreak();
+  const [streakDays, setStreakDays] = React.useState(1);
+
+  React.useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const unsub = onSnapshot(doc(db, 'users', uid), (snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        if (d.streakDays !== undefined) {
+          setStreakDays(d.streakDays);
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const [showDigestiveModal, setShowDigestiveModal] = React.useState(false);
   const [diagStep, setDiagStep] = React.useState(1);
@@ -152,7 +167,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             <View style={{ flex:1, marginRight:spacing[4] }}>
               <Text style={s.greeting} accessibilityRole="header">{greeting}</Text>
               <Text style={s.subgreeting}>
-                {streak > 1 ? `🔥 ${streak} jours de série` : progress.day <= 1 ? 'Bienvenue ! C\'est parti 🌿' : 'Voici ton tableau de bord.'}
+                {streakDays > 1 ? `🔥 ${streakDays} jours de série` : progress.day <= 1 ? 'Bienvenue ! C\'est parti 🌿' : 'Voici ton tableau de bord.'}
               </Text>
             </View>
             <Avatar name={displayName} size={44} ring />
@@ -171,7 +186,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             <Progress value={displayProgram.completionPct} fillColor={colors.clay[300]} trackColor={colors.sage[700]} height={6} style={{ marginBottom:spacing[2] }} />
             <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
               <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.sm, color:colors.sage[300] }}>{displayProgram.completionPct} % complété</Text>
-              <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.sm, color:colors.sand[200] }}>{streak} jour{streak !== 1 ? 's' : ''} de série 🔥</Text>
+              <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.sm, color:colors.sand[200] }}>{streakDays} jour{streakDays !== 1 ? 's' : ''} de série 🔥</Text>
             </View>
           </Card>
 
