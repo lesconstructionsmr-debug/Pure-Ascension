@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Animated, Platform, Pressable, SafeAreaView,
-  ScrollView, StyleSheet, Text, View,
+  ScrollView, StyleSheet, Text, View, Image,
 } from 'react-native';
 import {
   ChevronLeft, ChevronRight, Check, Clock,
@@ -21,6 +21,27 @@ import Svg, { Circle as SvgCircle, Path as SvgPath, Line as SvgLine, Rect as Svg
 
 const ExerciseVisual: React.FC<{ name: string; color: string }> = ({ name, color }) => {
   const n = name.toLowerCase();
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFrame(f => (f === 0 ? 1 : 0));
+    }, 1500);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Traction / Pull-up / Rowing / Tirage (Back exercises)
+  if (n.includes('traction') || n.includes('pull') || n.includes('rowing') || n.includes('tirage') || n.includes('dorsal')) {
+    return (
+      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
+        <Image
+          source={frame === 0 ? require('../../assets/exercises/traction_1.png') : require('../../assets/exercises/traction_2.png')}
+          style={{ width: 116, height: 116 }}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }
 
   if (n.includes('squat') || n.includes('fente') || n.includes('presse') || n.includes('leg') || n.includes('ischio') || n.includes('mollet') || n.includes('quad') || n.includes('fessier')) {
     // SQUAT (Side View, bent posture)
@@ -99,25 +120,6 @@ const ExerciseVisual: React.FC<{ name: string; color: string }> = ({ name, color
         <SvgLine x1={70} y1={53} x2={70} y2={70} stroke={color} strokeWidth={4} strokeLinecap="round" />
         {/* Toes supporting */}
         <SvgLine x1={35} y1={53} x2={35} y2={70} stroke={color} strokeWidth={4} strokeLinecap="round" />
-      </Svg>
-    );
-  }
-
-  if (n.includes('traction') || n.includes('tirage') || n.includes('rowing') || n.includes('lombaires') || n.includes('back') || n.includes('pull')) {
-    // TRACTION / ROW (Hanging pull posture)
-    return (
-      <Svg width={120} height={90} viewBox="0 0 120 90">
-        {/* Bar */}
-        <SvgLine x1={30} y1={25} x2={90} y2={25} stroke="#78716c" strokeWidth={3} />
-        {/* Head */}
-        <SvgCircle cx={60} cy={36} r={5} fill={color} />
-        {/* Spine */}
-        <SvgLine x1={60} y1={41} x2={60} y2={62} stroke={color} strokeWidth={4} strokeLinecap="round" />
-        {/* Arms pulling */}
-        <SvgPath d="M 45 25 L 48 40 L 60 41" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
-        <SvgPath d="M 75 25 L 72 40 L 60 41" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
-        {/* Bent legs hanging */}
-        <SvgPath d="M 60 62 L 56 74 L 64 80" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
       </Svg>
     );
   }
