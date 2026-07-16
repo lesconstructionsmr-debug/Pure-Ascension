@@ -30,7 +30,7 @@ const ExerciseVisual: React.FC<{ name: string; color: string }> = ({ name, color
     return () => clearInterval(timer);
   }, []);
 
-  // Traction / Pull-up / Rowing / Tirage (Back exercises)
+  // 1. Traction / Pull-up / Rowing / Tirage (Back exercises)
   if (n.includes('traction') || n.includes('pull') || n.includes('rowing') || n.includes('tirage') || n.includes('dorsal')) {
     return (
       <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
@@ -43,104 +43,107 @@ const ExerciseVisual: React.FC<{ name: string; color: string }> = ({ name, color
     );
   }
 
-  if (n.includes('squat') || n.includes('fente') || n.includes('presse') || n.includes('leg') || n.includes('ischio') || n.includes('mollet') || n.includes('quad') || n.includes('fessier')) {
-    // SQUAT (Side View, bent posture)
+  // 2. Planche / Gainage / Plank / Abdo
+  if (n.includes('planche') || n.includes('gainage') || n.includes('plank') || n.includes('abdo') || n.includes('crunch') || n.includes('core')) {
     return (
-      <Svg width={120} height={90} viewBox="0 0 120 90">
-        {/* Ground */}
-        <SvgLine x1={20} y1={80} x2={100} y2={80} stroke={colors.ink[200]} strokeWidth={2} />
-        {/* Head */}
-        <SvgCircle cx={65} cy={28} r={5} fill={color} />
-        {/* Spine/Torso */}
-        <SvgLine x1={65} y1={33} x2={52} y2={52} stroke={color} strokeWidth={4} strokeLinecap="round" />
-        {/* Thighs (deep bent) */}
-        <SvgLine x1={52} y1={52} x2={70} y2={60} stroke={color} strokeWidth={4} strokeLinecap="round" />
-        {/* Calves */}
-        <SvgLine x1={70} y1={60} x2={65} y2={80} stroke={color} strokeWidth={4} strokeLinecap="round" />
-        {/* Feet */}
-        <SvgLine x1={58} y1={80} x2={68} y2={80} stroke={color} strokeWidth={3} strokeLinecap="round" />
-        {/* Barbell held on back */}
-        <SvgCircle cx={60} cy={35} r={3} fill="#78716c" />
-        <SvgRect x={58} y={23} width={4} height={24} rx={1} fill="#57534e" transform="rotate(15 60 35)" />
-      </Svg>
+      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
+        <Image
+          source={frame === 0 ? require('../../assets/exercises/planche_1.jpg') : require('../../assets/exercises/planche_2.jpg')}
+          style={{ width: 116, height: 116 }}
+          resizeMode="contain"
+        />
+      </View>
     );
   }
 
-  if (n.includes('développé') || n.includes('push-up') || n.includes('pompe') || n.includes('chest') || n.includes('dips') || n.includes('pec')) {
-    // PUSHUP / BENCH (Horizontal pushing view)
-    const isPushup = n.includes('pompe') || n.includes('push-up');
+  // 3. Hip Thrust / Fessier / Pont / Bridge / Glute
+  if (n.includes('thrust') || n.includes('fessier') || n.includes('pont') || n.includes('bridge') || n.includes('glute')) {
     return (
-      <Svg width={120} height={90} viewBox="0 0 120 90">
-        {/* Ground/Bench */}
-        <SvgLine x1={20} y1={76} x2={100} y2={76} stroke={colors.ink[200]} strokeWidth={2} />
-        {isPushup ? (
-          // Pushup (diagonal body)
-          <G>
-            {/* Head */}
-            <SvgCircle cx={82} cy={40} r={5} fill={color} />
-            {/* Spine/Body */}
-            <SvgLine x1={78} y1={44} x2={44} y2={62} stroke={color} strokeWidth={4} strokeLinecap="round" />
-            {/* Feet */}
-            <SvgLine x1={44} y1={62} x2={34} y2={76} stroke={color} strokeWidth={4} strokeLinecap="round" />
-            {/* Arm pushing */}
-            <SvgLine x1={72} y1={47} x2={68} y2={76} stroke={color} strokeWidth={4} strokeLinecap="round" />
-          </G>
-        ) : (
-          // Bench Press (flat body, bar in hands)
-          <G>
-            {/* Bench structure */}
-            <SvgRect x={30} y={62} width={60} height={14} fill="#e7e5e4" />
-            {/* Head */}
-            <SvgCircle cx={42} cy={53} r={5} fill={color} />
-            {/* Torso */}
-            <SvgLine x1={47} y1={58} x2={78} y2={58} stroke={color} strokeWidth={4} strokeLinecap="round" />
-            {/* Arms up holding bar */}
-            <SvgLine x1={60} y1={58} x2={60} y2={40} stroke={color} strokeWidth={4} strokeLinecap="round" />
-            {/* Barbell */}
-            <SvgLine x1={35} y1={36} x2={85} y2={36} stroke="#57534e" strokeWidth={3} />
-            <SvgCircle cx={35} cy={36} r={4} fill="#292524" />
-            <SvgCircle cx={85} cy={36} r={4} fill="#292524" />
-          </G>
-        )}
-      </Svg>
+      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
+        <Image
+          source={frame === 0 ? require('../../assets/exercises/thrust_1.jpg') : require('../../assets/exercises/thrust_2.jpg')}
+          style={{ width: 116, height: 116 }}
+          resizeMode="contain"
+        />
+      </View>
     );
   }
 
-  if (n.includes('gainage') || n.includes('crunch') || n.includes('abdo') || n.includes('core') || n.includes('planche') || n.includes('sit-up')) {
-    // PLANK (Straight horizontal body posture)
+  // 4. Good morning / Deadlift / Soulevé
+  if (n.includes('good morning') || n.includes('deadlift') || n.includes('soulevé') || n.includes('morning') || n.includes('ischio')) {
     return (
-      <Svg width={120} height={90} viewBox="0 0 120 90">
-        {/* Ground */}
-        <SvgLine x1={20} y1={70} x2={100} y2={70} stroke={colors.ink[200]} strokeWidth={2} />
-        {/* Head */}
-        <SvgCircle cx={80} cy={48} r={5} fill={color} />
-        {/* Straight Spine */}
-        <SvgLine x1={75} y1={53} x2={35} y2={53} stroke={color} strokeWidth={4} strokeLinecap="round" />
-        {/* Elbow / Forearm supporting */}
-        <SvgLine x1={70} y1={53} x2={70} y2={70} stroke={color} strokeWidth={4} strokeLinecap="round" />
-        {/* Toes supporting */}
-        <SvgLine x1={35} y1={53} x2={35} y2={70} stroke={color} strokeWidth={4} strokeLinecap="round" />
-      </Svg>
+      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
+        <Image
+          source={frame === 0 ? require('../../assets/exercises/morning_1.jpg') : require('../../assets/exercises/morning_2.jpg')}
+          style={{ width: 116, height: 116 }}
+          resizeMode="contain"
+        />
+      </View>
     );
   }
 
-  if (n.includes('biceps') || n.includes('triceps') || n.includes('curl') || n.includes('bras') || n.includes('shoulder') || n.includes('élévation') || n.includes('épaules') || n.includes('delto')) {
-    // BICEPS CURL (Standing arm-bending dumbbell)
+  // 5. Mollet / Calves / Calf
+  if (n.includes('mollet') || n.includes('calves') || n.includes('calf')) {
     return (
-      <Svg width={120} height={90} viewBox="0 0 120 90">
-        {/* Head */}
-        <SvgCircle cx={60} cy={26} r={5} fill={color} />
-        {/* Spine */}
-        <SvgLine x1={60} y1={31} x2={60} y2={60} stroke={color} strokeWidth={4} strokeLinecap="round" />
-        {/* Bent arm holding weight */}
-        <SvgPath d="M 60 38 L 68 53 L 60 44" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
-        {/* Dumbbell */}
-        <SvgLine x1={56} y1={42} x2={64} y2={46} stroke="#78716c" strokeWidth={3} />
-        <SvgCircle cx={56} cy={42} r={3} fill="#292524" />
-        <SvgCircle cx={64} cy={46} r={3} fill="#292524" />
-        {/* Legs */}
-        <SvgLine x1={60} y1={60} x2={60} y2={80} stroke={color} strokeWidth={4} strokeLinecap="round" />
-      </Svg>
+      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
+        <Image
+          source={frame === 0 ? require('../../assets/exercises/mollets_1.jpg') : require('../../assets/exercises/mollets_2.jpg')}
+          style={{ width: 116, height: 116 }}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }
+
+  // 6. Fente / Lunge
+  if (n.includes('fente') || n.includes('lunge')) {
+    return (
+      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
+        <Image
+          source={frame === 0 ? require('../../assets/exercises/fentes_1.jpg') : require('../../assets/exercises/fentes_2.jpg')}
+          style={{ width: 116, height: 116 }}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }
+
+  // 7. Squat / Presse / Leg
+  if (n.includes('squat') || n.includes('presse') || n.includes('leg') || n.includes('quad')) {
+    return (
+      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
+        <Image
+          source={frame === 0 ? require('../../assets/exercises/squat_1.jpg') : require('../../assets/exercises/squat_2.jpg')}
+          style={{ width: 116, height: 116 }}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }
+
+  // 8. Pompe / Push-up / Dips
+  if (n.includes('pompe') || n.includes('push-up') || n.includes('pushup') || n.includes('dips')) {
+    return (
+      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
+        <Image
+          source={frame === 0 ? require('../../assets/exercises/pompes_1.jpg') : require('../../assets/exercises/pompes_2.jpg')}
+          style={{ width: 116, height: 116 }}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }
+
+  // 9. Développé / Bench / Chest / Pectoraux
+  if (n.includes('développé') || n.includes('bench') || n.includes('chest') || n.includes('pec')) {
+    return (
+      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
+        <Image
+          source={frame === 0 ? require('../../assets/exercises/developpe_1.jpg') : require('../../assets/exercises/developpe_2.jpg')}
+          style={{ width: 116, height: 116 }}
+          resizeMode="contain"
+        />
+      </View>
     );
   }
 
