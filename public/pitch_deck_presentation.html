@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pure Ascension — Pitch Deck Exécutif (12 Slides)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=Spectral:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-sand: #FBF8F3;
+      --bg-sand-card: #F3EFE6;
+      --color-sage: #4E7358;
+      --color-sage-dark: #2D4029;
+      --color-sage-light: #EAF2EC;
+      --color-clay: #C85D32;
+      --color-clay-light: #FCF2ED;
+      --color-ink: #1A201C;
+      --color-ink-muted: #5A645E;
+      --color-white: #FFFFFF;
+      --font-heading: 'Spectral', Georgia, serif;
+      --font-body: 'Hanken Grotesk', -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-sand);
+      font-family: var(--font-body);
+      color: var(--color-ink);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Container Principal */
+    .deck-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Slides */
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      transform: scale(0.98);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 4rem 6rem 5rem 6rem;
+      background-color: var(--bg-sand);
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: scale(1);
+      z-index: 2;
+    }
+
+    /* Navigation Header */
+    .deck-header {
+      position: absolute;
+      top: 1.5rem;
+      left: 6rem;
+      right: 6rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--color-sage-dark), var(--color-sage));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-white);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .brand-name {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--color-ink);
+      letter-spacing: -0.01em;
+    }
+
+    .slide-counter {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--color-ink-muted);
+      background: var(--bg-sand-card);
+      padding: 0.35rem 0.85rem;
+      border-radius: 20px;
+    }
+
+    /* Header Content */
+    .slide-eyebrow {
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--color-clay);
+      margin-bottom: 0.5rem;
+    }
+
+    .slide-title {
+      font-family: var(--font-heading);
+      font-size: 2.75rem;
+      font-weight: 700;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1rem;
+    }
+
+    .slide-subtitle {
+      font-size: 1.15rem;
+      color: var(--color-ink-muted);
+      max-width: 800px;
+      line-height: 1.5;
+    }
+
+    /* Body Grid Layouts */
+    .slide-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      margin: 1.5rem 0;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5rem;
+      width: 100%;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+      width: 100%;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+      width: 100%;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--color-white);
+      border-radius: 16px;
+      padding: 1.75rem;
+      border: 1px solid rgba(0,0,0,0.06);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .card-highlight {
+      background: var(--color-sage-light);
+      border-color: var(--color-sage);
+    }
+
+    .card-dark {
+      background: var(--color-sage-dark);
+      color: var(--color-white);
+    }
+
+    .card-dark .card-title, .card-dark .stat-number {
+      color: var(--color-white);
+    }
+
+    .card-dark .card-text, .card-dark .stat-label {
+      color: rgba(255,255,255,0.75);
+    }
+
+    .card-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: var(--bg-sand-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+    }
+
+    .card-title {
+      font-family: var(--font-heading);
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--color-ink);
+    }
+
+    .card-text {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: var(--color-ink-muted);
+    }
+
+    /* Stat Box */
+    .stat-number {
+      font-family: var(--font-heading);
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--color-sage-dark);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--color-ink-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* List Items */
+    .feature-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      font-size: 1rem;
+      color: var(--color-ink);
+    }
+
+    .feature-bullet {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--color-clay);
+      color: var(--color-white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* Footer Navigation controls */
+    .deck-footer {
+      position: absolute;
+      bottom: 1.5rem;
+      left: 6rem;
+      right: 6rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .nav-dots {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--bg-sand-card);
+      border: 1px solid var(--color-ink-muted);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .dot.active {
+      background: var(--color-clay);
+      border-color: var(--color-clay);
+      width: 24px;
+      border-radius: 10px;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .btn-nav {
+      background: var(--color-white);
+      border: 1px solid rgba(0,0,0,0.15);
+      padding: 0.6rem 1.25rem;
+      border-radius: 30px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-nav:hover {
+      background: var(--color-sage-dark);
+      color: var(--color-white);
+      border-color: var(--color-sage-dark);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="deck-container">
+    
+    <!-- Top Header -->
+    <header class="deck-header">
+      <div class="brand-logo">
+        <div class="brand-mark">PA</div>
+        <div class="brand-name">PURE ASCENSION</div>
+      </div>
+      <div class="slide-counter"><span id="current-slide-num">1</span> / 12</div>
+    </header>
+
+    <!-- SLIDE 1 : COVER -->
+    <section class="slide active" id="slide-1">
+      <div>
+        <div class="slide-eyebrow">Pitch Deck Exécutif • 2026</div>
+        <h1 class="slide-title" style="font-size: 3.5rem; max-width: 900px;">Pure Ascension</h1>
+        <p class="slide-subtitle" style="font-size: 1.35rem;">L'écosystème mobile d'élite pour la transformation physique, l'entraînement sur-mesure et l'hygiène de vie.</p>
+      </div>
+
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card card-highlight">
+            <div class="stat-number">4.8x</div>
+            <div class="stat-label">Ratio LTV / CAC (12M)</div>
+          </div>
+          <div class="card">
+            <div class="stat-number">68%</div>
+            <div class="stat-label">Rétention Mois 3</div>
+          </div>
+          <div class="card card-dark">
+            <div class="stat-number">86%</div>
+            <div class="stat-label">Marge Brute SaaS</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p style="font-size: 0.85rem; color: var(--color-ink-muted);">Appuyez sur la flèche droite ou cliquez sur Suivant pour commencer la présentation.</p>
+      </div>
+    </section>
+
+    <!-- SLIDE 2 : EXECUTIVE SUMMARY -->
+    <section class="slide" id="slide-2">
+      <div>
+        <div class="slide-eyebrow">Slide 02 • Vue d'Ensemble</div>
+        <h2 class="slide-title">Executive Summary</h2>
+        <p class="slide-subtitle">Une application globale combinant technologie de pointe, périodisation biomécanique et accompagnement personnalisé.</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-icon">⚡</div>
+            <h3 class="card-title">Technologie Native</h3>
+            <p class="card-text">Propulsé par Expo SDK 56 et Firebase Firestore pour une synchronisation réactive instantanée et zéro latence.</p>
+          </div>
+          <div class="card card-highlight">
+            <div class="card-icon">🏋️</div>
+            <h3 class="card-title">Moteur 4 Phases</h3>
+            <p class="card-text">Entraînements structurés en Échauffement, Force Principale, Isolation et Récupération avec tempos normalisés.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">🥗</div>
+            <h3 class="card-title">Vision AI & Recettes</h3>
+            <p class="card-text">Scanner de repas par intelligence artificielle visuelle et génération automatique de la liste de courses.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3 : LE PROBLÈME -->
+    <section class="slide" id="slide-3">
+      <div>
+        <div class="slide-eyebrow">Slide 03 • Le Constat du Marché</div>
+        <h2 class="slide-title">Le Problème</h2>
+        <p class="slide-subtitle">Les pratiquants font face à la stagnation, aux blessures récurrentes et au manque d'accompagnement adapté.</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <h3 class="card-title">1. Fatigue & Surmenage</h3>
+            <p class="card-text">Absence de périodisation et de gestion des tempos conduisant à l'épuisement nerveux et aux douleurs articulaires.</p>
+          </div>
+          <div class="card">
+            <h3 class="card-title">2. Friction & Incompréhension</h3>
+            <p class="card-text">Des applications génériques truffées de termes complexes sans expliquer le "Pourquoi" profond des exercices.</p>
+          </div>
+          <div class="card">
+            <h3 class="card-title">3. Dispersion des Outils</h3>
+            <p class="card-text">Besoin d'utiliser 4 applications séparées pour le suivi des séances, les calories, les recettes et le coaching.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4 : LA SOLUTION PURE ASCENSION -->
+    <section class="slide" id="slide-4">
+      <div>
+        <div class="slide-eyebrow">Slide 04 • Notre Approche</div>
+        <h2 class="slide-title">La Solution Pure Ascension</h2>
+        <p class="slide-subtitle">L'alliance parfaite de l'entraînement biomécanique et de la vitalité globale.</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card card-highlight">
+            <h3 class="card-title">Routines d'Élite en 4 Phases</h3>
+            <ul class="feature-list" style="margin-top: 1rem;">
+              <li class="feature-item"><span class="feature-bullet">P1</span> Activation neuromusculaire & mobilité</li>
+              <li class="feature-item"><span class="feature-bullet">P2</span> Force lourde & mouvements polyarticulaires</li>
+              <li class="feature-item"><span class="feature-bullet">P3</span> Isolation ciblée & contrôle du tempo</li>
+              <li class="feature-item"><span class="feature-bullet">P4</span> Décompression & récupération active</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Pédagogie & Zéro Friction</h3>
+            <p class="card-text" style="margin-bottom: 1rem;">Chaque exercice et chaque repas s'accompagnent d'une explication claire "Pourquoi ?" afin d'éduquer et de rassurer l'utilisateur.</p>
+            <p class="card-text">Bouton 1-Tap de remplacement d'exercice pour adapter instantanément sa séance selon le matériel disponible.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5 : TECHNOLOGIE & ARCHITECTURE -->
+    <section class="slide" id="slide-5">
+      <div>
+        <div class="slide-eyebrow">Slide 05 • Innovation Technique</div>
+        <h2 class="slide-title">Architecture & Moteur IA</h2>
+        <p class="slide-subtitle">Une infrastructure mobile et cloud moderne garantissant performance et fiabilité.</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <h3 class="card-title">Expo SDK 56</h3>
+            <p class="card-text">Développement cross-platform natif iOS / Android ultra-fluide avec retours haptiques `expo-haptics` et animations réactives.</p>
+          </div>
+          <div class="card card-highlight">
+            <h3 class="card-title">Gemini Vision AI</h3>
+            <p class="card-text">Analyse visuelle en temps réel des photos d'assiettes pour calculer instantanément les calories et macronutriments réels.</p>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Firestore Cloud Sync</h3>
+            <p class="card-text">Sauvegarde en tâche de fond via AppState et persistance locale Zustand / AsyncStorage pour une disponibilité hors-ligne.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6 : DÉMONSTRATION PRODUIT -->
+    <section class="slide" id="slide-6">
+      <div>
+        <div class="slide-eyebrow">Slide 06 • Expérience Utilisateur</div>
+        <h2 class="slide-title">Démonstration Produit</h2>
+        <p class="slide-subtitle">Une interface sobre, épurée et d'une prise en main immédiate.</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-4">
+          <div class="card">
+            <div class="stat-number" style="font-size: 1.5rem;">📱</div>
+            <h3 class="card-title" style="font-size: 1.1rem;">Diagnostic</h3>
+            <p class="card-text">Questionnaire rapide de vitalité pour calibrer les besoins.</p>
+          </div>
+          <div class="card">
+            <div class="stat-number" style="font-size: 1.5rem;">⏱️</div>
+            <h3 class="card-title" style="font-size: 1.1rem;">Tempos 4-Temps</h3>
+            <p class="card-text">Affichage clair des tempos 3-1-1-0 et du RPE cible.</p>
+          </div>
+          <div class="card">
+            <div class="stat-number" style="font-size: 1.5rem;">📷</div>
+            <h3 class="card-title" style="font-size: 1.1rem;">Scanner IA</h3>
+            <p class="card-text">Détection instantanée des macronutriments en photo.</p>
+          </div>
+          <div class="card">
+            <div class="stat-number" style="font-size: 1.5rem;">💬</div>
+            <h3 class="card-title" style="font-size: 1.1rem;">Coach IA</h3>
+            <p class="card-text">Conseils et génération de séances à la demande.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 7 : TRACTION & KPIS -->
+    <section class="slide" id="slide-7">
+      <div>
+        <div class="slide-eyebrow">Slide 07 • Performance & Rétention</div>
+        <h2 class="slide-title">Traction & Métriques Clés</h2>
+        <p class="slide-subtitle">Des indicateurs de rétention et d'engagement supérieurs aux standards du marché.</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card card-highlight">
+            <div class="stat-number">4.8x</div>
+            <div class="stat-label">Ratio LTV / CAC</div>
+            <p class="card-text" style="margin-top: 0.5rem;">Rentabilité élevée des campagnes d'acquisition.</p>
+          </div>
+          <div class="card">
+            <div class="stat-number">3.8M</div>
+            <div class="stat-label">Payback Period</div>
+            <p class="card-text" style="margin-top: 0.5rem;">Recouvrement rapide des coûts d'acquisition client.</p>
+          </div>
+          <div class="card card-dark">
+            <div class="stat-number">68%</div>
+            <div class="stat-label">Rétention M3</div>
+            <p class="card-text" style="margin-top: 0.5rem;">Forte adhésion au programme sur 12 semaines.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 8 : MODÈLE ÉCONOMIQUE -->
+    <section class="slide" id="slide-8">
+      <div>
+        <div class="slide-eyebrow">Slide 08 • Modèle Économique</div>
+        <h2 class="slide-title">Modèle SaaS & Monetisation</h2>
+        <p class="slide-subtitle">Facturation récurrente fluide orchestrée dynamiquement par Stripe Checkout.</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <h3 class="card-title">Accès Libre</h3>
+            <p class="card-text">Formule découverte pour tester le diagnostic et suivre ses premières séances sans engagement.</p>
+          </div>
+          <div class="card card-highlight">
+            <h3 class="card-title">Formule Standard</h3>
+            <p class="card-text">Accès complet à la programmation d'entraînement, au suivi de progression et aux macros de base.</p>
+          </div>
+          <div class="card card-dark">
+            <h3 class="card-title">Formule Premium</h3>
+            <p class="card-text">Ajustements continus par IA Coach, Scanner de Repas IA Vision, Livre de recettes et Liste de courses.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 9 : MARCHÉ TAM / SAM / SOM -->
+    <section class="slide" id="slide-9">
+      <div>
+        <div class="slide-eyebrow">Slide 09 • Opportunité de Marché</div>
+        <h2 class="slide-title">Marché & Opportunité Globale</h2>
+        <p class="slide-subtitle">Un marché mondial de la santé connectée et du fitness en pleine expansion.</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <div class="stat-number">96 B$</div>
+            <div class="stat-label">TAM (Total Addressable Market)</div>
+            <p class="card-text" style="margin-top: 0.5rem;">Marché mondial du fitness et des applications de santé.</p>
+          </div>
+          <div class="card card-highlight">
+            <div class="stat-number">18 B$</div>
+            <div class="stat-label">SAM (Serviceable Market)</div>
+            <p class="card-text" style="margin-top: 0.5rem;">Marché francophone et européen du coaching complet.</p>
+          </div>
+          <div class="card">
+            <div class="stat-number">2.5 B$</div>
+            <div class="stat-label">SOM (Obtainable Market)</div>
+            <p class="card-text" style="margin-top: 0.5rem;">Cible prioritaire d'utilisateurs exigeants à haute valeur.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 10 : AVANTAGE CONCURRENTIEL -->
+    <section class="slide" id="slide-10">
+      <div>
+        <div class="slide-eyebrow">Slide 10 • Différenciation</div>
+        <h2 class="slide-title">Avantage Concurrentiel (Moat)</h2>
+        <p class="slide-subtitle">Pourquoi Pure Ascension surpasse les applications traditionnelles.</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card card-highlight">
+            <h3 class="card-title">Moteur Biomécanique Unique</h3>
+            <p class="card-text">Seule application intégrant des tempos 4-temps, des RPE cibles et une substitution d'exercice en 1-tap par équivalence musculaire.</p>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Synergie Entraînement & Nutrition</h3>
+            <p class="card-text">Combinaison directe de l'effort physique avec l'analyse d'assiettes par IA Vision et la liste de courses automatique.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 11 : ROADMAP & STRATÉGIE -->
+    <section class="slide" id="slide-11">
+      <div>
+        <div class="slide-eyebrow">Slide 11 • Plan d'Expansion</div>
+        <h2 class="slide-title">Roadmap Strategique 2026 - 2027</h2>
+        <p class="slide-subtitle">Une feuille de route claire pour passer du Product-Market Fit à l'échelle internationale.</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <h3 class="card-title">Q3 2026 • Consolidation</h3>
+            <p class="card-text">Finalisation des déploiements iOS TestFlight et Android APK, optimisation des taux de conversion Stripe.</p>
+          </div>
+          <div class="card card-highlight">
+            <h3 class="card-title">Q4 2026 • Scale Marketing</h3>
+            <p class="card-text">Déploiement des campagnes payantes Meta Ads / Google Ads et activation du système de parrainage.</p>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Q1 2027 • International</h3>
+            <p class="card-text">Lancement des versions anglophones et expansion sur les marchés nord-américain et européen.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 12 : L'ÉQUIPE & APPEL À L'ACTION -->
+    <section class="slide" id="slide-12">
+      <div>
+        <div class="slide-eyebrow">Slide 12 • Vision & Conclusion</div>
+        <h1 class="slide-title" style="font-size: 3.2rem;">Rejoignez l'Ascension</h1>
+        <p class="slide-subtitle" style="font-size: 1.25rem;">Construisons ensemble la plateforme de référence pour la transformation physique et la vitalité.</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card card-dark">
+            <h3 class="card-title">Pure Ascension Mobile</h3>
+            <p class="card-text" style="margin-bottom: 1rem;">Application active sur iOS (TestFlight Build 23), Android (APK Direct) et Web Production.</p>
+            <p class="card-text" style="font-weight: 700; color: var(--color-clay);">https://pure-ascension.netlify.app</p>
+          </div>
+          <div class="card card-highlight">
+            <h3 class="card-title">Contact Direction</h3>
+            <p class="card-text" style="margin-bottom: 0.5rem;">Équipe Fondatrice & Direction Produit</p>
+            <p class="card-text">Pure Ascension Inc. • 2026</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p style="font-size: 0.85rem; color: var(--color-ink-muted);">Fin de la présentation (12 slides). Appuyez sur la flèche gauche pour revenir en arrière.</p>
+      </div>
+    </section>
+
+    <!-- Footer Controls -->
+    <footer class="deck-footer">
+      <div class="nav-dots" id="dots-container"></div>
+      <div class="nav-buttons">
+        <button class="btn-nav" id="btn-prev">← Précédent</button>
+        <button class="btn-nav" id="btn-next">Suivant →</button>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    let currentSlide = 1;
+    const totalSlides = 12;
+
+    const currentSlideNum = document.getElementById('current-slide-num');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const dotsContainer = document.getElementById('dots-container');
+
+    // Génération des dots
+    for (let i = 1; i <= totalSlides; i++) {
+      const dot = document.createElement('div');
+      dot.className = `dot ${i === 1 ? 'active' : ''}`;
+      dot.addEventListener('click', () => goToSlide(i));
+      dotsContainer.appendChild(dot);
+    }
+
+    function updateSlide() {
+      document.querySelectorAll('.slide').forEach((slide, idx) => {
+        if (idx + 1 === currentSlide) {
+          slide.classList.add('active');
+        } else {
+          slide.classList.remove('active');
+        }
+      });
+
+      document.querySelectorAll('.dot').forEach((dot, idx) => {
+        if (idx + 1 === currentSlide) {
+          dot.classList.add('active');
+        } else {
+          dot.classList.remove('active');
+        }
+      });
+
+      currentSlideNum.textContent = currentSlide;
+    }
+
+    function goToSlide(num) {
+      if (num >= 1 && num <= totalSlides) {
+        currentSlide = num;
+        updateSlide();
+      }
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) {
+        currentSlide++;
+        updateSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) {
+        currentSlide--;
+        updateSlide();
+      }
+    }
+
+    btnNext.addEventListener('click', nextSlide);
+    btnPrev.addEventListener('click', prevSlide);
+
+    // Navigation au clavier
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'Space') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        prevSlide();
+      }
+    });
+  </script>
+
+</body>
+</html>

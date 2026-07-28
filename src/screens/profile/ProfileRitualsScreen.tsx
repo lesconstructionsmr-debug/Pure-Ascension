@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   Animated, Pressable, SafeAreaView,
-  ScrollView, StyleSheet, Text, View, Alert, TextInput, Modal
+  ScrollView, StyleSheet, Text, View, TextInput, Modal
 } from 'react-native';
+import { showAlert } from '../../utils/alert';
 import {
   ChevronLeft, Sun, Moon, Wind, BookOpen,
   Heart, Flower2, Plus, Check,
@@ -81,7 +82,7 @@ export const ProfileRitualsScreen: React.FC<Props> = ({ onBack }) => {
 
   const handleCreateRitual = () => {
     if (!newTitle.trim()) {
-      Alert.alert('Erreur', 'Le titre est obligatoire.');
+      showAlert('Erreur', 'Le titre est obligatoire.');
       return;
     }
     const newRitual: Ritual = {

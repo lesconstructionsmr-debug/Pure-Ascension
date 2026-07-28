@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView, Platform, Pressable, SafeAreaView,
-  ScrollView, StyleSheet, Text, View,
+  ScrollView, StyleSheet, Text, View, Modal,
 } from 'react-native';
 import { Mail, Lock, User as UserIcon, ChevronLeft, Check } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius } from '../theme/theme';
@@ -23,6 +23,7 @@ export const SignupScreen: React.FC<Props> = ({ onBack, onSuccess, initialName }
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading]           = useState(false);
   const [errors, setErrors]             = useState<Record<string,string>>({});
+  const [modalVisible, setModalVisible] = useState(false);
 
   const validate = () => {
     const e: Record<string,string> = {};
@@ -30,7 +31,7 @@ export const SignupScreen: React.FC<Props> = ({ onBack, onSuccess, initialName }
     if (!email.trim())   e.email    = 'Adresse e-mail requise.';
     else if (!/\S+@\S+\.\S+/.test(email)) e.email = 'Format d\'e-mail invalide.';
     if (password.length < 8) e.password = 'Au moins 8 caractères.';
-    if (!acceptedTerms)  e.terms    = 'Tu devez certifier ton état de santé et accepter les CGU.';
+    if (!acceptedTerms)  e.terms    = 'Tu dois certifier ton état de santé et accepter les CGU.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -123,7 +124,7 @@ export const SignupScreen: React.FC<Props> = ({ onBack, onSuccess, initialName }
             </Pressable>
             <Text style={s.checkboxLabel}>
               Je confirme avoir lu et accepté les{' '}
-              <Text style={s.legalLink}>Conditions Générales d'Utilisation</Text>
+              <Text style={s.legalLink} onPress={() => setModalVisible(true)}>Conditions Générales d'Utilisation</Text>
               {' '}et je certifie être en bonne santé, sans contre-indications médicales pour suivre les entraînements.
             </Text>
           </View>
@@ -133,11 +134,86 @@ export const SignupScreen: React.FC<Props> = ({ onBack, onSuccess, initialName }
 
           <Text style={s.legal}>
             En créant un compte, tu acceptes notre{' '}
-            <Text style={s.legalLink}>Politique de confidentialité</Text>.
+            <Text style={s.legalLink} onPress={() => setModalVisible(true)}>Politique de confidentialité</Text>.
           </Text>
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Modal Confidentialité & CGU */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#fbf8f3', padding: spacing[5] }}>
+          {/* Header */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[5] }}>
+            <Text style={{ fontFamily: fontFamily.spectral.bold, fontSize: fontSize.xl, color: colors.ink[900] }}>
+              Confidentialité & CGU
+            </Text>
+            <Pressable onPress={() => setModalVisible(false)} accessibilityRole="button">
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[600] }}>
+                Fermer
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Content */}
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: spacing[4], paddingBottom: spacing[8] }}>
+            <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600], lineHeight: 20 }}>
+              Dernière mise à jour : Juillet 2026
+            </Text>
+
+            <View style={{ gap: spacing[1] }}>
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                1. Collecte des données
+              </Text>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
+                Pure Ascension collecte vos informations de profil de départ (nom, email, mensurations, objectifs physiques) ainsi que vos bilans de vitalité et d'hygiène de vie pour personnaliser vos plans d'entraînements et de nutrition. Ces informations sont stockées de façon sécurisée sur nos serveurs.
+              </Text>
+            </View>
+
+            <View style={{ gap: spacing[1] }}>
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                2. Intégrations tierces
+              </Text>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
+                • **Strava** : Si vous connectez votre compte, nous lisons vos activités sportives pour mettre à jour vos dépenses caloriques journalières de manière automatisée.
+                {"\n"}• **Stripe** : Vos transactions de paiement d'abonnement sont traitées de manière 100% sécurisée par Stripe. Aucune donnée de carte bancaire ne transite sur nos serveurs.
+              </Text>
+            </View>
+
+            <View style={{ gap: spacing[1] }}>
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                3. Utilisation de l'IA (Gemini)
+              </Text>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
+                Les questions posées à l'IA Coach de Pure Ascension sont traitées via l'API sécurisée de Google Gemini. Vos données d'entraînement et objectifs y sont attachés sous forme de contexte strict pour formuler des réponses adaptées. Vos données ne sont pas utilisées pour entraîner le modèle public.
+              </Text>
+            </View>
+
+            <View style={{ gap: spacing[1] }}>
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                4. Sécurité & Droits
+              </Text>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
+                Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression totale de vos données. Vous pouvez à tout moment demander la purge complète de vos informations depuis notre service support ou en supprimant votre compte.
+              </Text>
+            </View>
+
+            <View style={{ gap: spacing[1] }}>
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                5. Responsabilité & Santé
+              </Text>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
+                Les conseils d'entraînement et d'alimentation prodigués par l'application sont à titre indicatif et ne remplacent en aucun cas un avis médical professionnel. Consultez votre médecin traitant avant de débuter tout nouveau programme sportif intense ou d'effectuer des changements nutritionnels notables.
+              </Text>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };

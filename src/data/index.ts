@@ -79,13 +79,38 @@ export interface MealDay {
   date: string; targetCalories: number; consumedCalories: number; meals: Meal[];
 }
 export interface Exercise {
-  id: string; name: string; sets: number; reps: number | string; done: boolean; notes?: string;
+  id: string;
+  name: string;
+  sets: number;
+  reps: number | string;
+  done: boolean;
+  notes?: string;
+  tempo?: string;
+  rpe?: string;
+  rest?: string;
+  muscles?: string[];
+  biomechanicsTip?: string;
+  level?: TrainingExperience;
+  // Phase 1 à 4 explicite
+  phase?: 1 | 2 | 3 | 4;
+  phaseName?: string;
+  category?: 'warmup' | 'compound' | 'isolation' | 'finisher' | 'cardio';
+  restSeconds?: number;
+  supersetGroup?: string;
+  patternId?: string;
+  alternativeExercises?: string[];
 }
 export interface WorkoutSession {
   id: string; title: string; category: string; duration: number;
   exerciseCount: number; completionPct: number; isToday: boolean;
   exercises: Exercise[]; badgeLabel?: string;
   day?: string; // "Lundi", "Mardi"… — jour planifié dans la semaine
+  phaseBreakdown?: {
+    warmupCount: number;
+    compoundCount: number;
+    isolationCount: number;
+    finisherCount: number;
+  };
 }
 
 export function formatNumber(n: number, decimals = 0): string {

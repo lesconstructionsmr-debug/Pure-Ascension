@@ -28,7 +28,7 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const { uid, email, plan } = JSON.parse(event.body || '{}');
+    const { uid, email, plan, isNativeApp } = JSON.parse(event.body || '{}');
 
     if (!uid || !email || !plan) {
       return {
@@ -60,12 +60,27 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // Déterminer la redirection de base à partir du Referer ou utiliser un fallback
-    const referer = event.headers.referer || 'https://pure-ascension.netlify.app/';
-    const url = new URL(referer);
-    const baseUrl = `${url.protocol}//${url.host}`;
+    // Déterminer la redirection de base vers la production ou environnement local autorisé
+    let baseUrl = process.env.URL || process.env.SITE_URL || 'https://pure-ascension.netlify.app';
+    try {
+      const referer = event.headers.referer || event.headers.Referer;
+      if (referer) {
+        const url = new URL(referer);
+        const host = url.host.toLowerCase();
+        if (host.includes('netlify.app') || host.includes('pure-ascension') || host.includes('localhost') || host.includes('127.0.0.1')) {
+          baseUrl = `${url.protocol}//${url.host}`;
+        }
+      }
+    } catch (e) {
+      console.warn('Referer URL invalide, utilisation du fallback production:', baseUrl);
+    }
 
-    console.log(`Création d'une session Stripe Checkout pour l'utilisateur ${uid} (${email}) - Plan: ${plan}`);
+    // Si l'appel vient de l'application mobile native, utiliser le Deep Link scheme "pureascension://"
+    const successUrl = isNativeApp ? 'pureascension://?payment=success' : `${baseUrl}/?payment=success`;
+    const cancelUrl  = isNativeApp ? 'pureascension://?payment=cancel'  : `${baseUrl}/?payment=cancel`;
+
+    console.log(`Création d'une session Stripe Checkout pour ${uid} (${email}) - Plan: ${plan} - App Native: ${!!isNativeApp}`);
+    console.log(`URLs de redirection Stripe: success=${successUrl}, cancel=${cancelUrl}`);
 
     // Créer la session Stripe Checkout
     const session = await stripe.checkout.sessions.create({
@@ -81,11 +96,12 @@ export const handler: Handler = async (event) => {
       client_reference_id: uid,
       customer_email: email,
       metadata: {
+        plan: plan,
         planLevel: plan,
       },
-      // Stripe redirigera ici après validation ou annulation
-      success_url: `${baseUrl}/?payment=success`,
-      cancel_url: `${baseUrl}/?payment=cancel`,
+      // Stripe redirigera vers l'application native ou le site Web
+      success_url: successUrl,
+      cancel_url: cancelUrl,
     });
 
     return {

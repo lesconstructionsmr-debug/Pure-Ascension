@@ -1,8 +1,40 @@
 [build]
   functions = "netlify/functions"
+  publish = "dist"
 
+[functions]
+  node_bundler = "esbuild"
+
+[functions."scan-meal"]
+  timeout = 26
+
+[functions."scan-meal-photo"]
+  timeout = 26
+
+# Redirection Single Page Application (SPA)
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Security & CORS Headers - All Routes
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# CORS & Cache Control for Serverless Netlify Functions
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type, Authorization, stripe-signature"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Cache-Control = "no-store, no-cache, must-revalidate, proxy-revalidate"
+
 

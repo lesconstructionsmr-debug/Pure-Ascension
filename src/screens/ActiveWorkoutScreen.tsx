@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Animated, Platform, Pressable, SafeAreaView,
-  ScrollView, StyleSheet, Text, View, Image,
+  ScrollView, StyleSheet, Text, View, AppState, AppStateStatus, Modal
 } from 'react-native';
 import {
   ChevronLeft, ChevronRight, Check, Clock,
-  Pause, Play, SkipForward, X, Trophy, ArrowDown, ArrowUp, ShieldCheck, Dumbbell, Activity, Zap, Flame
+  Pause, Play, SkipForward, X, Trophy, ShieldCheck, Dumbbell, Activity, Zap, Flame, Info, ArrowDown, ArrowUp,
+  RefreshCw, Target, Repeat, Sliders, CheckCircle2, Sparkles
 } from 'lucide-react-native';
 import * as Haptics from '../utils/haptics';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows, duration } from '../theme/theme';
@@ -15,358 +16,157 @@ import { Badge }   from '../components/Badge';
 import { useDailyProgress } from '../context/DailyProgressContext';
 import { EmptyState } from '../components/EmptyState';
 import { useProgramStore } from '../store/useProgramStore';
-import { getTodaySession } from '../services/programService';
+import { useActiveWorkoutStore } from '../store/useActiveWorkoutStore';
+import { db, auth } from '../services/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getTodaySession, saveProgram } from '../services/programService';
 import { getMuscleGroup, ExerciseImage } from './WorkoutsScreen';
-import Svg, { Circle as SvgCircle, Path as SvgPath, Line as SvgLine, Rect as SvgRect, G } from 'react-native-svg';
-
-const ExerciseVisual: React.FC<{ name: string; color: string }> = ({ name, color }) => {
-  const n = name.toLowerCase();
-  const [frame, setFrame] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setFrame(f => (f === 0 ? 1 : 0));
-    }, 1500);
-    return () => clearInterval(timer);
-  }, []);
-
-  // 1. Traction / Pull-up / Rowing / Tirage (Back exercises)
-  if (n.includes('traction') || n.includes('pull') || n.includes('rowing') || n.includes('tirage') || n.includes('dorsal')) {
-    return (
-      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
-        <Image
-          source={frame === 0 ? require('../../assets/exercises/traction_1.png') : require('../../assets/exercises/traction_2.png')}
-          style={{ width: 116, height: 116 }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-
-  // 2. Planche / Gainage / Plank / Abdo
-  if (n.includes('planche') || n.includes('gainage') || n.includes('plank') || n.includes('abdo') || n.includes('crunch') || n.includes('core')) {
-    return (
-      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
-        <Image
-          source={frame === 0 ? require('../../assets/exercises/planche_1.jpg') : require('../../assets/exercises/planche_2.jpg')}
-          style={{ width: 116, height: 116 }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-
-  // 3. Hip Thrust / Fessier / Pont / Bridge / Glute
-  if (n.includes('thrust') || n.includes('fessier') || n.includes('pont') || n.includes('bridge') || n.includes('glute')) {
-    return (
-      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
-        <Image
-          source={frame === 0 ? require('../../assets/exercises/thrust_1.jpg') : require('../../assets/exercises/thrust_2.jpg')}
-          style={{ width: 116, height: 116 }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-
-  // 4. Good morning / Deadlift / Soulevé
-  if (n.includes('good morning') || n.includes('deadlift') || n.includes('soulevé') || n.includes('morning') || n.includes('ischio')) {
-    return (
-      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
-        <Image
-          source={frame === 0 ? require('../../assets/exercises/morning_1.jpg') : require('../../assets/exercises/morning_2.jpg')}
-          style={{ width: 116, height: 116 }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-
-  // 5. Mollet / Calves / Calf
-  if (n.includes('mollet') || n.includes('calves') || n.includes('calf')) {
-    return (
-      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
-        <Image
-          source={frame === 0 ? require('../../assets/exercises/mollets_1.jpg') : require('../../assets/exercises/mollets_2.jpg')}
-          style={{ width: 116, height: 116 }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-
-  // 6. Fente / Lunge
-  if (n.includes('fente') || n.includes('lunge')) {
-    return (
-      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
-        <Image
-          source={frame === 0 ? require('../../assets/exercises/fentes_1.jpg') : require('../../assets/exercises/fentes_2.jpg')}
-          style={{ width: 116, height: 116 }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-
-  // 7. Squat / Presse / Leg
-  if (n.includes('squat') || n.includes('presse') || n.includes('leg') || n.includes('quad')) {
-    return (
-      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
-        <Image
-          source={frame === 0 ? require('../../assets/exercises/squat_1.jpg') : require('../../assets/exercises/squat_2.jpg')}
-          style={{ width: 116, height: 116 }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-
-  // 8. Pompe / Push-up / Dips
-  if (n.includes('pompe') || n.includes('push-up') || n.includes('pushup') || n.includes('dips')) {
-    return (
-      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
-        <Image
-          source={frame === 0 ? require('../../assets/exercises/pompes_1.jpg') : require('../../assets/exercises/pompes_2.jpg')}
-          style={{ width: 116, height: 116 }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-
-  // 9. Développé / Bench / Chest / Pectoraux
-  if (n.includes('développé') || n.includes('bench') || n.includes('chest') || n.includes('pec')) {
-    return (
-      <View style={{ width: 130, height: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 4 }}>
-        <Image
-          source={frame === 0 ? require('../../assets/exercises/developpe_1.jpg') : require('../../assets/exercises/developpe_2.jpg')}
-          style={{ width: 116, height: 116 }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-
-  // DEFAULT / CARDIO / GENERAL
-  return (
-    <Svg width={120} height={90} viewBox="0 0 120 90">
-      {/* Head */}
-      <SvgCircle cx={60} cy={26} r={5} fill={color} />
-      {/* Torso */}
-      <SvgLine x1={60} y1={31} x2={60} y2={56} stroke={color} strokeWidth={4} strokeLinecap="round" />
-      {/* Arms raised */}
-      <SvgPath d="M 42 36 L 60 40 L 78 36" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" />
-      {/* Legs running */}
-      <SvgPath d="M 60 56 L 50 74 L 38 78" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
-      <SvgPath d="M 60 56 L 68 70 L 76 80" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-};
-
-const MovementDiagram: React.FC<{ name: string }> = ({ name }) => {
-  const group = getMuscleGroup(name);
-  
-  // Custom tips and arrows based on movement type
-  let movementTips = ["Garder le buste droit", "Contrôler la descente"];
-  let pathDirection = "vertical";
-  let targetMuscle = group.label;
-
-  const n = name.toLowerCase();
-  if (n.includes('squat')) {
-    movementTips = ["Pousser les genoux vers l'extérieur", "Garder les talons au sol", "Descente sous la parallèle"];
-    pathDirection = "down-up";
-    targetMuscle = "Quadriceps / Fessiers";
-  } else if (n.includes('fente')) {
-    movementTips = ["Genou arrière proche du sol", "Garder l'équilibre", "Buste légèrement penché"];
-    pathDirection = "down-up";
-    targetMuscle = "Fessiers / Ischios";
-  } else if (n.includes('développé') || n.includes('pompe') || n.includes('push-up')) {
-    movementTips = ["Coudes à 45 degrés", "Engager les abdominaux", "Extension complète"];
-    pathDirection = "up-down";
-    targetMuscle = "Pectoraux / Triceps";
-  } else if (n.includes('traction') || n.includes('pull')) {
-    movementTips = ["Tirer avec les coudes", "Poitrine vers la barre", "Contrôler la descente"];
-    pathDirection = "up-down";
-    targetMuscle = "Grand Dorsal";
-  } else if (n.includes('rowing') || n.includes('tirage')) {
-    movementTips = ["Serrer les omoplates", "Garder le dos plat", "Tirer vers le nombril"];
-    pathDirection = "horizontal";
-    targetMuscle = "Haut du Dos / Trapèzes";
-  } else if (n.includes('gainage') || n.includes('planche')) {
-    movementTips = ["Alignement cheville-bassin-épaule", "Rentrer le nombril", "Ne pas creuser le dos"];
-    pathDirection = "isometric";
-    targetMuscle = "Transverse / Abdominaux";
-  }
-
-  return (
-    <View style={{
-      backgroundColor: group.bg,
-      borderRadius: radius.lg,
-      padding: spacing[4],
-      borderWidth: 1,
-      borderColor: group.color + '33',
-      gap: spacing[3],
-      marginVertical: spacing[2],
-      ...shadows.sm
-    }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
-          <Activity size={18} color={group.color} />
-          <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[900] }}>
-            Schéma Anatomique & Posture
-          </Text>
-        </View>
-        <Badge variant="sage" label={targetMuscle} />
-      </View>
-
-      {/* Schematic drawing representation */}
-      <View style={{
-        height: 120,
-        backgroundColor: '#fff',
-        borderRadius: radius.md,
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: colors.ink[150],
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* Left Side: SVG Visual */}
-        <View style={{ width: 130, height: '100%', alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: colors.ink[100] }}>
-          <ExerciseVisual name={name} color={group.color} />
-        </View>
-
-        {/* Right Side: Directional Vectors */}
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[2] }}>
-          {pathDirection === 'down-up' && (
-            <View style={{ alignItems: 'center', gap: spacing[1.5] }}>
-              <ArrowDown size={20} color={group.color} strokeWidth={2.5} />
-              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 10, color: colors.ink[500], letterSpacing: 0.5 }}>FLEXION / EXTENSION</Text>
-              <ArrowUp size={20} color={group.color} strokeWidth={2.5} />
-            </View>
-          )}
-          {pathDirection === 'up-down' && (
-            <View style={{ alignItems: 'center', gap: spacing[1.5] }}>
-              <ArrowUp size={20} color={group.color} strokeWidth={2.5} />
-              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 10, color: colors.ink[500], letterSpacing: 0.5 }}>POUSSÉE VERTICALE</Text>
-              <ArrowDown size={20} color={group.color} strokeWidth={2.5} />
-            </View>
-          )}
-          {pathDirection === 'horizontal' && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
-              <ChevronLeft size={20} color={group.color} strokeWidth={2.5} />
-              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 10, color: colors.ink[500], letterSpacing: 0.5 }}>TIRAGE</Text>
-              <ChevronRight size={20} color={group.color} strokeWidth={2.5} />
-            </View>
-          )}
-          {pathDirection === 'isometric' && (
-            <View style={{ alignItems: 'center', gap: spacing[1.5] }}>
-              <View style={{ width: 60, height: 6, borderRadius: 3, backgroundColor: group.color }} />
-              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 10, color: group.color, letterSpacing: 0.5 }}>
-                ISOMÉTRIE (STATIQUE)
-              </Text>
-            </View>
-          )}
-          {pathDirection === 'vertical' && (
-            <View style={{ alignItems: 'center', gap: spacing[1.5] }}>
-              <Dumbbell size={20} color={group.color} />
-              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 10, color: colors.ink[500], letterSpacing: 0.5 }}>
-                ALTERNE / BILATÉRAL
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <View style={{ position: 'absolute', bottom: 6, right: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <ShieldCheck size={12} color={colors.sage[600]} />
-          <Text style={{ fontFamily: fontFamily.hanken.medium, fontSize: 9, color: colors.sage[600] }}>Alignement sécurisé</Text>
-        </View>
-      </View>
-
-      {/* Movement Tips */}
-      <View style={{ gap: spacing[1.5] }}>
-        {movementTips.map((tip, idx) => (
-          <Text key={idx} style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[700], lineHeight: 16 }}>
-            • {tip}
-          </Text>
-        ))}
-      </View>
-    </View>
-  );
-};
+import {
+  getExerciseBiomechanics,
+  getExerciseAlternatives,
+  WORKOUT_PHASES,
+  type ExerciseBiomechanics,
+  type ExerciseAlternative,
+  type WorkoutPhaseInfo
+} from '../utils/biomechanics';
+import type { Exercise } from '../data';
+import { BeginnerGuideModal } from '../components/BeginnerGuideModal';
 
 interface Props { onClose: () => void; }
 
-const REST_DURATION = 60; // seconds
-
 export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
+  const [showGuideModal, setShowGuideModal] = useState(false);
   const program         = useProgramStore(st => st.program);
   const activeSessionId = useProgramStore(st => st.activeSessionId);
   const session =
     program?.sessions.find(sess => sess.id === activeSessionId)
     ?? (program ? getTodaySession(program)?.session ?? null : null);
-  const exercises = session?.exercises ?? [];
+
+  const activeWorkout = useActiveWorkoutStore();
   const { completeWorkout } = useDailyProgress();
 
-  const [currentExerciseIdx, setCurrentExerciseIdx] = useState(0);
-  const [currentSetIdx, setCurrentSetIdx]           = useState(0);
-  const [completedSets, setCompletedSets]           = useState<Set<string>>(new Set());
-  const [isResting, setIsResting]                   = useState(false);
-  const [restTime, setRestTime]                     = useState(REST_DURATION);
-  const [isPaused, setIsPaused]                     = useState(false);
-  const [elapsedSec, setElapsedSec]                 = useState(0);
-  const [workoutDone, setWorkoutDone]               = useState(false);
+  // Liste des exercices d'origine fusionnés avec les remplacements 1-tap
+  const rawExercises = session?.exercises ?? [];
+  const exercises: Exercise[] = rawExercises.map((ex, idx) => {
+    if (activeWorkout.replacedExercises[idx]) {
+      return activeWorkout.replacedExercises[idx];
+    }
+    return ex;
+  });
 
-  const timerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
-  const elapsedRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [restTime, setRestTime]     = useState(90);
+  const [selectedRestPreset, setSelectedRestPreset] = useState<45 | 90>(90);
+  const [showSwapModal, setShowSwapModal] = useState(false);
+
   const restAnim       = useRef(new Animated.Value(1)).current;
   const doneAnim       = useRef(new Animated.Value(0)).current;
   const celebrateAnim  = useRef(new Animated.Value(0)).current;
 
-  // Background-resilient stopwatch time trackers
-  const startTimeRef = useRef<number>(Date.now());
-  const accumulatedTimeRef = useRef<number>(0);
-  const restStartRef = useRef<number>(Date.now());
+  const currentExIdx = activeWorkout.currentExerciseIdx;
+  const exercise = exercises[currentExIdx] ?? exercises[0];
 
-  const exercise = exercises[currentExerciseIdx];
   const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
+  const completedSets = new Set(activeWorkout.completedSets);
   const doneSets  = completedSets.size;
   const progress  = totalSets > 0 ? doneSets / totalSets : 0;
 
-  // Elapsed timer with background timestamp resilience
-  useEffect(() => {
-    if (isPaused) {
-      accumulatedTimeRef.current += Math.floor((Date.now() - startTimeRef.current) / 1000);
-      if (elapsedRef.current) clearInterval(elapsedRef.current);
-    } else {
-      startTimeRef.current = Date.now();
-      elapsedRef.current = setInterval(() => {
-        const delta = Math.floor((Date.now() - startTimeRef.current) / 1000);
-        setElapsedSec(accumulatedTimeRef.current + delta);
-      }, 1000);
-    }
-    return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
-  }, [isPaused]);
+  // Données biomécaniques de l'exercice actif
+  const biomechanics: ExerciseBiomechanics = exercise
+    ? getExerciseBiomechanics(exercise.name, currentExIdx, exercises.length)
+    : getExerciseBiomechanics('Squat');
 
-  // Rest countdown with background timestamp resilience
+  const currentPhase: WorkoutPhaseInfo = WORKOUT_PHASES[biomechanics.phaseNumber];
+
+  // Calcul du temps de repos recommandé (90s pour Phase 2, 45s pour Phase 1 / Phase 3)
+  const targetRestDuration = activeWorkout.restDuration || biomechanics.recommendedRestSec;
+
+  // Initialisation de la session de workout dans le store
   useEffect(() => {
-    if (!isResting || isPaused) {
-      if (timerRef.current) clearInterval(timerRef.current);
+    if (session) {
+      activeWorkout.startWorkout(session.id);
+    }
+  }, [session]);
+
+  // Sync rest preset with exercise phase recommendation
+  useEffect(() => {
+    if (exercise) {
+      setSelectedRestPreset(biomechanics.recommendedRestSec as 45 | 90);
+    }
+  }, [currentExIdx, exercise?.name]);
+
+  // Écoute de l'AppState pour rafraîchir le temps restant de repos et sauvegarder en tâche de fond sur Firestore
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        activeWorkout.checkRestFinished();
+      } else if (nextAppState === 'background' || nextAppState === 'inactive') {
+        if (auth.currentUser && activeWorkout.sessionId) {
+          const ref = doc(db, 'users', auth.currentUser.uid, 'activeWorkout', 'current');
+          await setDoc(ref, {
+            sessionId: activeWorkout.sessionId,
+            currentExerciseIdx: activeWorkout.currentExerciseIdx,
+            currentSetIdx: activeWorkout.currentSetIdx,
+            completedSets: activeWorkout.completedSets,
+            isPaused: activeWorkout.isPaused,
+            startTime: activeWorkout.startTime,
+            accumulatedTime: activeWorkout.accumulatedTime,
+            isResting: activeWorkout.isResting,
+            restStartTime: activeWorkout.restStartTime,
+            restDuration: activeWorkout.restDuration,
+            replacedExercises: activeWorkout.replacedExercises,
+            updatedAt: serverTimestamp(),
+          }, { merge: true }).catch(() => {});
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, [activeWorkout]);
+
+  // Chronomètre de la séance (affichage visuel en continu)
+  useEffect(() => {
+    if (activeWorkout.isPaused || !activeWorkout.startTime) {
+      setElapsedSec(activeWorkout.accumulatedTime);
       return;
     }
-    restStartRef.current = Date.now();
-    timerRef.current = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - restStartRef.current) / 1000);
-      const remaining = Math.max(0, REST_DURATION - elapsed);
+
+    const interval = setInterval(() => {
+      const delta = Math.floor((Date.now() - activeWorkout.startTime!) / 1000);
+      setElapsedSec(activeWorkout.accumulatedTime + delta);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [activeWorkout.isPaused, activeWorkout.startTime, activeWorkout.accumulatedTime]);
+
+  // Chronomètre du temps de repos (affichage visuel)
+  useEffect(() => {
+    if (!activeWorkout.isResting || !activeWorkout.restStartTime) {
+      setRestTime(targetRestDuration);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - activeWorkout.restStartTime!) / 1000);
+      const remaining = Math.max(0, targetRestDuration - elapsed);
       setRestTime(remaining);
+
+      // Animation du cercle de repos
+      Animated.timing(restAnim, {
+        toValue: remaining / targetRestDuration,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+
       if (remaining === 0) {
-        clearInterval(timerRef.current!);
-        setIsResting(false);
-        setRestTime(REST_DURATION);
+        clearInterval(interval);
+        activeWorkout.skipRest();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     }, 1000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isResting, isPaused]);
+
+    return () => clearInterval(interval);
+  }, [activeWorkout.isResting, activeWorkout.restStartTime, targetRestDuration]);
 
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60).toString().padStart(2,'0');
@@ -376,51 +176,100 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
 
   const setKey = (exIdx: number, setIdx: number) => `${exIdx}-${setIdx}`;
 
-  // Detect workout completion
+  // Détecter la fin de séance
   useEffect(() => {
-    if (totalSets > 0 && doneSets >= totalSets && !workoutDone) {
-      setWorkoutDone(true);
-      completeWorkout();
+    if (totalSets > 0 && doneSets >= totalSets && !activeWorkout.workoutDone) {
+      activeWorkout.finishWorkout();
+      completeWorkout({
+        sessionId: session?.id || 's1',
+        sessionTitle: session?.title || 'Séance complétée',
+        durationSec: elapsedSec,
+        totalSets,
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success), 300);
       setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success), 600);
       Animated.spring(celebrateAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 8 }).start();
     }
-  }, [doneSets, totalSets, workoutDone]);
+  }, [doneSets, totalSets, activeWorkout.workoutDone, session, elapsedSec, completeWorkout]);
 
   const completeSet = () => {
-    const key = setKey(currentExerciseIdx, currentSetIdx);
-    setCompletedSets(prev => new Set([...prev, key]));
+    const key = setKey(activeWorkout.currentExerciseIdx, activeWorkout.currentSetIdx);
 
-    // Haptic + Animate
+    // Haptic + Animation flash de validation
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Animated.sequence([
-      Animated.timing(doneAnim, { toValue:1, duration:200, useNativeDriver:true }),
-      Animated.timing(doneAnim, { toValue:0, duration:300, useNativeDriver:true }),
+      Animated.timing(doneAnim, { toValue:1, duration:180, useNativeDriver:true }),
+      Animated.timing(doneAnim, { toValue:0, duration:250, useNativeDriver:true }),
     ]).start();
 
-    const nextSet = currentSetIdx + 1;
+    const nextSet = activeWorkout.currentSetIdx + 1;
+    let nextSetIdx = activeWorkout.currentSetIdx;
+    let nextExIdx = activeWorkout.currentExerciseIdx;
+    let startRest = false;
+
     if (nextSet < (exercise?.sets ?? 0)) {
-      setCurrentSetIdx(nextSet);
-      setIsResting(true);
+      nextSetIdx = nextSet;
+      startRest = true;
     } else {
-      const nextEx = currentExerciseIdx + 1;
+      const nextEx = activeWorkout.currentExerciseIdx + 1;
       if (nextEx < exercises.length) {
-        setCurrentExerciseIdx(nextEx);
-        setCurrentSetIdx(0);
-        setIsResting(true);
+        nextExIdx = nextEx;
+        nextSetIdx = 0;
+        startRest = true;
       }
     }
+
+    // Prochain exercice rest duration
+    const nextExercise = exercises[nextExIdx];
+    const nextBiomechanics = nextExercise ? getExerciseBiomechanics(nextExercise.name, nextExIdx, exercises.length) : biomechanics;
+    const restDurationToUse = selectedRestPreset || nextBiomechanics.recommendedRestSec;
+
+    activeWorkout.completeSet(key, nextExIdx, nextSetIdx, startRest, restDurationToUse);
   };
 
   const skipRest = () => {
-    setIsResting(false);
-    setRestTime(REST_DURATION);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    activeWorkout.skipRest();
   };
 
-  const restPercent = restTime / REST_DURATION;
+  // Traitement du remplacement 1-tap d'un exercice
+  const handleSwapExercise = (alt: ExerciseAlternative) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const newEx: Exercise = {
+      id: `${exercise.id}-swapped-${Date.now()}`,
+      name: alt.name,
+      sets: exercise.sets,
+      reps: exercise.reps,
+      done: false,
+      notes: `💡 Alternative biomécanique : ${alt.biomechanicMatch}`,
+    };
 
-  // Aucune séance réelle → jamais de données factices
+    // Enregistrer localement dans le store de la séance active
+    activeWorkout.replaceExercise(currentExIdx, newEx);
+
+    // Enregistrer globalement dans le programme si session existe
+    if (program && session) {
+      const updatedSessions = program.sessions.map(s => {
+        if (s.id === session.id) {
+          const updatedExs = [...s.exercises];
+          updatedExs[currentExIdx] = newEx;
+          return { ...s, exercises: updatedExs };
+        }
+        return s;
+      });
+      const updatedProgram = { ...program, sessions: updatedSessions };
+      useProgramStore.getState().setProgram(updatedProgram);
+
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        saveProgram(uid, updatedProgram).catch(() => {});
+      }
+    }
+
+    setShowSwapModal(false);
+  };
+
   if (!session) {
     return (
       <SafeAreaView style={s.safe}>
@@ -436,6 +285,9 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
     );
   }
 
+  const group = exercise ? getMuscleGroup(exercise.name) : { label: 'Général', bg: '#F5F5F5', color: colors.ink[600] };
+  const alternatives = exercise ? getExerciseAlternatives(exercise.name) : [];
+
   return (
     <SafeAreaView style={s.safe}>
       {/* Header */}
@@ -447,8 +299,8 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
           <Text style={s.headerTitle}>{session.title}</Text>
           <Text style={s.headerTime}>{formatTime(elapsedSec)}</Text>
         </View>
-        <Pressable style={s.iconBtn} onPress={() => setIsPaused(p => !p)} accessibilityRole="button">
-          {isPaused
+        <Pressable style={s.iconBtn} onPress={() => activeWorkout.isPaused ? activeWorkout.resumeWorkout() : activeWorkout.pauseWorkout()} accessibilityRole="button">
+          {activeWorkout.isPaused
             ? <Play  size={20} color={colors.sage[600]} strokeWidth={2} />
             : <Pause size={20} color={colors.ink[700]}  strokeWidth={2} />}
         </Pressable>
@@ -460,42 +312,218 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
         <Text style={s.progressLabel}>{doneSets}/{totalSets} séries complétées</Text>
       </View>
 
+      {/* ── BARRE DES 4 PHASES DE LA SÉANCE ── */}
+      <View style={s.phasesBarContainer}>
+        {[1, 2, 3, 4].map((pNum) => {
+          const pInfo = WORKOUT_PHASES[pNum as 1|2|3|4];
+          const isActive = biomechanics.phaseNumber === pNum;
+          return (
+            <View
+              key={pNum}
+              style={[
+                s.phaseStepChip,
+                isActive && { backgroundColor: pInfo.color, borderColor: pInfo.color }
+              ]}
+            >
+              <Text style={[s.phaseStepText, isActive && { color: '#fff', fontFamily: fontFamily.hanken.bold }]}>
+                {pInfo.shortName}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+
       <ScrollView style={{ flex:1 }} showsVerticalScrollIndicator={false}>
 
-        {/* Rest overlay */}
-        {isResting && (
-          <View style={s.restCard}>
+        {/* REST OVERLAY CARD */}
+        {activeWorkout.isResting && (
+          <View style={[s.restCard, { backgroundColor: currentPhase.color }]}>
             <View style={s.restCircle}>
               <Animated.View style={[s.restCircleFill, {
                 height: restAnim.interpolate({ inputRange:[0,1], outputRange:['0%','100%'] as any }),
+                backgroundColor: colors.sage[400],
               }]} />
               <Text style={s.restNum}>{restTime}</Text>
               <Text style={s.restSec}>secondes</Text>
             </View>
-            <Text style={s.restTitle}>Temps de repos</Text>
-            <Text style={s.restSub}>Reprends ton souffle avant la prochaine série.</Text>
+            <Text style={s.restTitle}>Repos • {currentPhase.shortName}</Text>
+            <Text style={s.restSub}>Reprends ton souffle. Hydrate-toi et concentre-toi sur la prochaine série.</Text>
+
+            {/* Presets 45s vs 90s */}
+            <View style={s.presetContainer}>
+              <Pressable
+                onPress={() => {
+                  setSelectedRestPreset(45);
+                  activeWorkout.completeSet(
+                    setKey(activeWorkout.currentExerciseIdx, activeWorkout.currentSetIdx),
+                    activeWorkout.currentExerciseIdx,
+                    activeWorkout.currentSetIdx,
+                    true,
+                    45
+                  );
+                }}
+                style={[s.presetBtn, selectedRestPreset === 45 && s.presetBtnActive]}
+              >
+                <Text style={[s.presetBtnText, selectedRestPreset === 45 && s.presetBtnTextActive]}>45s (Accessoire)</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setSelectedRestPreset(90);
+                  activeWorkout.completeSet(
+                    setKey(activeWorkout.currentExerciseIdx, activeWorkout.currentSetIdx),
+                    activeWorkout.currentExerciseIdx,
+                    activeWorkout.currentSetIdx,
+                    true,
+                    90
+                  );
+                }}
+                style={[s.presetBtn, selectedRestPreset === 90 && s.presetBtnActive]}
+              >
+                <Text style={[s.presetBtnText, selectedRestPreset === 90 && s.presetBtnTextActive]}>90s (Force)</Text>
+              </Pressable>
+            </View>
+
             <Pressable style={s.skipBtn} onPress={skipRest} accessibilityRole="button">
-              <SkipForward size={16} color={colors.sage[600]} strokeWidth={2} />
-              <Text style={s.skipText}>Passer</Text>
+              <SkipForward size={16} color="#fff" strokeWidth={2} />
+              <Text style={s.skipText}>Passer le repos</Text>
             </Pressable>
           </View>
         )}
 
-        {/* Current exercise */}
+        {/* EXERCICE ACTIF */}
         {exercise && (
           <View style={s.exerciseSection}>
+            
+            {/* Header de l'exercice + Bouton 1-Tap Remplacer */}
             <View style={s.exHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
-                <ExerciseImage name={exercise.name} size={48} />
+                <ExerciseImage name={exercise.name} size={52} />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.exCounter}>Exercice {currentExerciseIdx + 1}/{exercises.length}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: 2 }}>
+                    <Text style={s.exCounter}>Exercice {currentExIdx + 1}/{exercises.length}</Text>
+                    <View style={[s.phaseBadge, { backgroundColor: currentPhase.bgColor }]}>
+                      <Text style={[s.phaseBadgeText, { color: currentPhase.color }]}>
+                        {currentPhase.shortName}
+                      </Text>
+                    </View>
+                  </View>
                   <Text style={s.exName}>{exercise.name}</Text>
                 </View>
               </View>
-              <Badge variant="sage" label={`${exercise.sets} × ${exercise.reps}`} />
+
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {/* Bouton Guide Pédagogique Débutant */}
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowGuideModal(true);
+                  }}
+                  style={[s.swapBtn1Tap, { backgroundColor: colors.sand[200] }]}
+                  accessibilityRole="button"
+                >
+                  <Sparkles size={14} color={colors.clay[500]} />
+                  <Text style={[s.swapBtn1TapText, { color: colors.ink[800] }]}>Pourquoi ?</Text>
+                </Pressable>
+
+                {/* Bouton 1-Tap Remplacer L'exercice */}
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setShowSwapModal(true);
+                  }}
+                  style={s.swapBtn1Tap}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remplacer l'exercice"
+                >
+                  <RefreshCw size={14} color={colors.sage[600]} />
+                  <Text style={s.swapBtn1TapText}>Remplacer</Text>
+                </Pressable>
+              </View>
             </View>
 
-            <MovementDiagram name={exercise.name} />
+            {/* Encadré Pédagogique Débutant : Pourquoi cet exercice ? */}
+            <View style={{ backgroundColor: '#fff', borderRadius: radius.md, padding: spacing[3], marginHorizontal: spacing[4], marginBottom: spacing[2], borderWidth: 1, borderColor: colors.sand[300], gap: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Sparkles size={14} color={colors.clay[500]} />
+                <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: colors.ink[900] }}>Pourquoi cet exercice ?</Text>
+              </View>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[700], lineHeight: lineHeight.relaxed }}>
+                {exercise.name.toLowerCase().includes('squat')
+                  ? "Renforce l'ensemble des jambes et les fessiers. Développe une posture solide et brûle des calories même au repos."
+                  : exercise.name.toLowerCase().includes('pompe') || exercise.name.toLowerCase().includes('développé')
+                  ? "Développe la poitrine, les épaules et la force de poussée tout en protégeant les articulations des épaules."
+                  : exercise.name.toLowerCase().includes('tirage') || exercise.name.toLowerCase().includes('traction')
+                  ? "Renforce la musculature du dos et les biceps. Essentiel pour redresser les épaules et corriger la posture assise."
+                  : "Mouvement ciblé pour renforcer les fibres musculaires et stabiliser tes articulations sans risque de blessure."}
+              </Text>
+            </View>
+
+            {/* ── CARTE DÉTAILLÉE : TEMPO, RPE, MUSCLES CIBLES & BIOMÉCANIQUE ── */}
+            <View style={s.biomechanicsCard}>
+              
+              {/* Grille d'indicateurs (Tempo code + RPE Cible + Phase) */}
+              <View style={s.metricsRow}>
+                <View style={s.metricItem}>
+                  <Clock size={14} color={colors.sage[600]} />
+                  <Text style={s.metricLabel}>TEMPO</Text>
+                  <Text style={s.metricValueCode}>{biomechanics.tempoCode}</Text>
+                </View>
+
+                <View style={s.metricDivider} />
+
+                <View style={s.metricItem}>
+                  <Target size={14} color={colors.clay[500]} />
+                  <Text style={s.metricLabel}>RPE CIBLE</Text>
+                  <Text style={s.metricValueRpe}>{biomechanics.rpeNumeric} / 10</Text>
+                </View>
+
+                <View style={s.metricDivider} />
+
+                <View style={s.metricItem}>
+                  <Zap size={14} color="#8B5CF6" />
+                  <Text style={s.metricLabel}>REPOS RECOMM.</Text>
+                  <Text style={s.metricValueRest}>{targetRestDuration}s</Text>
+                </View>
+              </View>
+
+              {/* Tempo détaillé breakdown */}
+              <View style={s.tempoDetailBox}>
+                <Text style={s.tempoDetailText}>
+                  ⏱️ <Text style={{ fontFamily: fontFamily.hanken.bold }}>Détail Tempo :</Text> {biomechanics.tempoDescription}
+                </Text>
+              </View>
+
+              {/* Muscles cibles */}
+              <View style={s.musclesBox}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Dumbbell size={14} color={colors.ink[700]} />
+                  <Text style={s.musclesTitle}>Muscles Cibles & Agonistes :</Text>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing[1.5] }}>
+                  {biomechanics.primaryMuscles.map((m, i) => (
+                    <View key={i} style={s.muscleChipPrimary}>
+                      <Text style={s.muscleChipPrimaryText}>🎯 {m}</Text>
+                    </View>
+                  ))}
+                  {biomechanics.secondaryMuscles.map((m, i) => (
+                    <View key={i} style={s.muscleChipSecondary}>
+                      <Text style={s.muscleChipSecondaryText}>⚙️ {m}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {/* Conseils Biomécaniques & Posture */}
+              <View style={s.tipBox}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                  <Info size={16} color={colors.sage[700]} style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.tipTitle}>Conseil Biomécanique & Sécurité :</Text>
+                    <Text style={s.tipText}>{biomechanics.biomechanicalTip}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
 
             {exercise.notes && (
               <View style={s.notesBox}>
@@ -506,14 +534,14 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
             {/* Sets grid */}
             <View style={s.setsGrid}>
               {Array.from({ length: exercise.sets }, (_, i) => {
-                const done = completedSets.has(setKey(currentExerciseIdx, i));
-                const isCurrent = i === currentSetIdx && !isResting;
+                const done = completedSets.has(setKey(activeWorkout.currentExerciseIdx, i));
+                const isCurrent = i === activeWorkout.currentSetIdx && !activeWorkout.isResting;
                 return (
                   <Pressable
                     key={i}
                     style={[s.setChip, done && s.setChipDone, isCurrent && s.setChipCurrent]}
                     onPress={() => {
-                      if (!done) { setCurrentSetIdx(i); }
+                      if (!done) { activeWorkout.setCurrentSetIdx(i); }
                     }}
                     accessibilityRole="button"
                   >
@@ -528,15 +556,15 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
               })}
             </View>
 
-            {/* CTA */}
-            {!isResting && (
+            {/* CTA Validation de Série */}
+            {!activeWorkout.isResting && (
               <Button
                 variant="accent"
                 size="lg"
-                label={`Série ${currentSetIdx + 1} terminée ✓`}
+                label={`Valider Série ${activeWorkout.currentSetIdx + 1} ✓`}
                 fullWidth
                 onPress={completeSet}
-                disabled={completedSets.has(setKey(currentExerciseIdx, currentSetIdx))}
+                disabled={completedSets.has(setKey(activeWorkout.currentExerciseIdx, activeWorkout.currentSetIdx))}
               />
             )}
           </View>
@@ -544,23 +572,34 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
 
         {/* All exercises list */}
         <View style={s.allExSection}>
-          <Text style={s.allExTitle}>Programme complet</Text>
+          <Text style={s.allExTitle}>Programme complet de la séance</Text>
           {exercises.map((ex, exIdx) => {
             const exDone = Array.from({ length: ex.sets }, (_, i) => completedSets.has(setKey(exIdx, i))).every(Boolean);
-            const isCurrent = exIdx === currentExerciseIdx;
-            const group = getMuscleGroup(ex.name);
+            const isCurrent = exIdx === activeWorkout.currentExerciseIdx;
+            const exBio = getExerciseBiomechanics(ex.name, exIdx, exercises.length);
+            const isSwapped = activeWorkout.replacedExercises[exIdx] !== undefined;
+
             return (
               <Pressable
-                key={ex.id}
+                key={ex.id || exIdx}
                 style={[s.exRow, isCurrent && s.exRowActive]}
-                onPress={() => { setCurrentExerciseIdx(exIdx); setCurrentSetIdx(0); }}
+                onPress={() => { activeWorkout.setCurrentExerciseIdx(exIdx); activeWorkout.setCurrentSetIdx(0); }}
                 accessibilityRole="button"
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
-                  <ExerciseImage name={ex.name} size={36} />
+                  <ExerciseImage name={ex.name} size={38} />
                   <View style={{ flex: 1 }}>
-                    <Text style={[s.exRowName, isCurrent && { color:colors.sage[700] }]}>{ex.name}</Text>
-                    <Text style={s.exRowMeta}>{ex.sets} séries × {ex.reps} reps · {group.label}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[s.exRowName, isCurrent && { color:colors.sage[700] }]}>{ex.name}</Text>
+                      {isSwapped && (
+                        <View style={s.swappedBadge}>
+                          <Text style={s.swappedBadgeText}>Modifié</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={s.exRowMeta}>
+                      {ex.sets} séries × {ex.reps} reps · Tempo {exBio.tempoCode}
+                    </Text>
                   </View>
                 </View>
                 <View style={[s.exRowDot, exDone && s.exRowDotDone, isCurrent && s.exRowDotCurrent]}>
@@ -579,8 +618,68 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
         <Check size={32} color="#fff" strokeWidth={2.5} />
       </Animated.View>
 
+      {/* MODAL 1-TAP REMPLACER L'EXERCICE */}
+      <Modal visible={showSwapModal} animationType="slide" transparent>
+        <View style={s.modalBackdrop}>
+          <View style={s.modalContent}>
+            <View style={s.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.modalTitle}>Remplacer l'exercice 🔄</Text>
+                <Text style={s.modalSub}>Alternatives biomécaniques équivalentes</Text>
+              </View>
+              <Pressable style={s.modalCloseBtn} onPress={() => setShowSwapModal(false)} accessibilityRole="button">
+                <X size={20} color={colors.ink[600]} />
+              </Pressable>
+            </View>
+
+            {exercise && (
+              <View style={s.currentSwapCard}>
+                <Text style={s.currentSwapLabel}>Exercice actuel à remplacer :</Text>
+                <Text style={s.currentSwapName}>{exercise.name}</Text>
+                <Text style={s.currentSwapMuscles}>🎯 {biomechanics.primaryMuscles.join(' · ')}</Text>
+              </View>
+            )}
+
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: spacing[3], paddingVertical: spacing[3] }}>
+              {alternatives.map((alt, idx) => (
+                <Pressable
+                  key={idx}
+                  style={s.altCard}
+                  onPress={() => handleSwapExercise(alt)}
+                  accessibilityRole="button"
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                    <View style={{ flex: 1, paddingRight: spacing[2] }}>
+                      <Text style={s.altName}>{alt.name}</Text>
+                      <Text style={s.altCategory}>{alt.category}</Text>
+                    </View>
+                    <View style={s.altEquipBadge}>
+                      <Text style={s.altEquipBadgeText}>{alt.equipment}</Text>
+                    </View>
+                  </View>
+
+                  <View style={s.altRationaleBox}>
+                    <Text style={s.altRationaleText}>💡 {alt.biomechanicMatch}</Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <Text style={s.altMetaText}>Tempo: <Text style={{ fontFamily: fontFamily.hanken.bold }}>{alt.tempoCode}</Text></Text>
+                      <Text style={s.altMetaText}>Cible: <Text style={{ fontFamily: fontFamily.hanken.bold }}>{alt.rpeTarget}</Text></Text>
+                    </View>
+                    <View style={s.selectAltBtn}>
+                      <Text style={s.selectAltBtnText}>Choisir 1-Tap →</Text>
+                    </View>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Celebration overlay (workout complete) */}
-      {workoutDone && (
+      {activeWorkout.workoutDone && (
         <Animated.View style={[s.celebOverlay, {
           opacity: celebrateAnim,
           transform: [{ scale: celebrateAnim.interpolate({ inputRange:[0,1], outputRange:[0.92, 1] }) }],
@@ -593,13 +692,19 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
             <Text style={s.celebSub}>
               {doneSets} séries · {formatTime(elapsedSec)}
             </Text>
-            <Text style={s.celebMsg}>Bravo, tu viens de faire quelque chose que la plupart des gens remettent à demain. 🌿</Text>
-            <Pressable style={s.celebBtn} onPress={onClose} accessibilityRole="button">
+            <Text style={s.celebMsg}>Bravo, tu viens de valider l'ensemble des séries avec une précision biomécanique exemplaire. 🌿</Text>
+            <Pressable style={s.celebBtn} onPress={() => { activeWorkout.cancelWorkout(); onClose(); }} accessibilityRole="button">
               <Text style={s.celebBtnText}>Terminer la séance</Text>
             </Pressable>
           </View>
         </Animated.View>
       )}
+
+      {/* Guide Pédagogique Débutant Modal */}
+      <BeginnerGuideModal
+        visible={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -617,27 +722,104 @@ const s = StyleSheet.create({
   headerTitle: { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:colors.ink[900] },
   headerTime:  { fontFamily:fontFamily.spectral.medium, fontSize:fontSize.xl, color:colors.sage[600] },
 
-  globalProgress: { paddingHorizontal:spacing[5], paddingVertical:spacing[3], gap:spacing[1] },
+  globalProgress: { paddingHorizontal:spacing[5], paddingVertical:spacing[2], gap:spacing[1] },
   progressLabel:  { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.ink[500] },
 
+  /* Barre des 4 phases */
+  phasesBarContainer: {
+    flexDirection: 'row', gap: spacing[1.5], paddingHorizontal: spacing[5], marginVertical: spacing[2]
+  },
+  phaseStepChip: {
+    flex: 1, paddingVertical: 6, borderRadius: radius.pill,
+    backgroundColor: colors.ink[100], borderWidth: 1, borderColor: colors.ink[200],
+    alignItems: 'center', justifyContent: 'center'
+  },
+  phaseStepText: {
+    fontFamily: fontFamily.hanken.medium, fontSize: 10, color: colors.ink[600]
+  },
+
   // Rest card
-  restCard:   { margin:spacing[5], backgroundColor:colors.sage[800], borderRadius:radius.xl, padding:spacing[6], alignItems:'center', gap:spacing[4] },
-  restCircle: { width:120, height:120, borderRadius:60, backgroundColor:colors.sage[700], alignItems:'center', justifyContent:'center', overflow:'hidden', position:'relative' },
-  restCircleFill: { position:'absolute', bottom:0, left:0, right:0, backgroundColor:colors.sage[500] },
+  restCard:   { margin:spacing[5], borderRadius:radius.xl, padding:spacing[6], alignItems:'center', gap:spacing[3] },
+  restCircle: { width:120, height:120, borderRadius:60, backgroundColor:'rgba(0,0,0,0.15)', alignItems:'center', justifyContent:'center', overflow:'hidden', position:'relative' },
+  restCircleFill: { position:'absolute', bottom:0, left:0, right:0 },
   restNum:   { fontFamily:fontFamily.spectral.medium, fontSize:40, color:'#fff', zIndex:1 },
-  restSec:   { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.sage[200], zIndex:1 },
+  restSec:   { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:'rgba(255,255,255,0.85)', zIndex:1 },
   restTitle: { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.lg, color:'#fff' },
-  restSub:   { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.sage[200], textAlign:'center' },
-  skipBtn:   { flexDirection:'row', alignItems:'center', gap:spacing[2], paddingHorizontal:spacing[4], paddingVertical:spacing[2], borderRadius:radius.pill, backgroundColor:colors.sage[700] },
-  skipText:  { fontFamily:fontFamily.hanken.medium, fontSize:fontSize.sm, color:colors.sage[200] },
+  restSub:   { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:'rgba(255,255,255,0.88)', textAlign:'center' },
+  presetContainer: { flexDirection: 'row', gap: spacing[3], marginVertical: spacing[1] },
+  presetBtn: {
+    paddingHorizontal: spacing[3], paddingVertical: spacing[2],
+    borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)'
+  },
+  presetBtnActive: { backgroundColor: '#fff' },
+  presetBtnText: { fontFamily: fontFamily.hanken.medium, fontSize: fontSize.xs, color: '#fff' },
+  presetBtnTextActive: { color: colors.ink[900], fontFamily: fontFamily.hanken.bold },
+  skipBtn:   { flexDirection:'row', alignItems:'center', gap:spacing[2], paddingHorizontal:spacing[4], paddingVertical:spacing[2], borderRadius:radius.pill, backgroundColor:'rgba(0,0,0,0.25)' },
+  skipText:  { fontFamily:fontFamily.hanken.medium, fontSize:fontSize.sm, color:'#fff' },
 
   // Exercise section
-  exerciseSection: { margin:spacing[5], gap:spacing[5] },
-  exHeader: { flexDirection:'row', alignItems:'flex-start', justifyContent:'space-between' },
-  exCounter:{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.ink[500], textTransform:'uppercase', letterSpacing:1, marginBottom:2 },
+  exerciseSection: { margin:spacing[5], gap:spacing[4] },
+  exHeader: { flexDirection:'row', alignItems:'center', justifyContent:'space-between' },
+  exCounter:{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.ink[500], textTransform:'uppercase', letterSpacing:0.8 },
+  phaseBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill },
+  phaseBadgeText: { fontFamily: fontFamily.hanken.bold, fontSize: 9 },
   exName:   { fontFamily:fontFamily.spectral.medium, fontSize:fontSize['2xl'], color:colors.ink[900] },
 
-  notesBox: { backgroundColor:colors.sand[200], borderRadius:radius.md, padding:spacing[4] },
+  /* Bouton 1-Tap Remplacer */
+  swapBtn1Tap: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: spacing[3], paddingVertical: spacing[2],
+    borderRadius: radius.pill, backgroundColor: colors.sage[50],
+    borderWidth: 1.5, borderColor: colors.sage[200], ...shadows.sm
+  },
+  swapBtn1TapText: {
+    fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: colors.sage[700]
+  },
+
+  /* Carte Biomécanique */
+  biomechanicsCard: {
+    backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[4],
+    borderWidth: 1, borderColor: colors.ink[200], gap: spacing[3], ...shadows.sm
+  },
+  metricsRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
+    backgroundColor: colors.sand[100], borderRadius: radius.lg, paddingVertical: spacing[3]
+  },
+  metricItem: { alignItems: 'center', gap: 2 },
+  metricDivider: { width: 1, height: 28, backgroundColor: colors.ink[200] },
+  metricLabel: { fontFamily: fontFamily.hanken.bold, fontSize: 9, color: colors.ink[500], letterSpacing: 0.5 },
+  metricValueCode: { fontFamily: fontFamily.spectral.medium, fontSize: fontSize.base, color: colors.sage[700] },
+  metricValueRpe: { fontFamily: fontFamily.spectral.medium, fontSize: fontSize.base, color: colors.clay[600] },
+  metricValueRest: { fontFamily: fontFamily.spectral.medium, fontSize: fontSize.base, color: '#8B5CF6' },
+
+  tempoDetailBox: {
+    backgroundColor: colors.sand[50], borderRadius: radius.md, padding: spacing[2.5],
+    borderWidth: 1, borderColor: colors.sand[200]
+  },
+  tempoDetailText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[700] },
+
+  musclesBox: { gap: spacing[1] },
+  musclesTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: colors.ink[800] },
+  muscleChipPrimary: {
+    backgroundColor: colors.sage[50], borderWidth: 1, borderColor: colors.sage[200],
+    paddingHorizontal: spacing[2.5], paddingVertical: spacing[1], borderRadius: radius.pill
+  },
+  muscleChipPrimaryText: { fontFamily: fontFamily.hanken.semiBold, fontSize: 11, color: colors.sage[700] },
+  muscleChipSecondary: {
+    backgroundColor: colors.sand[100], borderWidth: 1, borderColor: colors.ink[200],
+    paddingHorizontal: spacing[2.5], paddingVertical: spacing[1], borderRadius: radius.pill
+  },
+  muscleChipSecondaryText: { fontFamily: fontFamily.hanken.medium, fontSize: 11, color: colors.ink[600] },
+
+  tipBox: {
+    backgroundColor: '#F4F7F4', borderRadius: radius.lg, padding: spacing[3],
+    borderLeftWidth: 3, borderLeftColor: colors.sage[600]
+  },
+  tipTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: colors.sage[700] },
+  tipText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[700], lineHeight: 18, marginTop: 2 },
+
+  notesBox: { backgroundColor:colors.sand[200], borderRadius:radius.md, padding:spacing[3.5] },
   notesText:{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[700], lineHeight:fontSize.sm*lineHeight.relaxed },
 
   setsGrid: { flexDirection:'row', flexWrap:'wrap', gap:spacing[3] },
@@ -657,9 +839,48 @@ const s = StyleSheet.create({
   exRowDotCurrent: { backgroundColor:colors.sage[200] },
   exRowName:    { fontFamily:fontFamily.hanken.medium, fontSize:fontSize.base, color:colors.ink[900] },
   exRowMeta:    { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[500] },
+  swappedBadge: { backgroundColor: colors.clay[100], paddingHorizontal: 6, paddingVertical: 1, borderRadius: radius.pill },
+  swappedBadgeText: { fontFamily: fontFamily.hanken.bold, fontSize: 9, color: colors.clay[600] },
 
   // Done flash
   doneFlash: { position:'absolute', top:'50%', left:'50%', marginLeft:-40, marginTop:-40, width:80, height:80, borderRadius:40, backgroundColor:colors.sage[500], alignItems:'center', justifyContent:'center' },
+
+  /* Modal Remplacer L'exercice */
+  modalBackdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end'
+  },
+  modalContent: {
+    backgroundColor: colors.sand[50], borderTopLeftRadius: radius.xl * 1.5, borderTopRightRadius: radius.xl * 1.5,
+    padding: spacing[5], maxHeight: '82%', width: '100%'
+  },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[3]
+  },
+  modalTitle: { fontFamily: fontFamily.spectral.medium, fontSize: fontSize.xl, color: colors.ink[900] },
+  modalSub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[500] },
+  modalCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.ink[200], alignItems: 'center', justifyContent: 'center' },
+
+  currentSwapCard: {
+    backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing[3],
+    borderWidth: 1, borderColor: colors.ink[200], marginBottom: spacing[2]
+  },
+  currentSwapLabel: { fontFamily: fontFamily.hanken.bold, fontSize: 10, color: colors.ink[500], textTransform: 'uppercase' },
+  currentSwapName: { fontFamily: fontFamily.spectral.medium, fontSize: fontSize.base, color: colors.ink[900] },
+  currentSwapMuscles: { fontFamily: fontFamily.hanken.medium, fontSize: fontSize.xs, color: colors.sage[600], marginTop: 2 },
+
+  altCard: {
+    backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[4],
+    borderWidth: 1.5, borderColor: colors.ink[200], ...shadows.sm
+  },
+  altName: { fontFamily: fontFamily.spectral.medium, fontSize: fontSize.base, color: colors.ink[900] },
+  altCategory: { fontFamily: fontFamily.hanken.medium, fontSize: fontSize.xs, color: colors.sage[600] },
+  altEquipBadge: { backgroundColor: colors.sand[200], paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill },
+  altEquipBadgeText: { fontFamily: fontFamily.hanken.bold, fontSize: 10, color: colors.ink[700] },
+  altRationaleBox: { backgroundColor: colors.sand[50], borderRadius: radius.md, padding: spacing[2.5], marginVertical: 4 },
+  altRationaleText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[700], lineHeight: 18 },
+  altMetaText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[600] },
+  selectAltBtn: { backgroundColor: colors.sage[600], paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.pill },
+  selectAltBtnText: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: '#fff' },
 
   // Celebration overlay
   celebOverlay: {

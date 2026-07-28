@@ -1,229 +1,584 @@
-import React, { useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Plus, Sparkles, Trash2, BookOpen, ChevronRight } from 'lucide-react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { showAlert } from '../utils/alert';
+import {
+  Plus, Sparkles, Trash2, Camera, ShoppingBag, ChevronRight,
+  RefreshCw, Check, RotateCcw
+} from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 import { formatNumber } from '../data';
-import { Ring } from '../components/Ring';
 import { useCalorie } from '../context/CalorieContext';
 import { AddFoodModal } from '../components/AddFoodModal';
+import { GroceryListModal } from '../components/GroceryListModal';
+import { MealScannerModal } from '../components/MealScannerModal';
+import { BeginnerGuideModal } from '../components/BeginnerGuideModal';
 import { useProgramStore } from '../store/useProgramStore';
+import { auth } from '../services/firebase';
+import {
+  WeeklyMealPlan,
+  PlannedMeal,
+  loadMealPlan,
+  saveMealPlan,
+  generateWeeklyMealPlan,
+  getTodayPlanDay,
+  swapMealInPlan,
+  regenerateDayInPlan,
+  markMealLogged,
+  plannedMealToFoodEntry,
+  getSlotLabel,
+} from '../services/mealPlanService';
+import { generateAndSaveGroceryList } from '../services/groceryService';
 
 export const MealsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const [modalOpen, setModalOpen] = useState(false);
-  const program = useProgramStore(st => st.program);
-  const { totalKcal, goalKcal, remainingKcal, pct, totalProteins, totalCarbs, totalFats, entries, removeEntry } = useCalorie();
+  const [groceryModalOpen, setGroceryModalOpen] = useState(false);
+  const [scannerModalOpen, setScannerModalOpen] = useState(false);
+  const [guideModalOpen, setGuideModalOpen] = useState(false);
+  const [plan, setPlan] = useState<WeeklyMealPlan | null>(null);
+  const [planLoading, setPlanLoading] = useState(true);
+  const [busyMealId, setBusyMealId] = useState<string | null>(null);
 
-  const overGoal = totalKcal > goalKcal;
+  const program = useProgramStore(st => st.program);
+  const profile = useProgramStore(st => st.profile);
+  const { totalKcal, goalKcal, pct, totalProteins, totalCarbs, totalFats, entries, removeEntry, addEntry, setGoal } = useCalorie();
+
+  const ensurePlan = useCallback(async () => {
+    setPlanLoading(true);
+    try {
+      const uid = auth.currentUser?.uid || null;
+      let existing = await loadMealPlan(uid);
+
+      const calories = program?.calories || goalKcal || 2000;
+      const macros = program?.macros || { protein: 140, carbs: 180, fat: 60 };
+      const goal = program?.goal || profile?.mainGoal || 'tone';
+      const restrictions = profile?.dietaryRestrictions || [];
+
+      const needsRegen =
+        !existing ||
+        !existing.days?.length ||
+        (program?.calories && Math.abs(existing.calories - program.calories) > 150);
+
+      if (needsRegen && program) {
+        existing = generateWeeklyMealPlan({
+          calories,
+          macros,
+          goal,
+          restrictions,
+        });
+        await saveMealPlan(uid, existing);
+      }
+
+      setPlan(existing);
+
+      if (program?.calories && Math.abs(goalKcal - program.calories) > 50) {
+        setGoal(program.calories);
+      }
+    } catch (err) {
+      console.error('Chargement plan alimentaire:', err);
+    } finally {
+      setPlanLoading(false);
+    }
+  }, [program, profile, goalKcal, setGoal]);
+
+  useEffect(() => {
+    ensurePlan();
+  }, [program?.id, program?.calories]);
+
+  const todayDay = getTodayPlanDay(plan);
+  const targetGoal = program?.calories || goalKcal || 2000;
+  const currentKcal = totalKcal;
+  const overGoal = currentKcal > targetGoal;
+
+  const pVal = Math.round(totalProteins);
+  const pTarget = program?.macros?.protein || plan?.macros?.protein || 125;
+  const gVal = Math.round(totalCarbs);
+  const gTarget = program?.macros?.carbs || plan?.macros?.carbs || 125;
+  const lVal = Math.round(totalFats);
+  const lTarget = program?.macros?.fat || plan?.macros?.fat || 48;
+
+  const persistPlan = async (next: WeeklyMealPlan) => {
+    setPlan(next);
+    await saveMealPlan(auth.currentUser?.uid || null, next);
+  };
+
+  const handleSwap = async (meal: PlannedMeal) => {
+    if (!plan || !todayDay) return;
+    setBusyMealId(meal.id);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const next = swapMealInPlan(plan, todayDay.date, meal.id);
+    await persistPlan(next);
+    setBusyMealId(null);
+  };
+
+  const handleLogMeal = async (meal: PlannedMeal) => {
+    if (!plan || !todayDay || meal.logged) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    addEntry(plannedMealToFoodEntry(meal));
+    const next = markMealLogged(plan, todayDay.date, meal.id, true);
+    await persistPlan(next);
+  };
+
+  const handleRegenDay = () => {
+    if (!plan || !todayDay) return;
+    showAlert(
+      'Régénérer la journée',
+      'Créer un nouveau plan pour aujourd\'hui selon tes macros et restrictions ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Régénérer',
+          onPress: async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            const next = regenerateDayInPlan(plan, todayDay.date);
+            await persistPlan(next);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRegenWeek = () => {
+    if (!program) {
+      showAlert('Programme requis', 'Complète ton onboarding pour générer un plan sur-mesure.');
+      return;
+    }
+    showAlert(
+      'Nouveau plan de la semaine',
+      'Recalculer 7 jours de repas adaptés à ton objectif et tes restrictions ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Générer',
+          onPress: async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            const next = generateWeeklyMealPlan({
+              calories: program.calories,
+              macros: program.macros,
+              goal: program.goal,
+              restrictions: profile?.dietaryRestrictions || [],
+            });
+            await persistPlan(next);
+            setGoal(program.calories);
+          },
+        },
+      ]
+    );
+  };
+
+  const openGroceryFromPlan = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (plan) {
+      const uid = auth.currentUser?.uid || '';
+      const mealsOrPlan = plan.days.flatMap((day) =>
+        day.meals.map((m) => ({
+          mealName: m.name,
+          ingredients: m.ingredients.map((i) => ({ name: i.name, qty: i.qty })),
+        }))
+      );
+      try {
+        await generateAndSaveGroceryList(uid, mealsOrPlan);
+      } catch (e) {
+        console.warn('Grocery depuis plan:', e);
+      }
+    }
+    setGroceryModalOpen(true);
+  };
+
+  const lastMeal = entries.length > 0 ? entries[entries.length - 1] : null;
 
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
-          <Text style={s.screenTitle} accessibilityRole="header">Repas</Text>
-          <Pressable style={s.addFab} onPress={() => setModalOpen(true)} accessibilityRole="button">
+        <View style={s.headerRow}>
+          <View>
+            <Text style={s.screenTitle} accessibilityRole="header">Repas</Text>
+            <Text style={s.screenSubtitle}>Plan alimentaire & journal</Text>
+          </View>
+          <Pressable
+            style={s.addFab}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setModalOpen(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Ajouter un repas"
+          >
             <Plus size={18} color="#fff" strokeWidth={2.5} />
             <Text style={s.addFabLabel}>Ajouter</Text>
           </Pressable>
         </View>
 
-        {/* ── Calorie tracker card ── */}
-        <View style={[s.trackerCard, overGoal && s.trackerCardOver]}>
-          <View style={s.trackerTop}>
-            <View style={{ flex: 1, gap: spacing[1] }}>
-              <Text style={s.trackerEyebrow}>CALORIES DU JOUR</Text>
-              <Text style={s.trackerMain}>
-                {formatNumber(totalKcal)}{' '}
-                <Text style={s.trackerGoal}>/ {formatNumber(goalKcal)} kcal</Text>
-              </Text>
-              <Text style={[s.trackerRemaining, overGoal && { color: colors.status.danger }]}>
-                {overGoal
-                  ? `+${formatNumber(totalKcal - goalKcal)} kcal au-dessus de l'objectif`
-                  : `${formatNumber(remainingKcal)} kcal restantes`}
-              </Text>
-            </View>
-            <Ring
-              value={Math.min(pct, 100)}
-              size={80}
-              strokeWidth={8}
-              fillColor={overGoal ? colors.status.danger : colors.clay[500]}
-              label={`${pct}%`}
+        <Pressable
+          style={s.scannerBtnDark}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setScannerModalOpen(true);
+          }}
+          accessibilityRole="button"
+        >
+          <View style={s.scannerIconWrap}>
+            <Camera size={20} color="#fff" strokeWidth={2} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.scannerBtnLabel}>Scanner Repas IA — détection macros</Text>
+          </View>
+          <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
+        </Pressable>
+
+        {/* Calories */}
+        <View style={[s.trackerCardMarron, overGoal && s.trackerCardOver]}>
+          <View style={s.trackerHeader}>
+            <Text style={s.trackerEyebrow}>OBJECTIF DU JOUR</Text>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setGuideModalOpen(true);
+              }}
+              accessibilityRole="button"
+            >
+              <Sparkles size={16} color={colors.clay[200]} />
+            </Pressable>
+          </View>
+
+          <View style={s.trackerKcalRow}>
+            <Text style={s.trackerKcalMain}>
+              {formatNumber(currentKcal)}{' '}
+              <Text style={s.trackerKcalGoal}>/ {formatNumber(targetGoal)} kcal</Text>
+            </Text>
+          </View>
+
+          <View style={s.trackerTrack}>
+            <View
+              style={[
+                s.trackerFill,
+                { width: `${Math.min(pct, 100)}%` as any },
+                overGoal && { backgroundColor: colors.status.danger },
+              ]}
             />
           </View>
 
-          {/* Barre de progression */}
-          <View style={s.trackerTrack}>
-            <View style={[
-              s.trackerFill,
-              { width: `${Math.min(pct, 100)}%` as any },
-              overGoal && { backgroundColor: colors.status.danger },
-            ]} />
-          </View>
-
-          {/* Macros consommées vs cibles du programme */}
           <View style={s.macroRow}>
-            {[
-              { label:'Prot.', val: totalProteins, target: program?.macros.protein, color: colors.sage[400] },
-              { label:'Gluc.', val: totalCarbs,    target: program?.macros.carbs,   color: colors.clay[400] },
-              { label:'Lip.',  val: totalFats,     target: program?.macros.fat,     color: colors.info[500] },
-            ].map(m => (
-              <View key={m.label} style={s.macroItem}>
-                <View style={[s.macroDot, { backgroundColor: m.color }]} />
-                <Text style={s.macroLabel}>{m.label}</Text>
-                <Text style={s.macroVal}>
-                  {Math.round(m.val)}g{m.target ? ` / ${m.target}g` : ''}
-                </Text>
-              </View>
-            ))}
+            <View style={s.macroItem}>
+              <View style={[s.macroDot, { backgroundColor: colors.sage[300] }]} />
+              <Text style={s.macroText}>Prot. {pVal}g/{pTarget}g</Text>
+            </View>
+            <View style={s.macroItem}>
+              <View style={[s.macroDot, { backgroundColor: colors.clay[200] }]} />
+              <Text style={s.macroText}>Gluc. {gVal}g/{gTarget}g</Text>
+            </View>
+            <View style={s.macroItem}>
+              <View style={[s.macroDot, { backgroundColor: colors.sand[200] }]} />
+              <Text style={s.macroText}>Lip. {lVal}g/{lTarget}g</Text>
+            </View>
           </View>
         </View>
 
-        {/* ── Entrées journalières ── */}
-        {entries.length > 0 && (
-          <View style={{ gap: spacing[3] }}>
-            <Text style={s.sectionTitle}>Aujourd'hui · {entries.length} entrée{entries.length > 1 ? 's' : ''}</Text>
-            <View style={s.entriesCard}>
-              {entries.map((entry, idx) => (
-                <View key={entry.id}>
-                  <View style={s.entryRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.entryName}>{entry.name}</Text>
-                      <Text style={s.entryTime}>{entry.time} · P {entry.proteins}g · G {entry.carbs}g · L {entry.fats}g</Text>
-                    </View>
-                    <Text style={s.entryKcal}>{entry.kcal} kcal</Text>
+        {/* Plan du jour */}
+        <View style={s.sectionBlock}>
+          <View style={s.sectionHeaderRow}>
+            <Text style={s.sectionEyebrow}>PLAN DU JOUR</Text>
+            <View style={{ flexDirection: 'row', gap: spacing[2] }}>
+              <Pressable onPress={handleRegenDay} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Régénérer aujourd'hui">
+                <RotateCcw size={14} color={colors.sage[700]} />
+              </Pressable>
+              <Pressable onPress={handleRegenWeek} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Nouveau plan semaine">
+                <RefreshCw size={14} color={colors.sage[700]} />
+              </Pressable>
+            </View>
+          </View>
+
+          {planLoading ? (
+            <View style={s.planCard}>
+              <ActivityIndicator color={colors.sage[600]} />
+              <Text style={s.planHint}>Préparation de ton plan…</Text>
+            </View>
+          ) : !todayDay ? (
+            <View style={s.planCard}>
+              <Text style={s.planHint}>Aucun plan pour aujourd'hui.</Text>
+              <Pressable style={s.regenBtn} onPress={handleRegenWeek}>
+                <Text style={s.regenBtnText}>Générer mon plan</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={s.planCard}>
+              <Text style={s.planDayLabel}>
+                {todayDay.dayLabel} · {todayDay.meals.reduce((s, m) => s + m.kcal, 0)} kcal planifiées
+              </Text>
+              {todayDay.meals.map((meal) => (
+                <View key={meal.id} style={s.mealRow}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={s.mealSlot}>{getSlotLabel(meal.slot)}</Text>
+                    <Text style={s.mealName}>{meal.name}</Text>
+                    <Text style={s.mealMacros}>
+                      {meal.kcal} kcal · P {meal.proteins}g · G {meal.carbs}g · L {meal.fats}g · {meal.prepTime}
+                    </Text>
+                  </View>
+                  <View style={s.mealActions}>
                     <Pressable
-                      onPress={() => removeEntry(entry.id)}
-                      style={s.deleteBtn}
+                      style={[s.miniBtn, meal.logged && s.miniBtnDone]}
+                      onPress={() => handleLogMeal(meal)}
+                      disabled={!!meal.logged}
                       accessibilityRole="button"
-                      accessibilityLabel="Supprimer"
+                      accessibilityLabel="Marquer comme mangé"
                     >
-                      <Trash2 size={14} color={colors.ink[400]} strokeWidth={1.8} />
+                      <Check size={14} color={meal.logged ? '#fff' : colors.sage[700]} />
+                    </Pressable>
+                    <Pressable
+                      style={s.miniBtn}
+                      onPress={() => handleSwap(meal)}
+                      disabled={busyMealId === meal.id}
+                      accessibilityRole="button"
+                      accessibilityLabel="Remplacer ce repas"
+                    >
+                      {busyMealId === meal.id ? (
+                        <ActivityIndicator size="small" color={colors.sage[700]} />
+                      ) : (
+                        <RefreshCw size={14} color={colors.sage[700]} />
+                      )}
                     </Pressable>
                   </View>
-                  {idx < entries.length - 1 && <View style={s.divider} />}
                 </View>
               ))}
+              <Text style={s.planFoot}>
+                ✔ = ajouter au journal · ↻ = remplacer ce repas (même créneau, adapté à tes restrictions)
+              </Text>
             </View>
-          </View>
-        )}
+          )}
+        </View>
 
-        {entries.length === 0 && (
-          <Pressable style={s.emptyTracker} onPress={() => setModalOpen(true)}>
-            <Plus size={22} color={colors.clay[400]} strokeWidth={1.8} />
-            <Text style={s.emptyTrackerText}>Ajouter ton premier aliment</Text>
-          </Pressable>
-        )}
-
-        {/* ── Livre de recettes ── */}
-        <Pressable
-          style={s.recipeBookBtn}
-          onPress={() => navigation?.navigate('RecipeBook')}
-          accessibilityRole="button"
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
-            <View style={s.recipeBookIconCircle}>
-              <BookOpen size={20} color={colors.sage[600]} />
+        {/* Journal */}
+        <View style={s.sectionBlock}>
+          <Text style={s.sectionEyebrow}>JOURNAL DU JOUR</Text>
+          <View style={s.lastMealCard}>
+            <View style={s.lastMealRow}>
+              <View style={s.lastMealIconCircle}>
+                <Text style={{ fontSize: 20 }}>🍳</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.lastMealTitle}>
+                  {lastMeal ? lastMeal.name : 'Aucun repas enregistré'}
+                </Text>
+                <Text style={s.lastMealSub}>
+                  {lastMeal
+                    ? `${lastMeal.time} · P ${lastMeal.proteins}g · G ${lastMeal.carbs}g · L ${lastMeal.fats}g`
+                    : 'Valide un repas du plan ou scanne ton assiette'}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+                <View style={s.lastMealBadge}>
+                  <Text style={s.lastMealKcal}>
+                    {lastMeal ? `${lastMeal.kcal} kcal` : '0 kcal'}
+                  </Text>
+                </View>
+                {lastMeal && (
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      removeEntry(lastMeal.id);
+                    }}
+                    style={s.deleteBtn}
+                    accessibilityRole="button"
+                  >
+                    <Trash2 size={16} color={colors.ink[400]} />
+                  </Pressable>
+                )}
+              </View>
             </View>
-            <View>
-              <Text style={s.recipeBookTitle}>Livre de Recettes Holistiques</Text>
-              <Text style={s.recipeBookSub}>Reset Métabolique & Équilibre Hormonal</Text>
-            </View>
-          </View>
-          <ChevronRight size={18} color={colors.ink[400]} />
-        </Pressable>
 
-        {/* ── Cibles du programme ── */}
-        {program ? (
-          <View style={s.planCard}>
-            <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[2] }}>
-              <Sparkles size={16} color={colors.sage[600]} strokeWidth={2} />
-              <Text style={s.planTitle}>Tes cibles — {program.name}</Text>
-            </View>
-            <Text style={s.planText}>
-              {formatNumber(program.calories)} kcal / jour · P {program.macros.protein}g · G {program.macros.carbs}g · L {program.macros.fat}g
-            </Text>
-            <Text style={s.planHint}>
-              Ton plan repas détaillé (recettes personnalisées selon tes restrictions) arrive bientôt.
-              En attendant, vise tes cibles avec le suivi ci-dessus. 🌿
-            </Text>
+            {entries.length > 1 && (
+              <View style={s.entriesList}>
+                {entries.slice(0, entries.length - 1).reverse().map(entry => (
+                  <View key={entry.id} style={s.entrySubRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.entrySubName}>{entry.name}</Text>
+                      <Text style={s.entrySubTime}>{entry.time} · P {entry.proteins}g · G {entry.carbs}g · L {entry.fats}g</Text>
+                    </View>
+                    <Text style={s.entrySubKcal}>{entry.kcal} kcal</Text>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        removeEntry(entry.id);
+                      }}
+                      style={s.deleteBtn}
+                      accessibilityRole="button"
+                    >
+                      <Trash2 size={14} color={colors.ink[400]} />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
-        ) : (
-          <View style={s.planCard}>
-            <Text style={s.planTitle}>Aucun plan trouvé</Text>
-            <Text style={s.planHint}>Complète ton diagnostic pour recevoir tes cibles caloriques personnalisées.</Text>
-          </View>
-        )}
+        </View>
 
-        {/* Bandeau de décharge médicale */}
+        {/* Outils */}
+        <View style={s.sectionBlock}>
+          <Text style={s.sectionEyebrow}>OUTILS</Text>
+          <View style={s.toolsCard}>
+            <Pressable style={s.toolRow} onPress={openGroceryFromPlan} accessibilityRole="button">
+              <View style={s.toolIconWrap}>
+                <ShoppingBag size={18} color={colors.sage[700]} />
+              </View>
+              <Text style={s.toolLabel}>Liste de courses (depuis mon plan)</Text>
+              <ChevronRight size={18} color={colors.ink[400]} />
+            </Pressable>
+            <View style={s.toolDivider} />
+            <Pressable
+              style={s.toolRow}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation?.navigate('RecipeBook');
+              }}
+              accessibilityRole="button"
+            >
+              <View style={s.toolIconWrap}>
+                <Text style={{ fontSize: 18 }}>📖</Text>
+              </View>
+              <Text style={s.toolLabel}>Livre de recettes</Text>
+              <ChevronRight size={18} color={colors.ink[400]} />
+            </Pressable>
+          </View>
+        </View>
+
         <View style={s.medicalDisclaimer}>
           <Text style={s.medicalDisclaimerText}>
-            Avertissement : Les cibles nutritionnelles et suggestions de Pure Ascension sont destinées à soutenir votre bien-être. Elles ne remplacent pas un avis médical. Consultez un professionnel de la santé avant tout changement alimentaire majeur.
+            Pure Ascension est un outil de coaching fitness et nutrition. Il ne remplace pas un avis médical professionnel.
           </Text>
         </View>
 
-        <View style={{ height:spacing[10] }} />
+        <View style={{ height: spacing[10] }} />
       </ScrollView>
 
       <AddFoodModal visible={modalOpen} onClose={() => setModalOpen(false)} />
+      <GroceryListModal visible={groceryModalOpen} onClose={() => setGroceryModalOpen(false)} />
+      <MealScannerModal visible={scannerModalOpen} onClose={() => setScannerModalOpen(false)} />
+      <BeginnerGuideModal visible={guideModalOpen} onClose={() => setGuideModalOpen(false)} defaultKcal={targetGoal} />
     </SafeAreaView>
   );
 };
 
 const s = StyleSheet.create({
-  safe:    { flex:1, backgroundColor:colors.sand[50] },
-  scroll:  { flex:1 },
-  content: { paddingHorizontal:spacing[5], paddingTop:spacing[6], gap:spacing[5] },
-  screenTitle: { fontFamily:fontFamily.spectral.medium, fontSize:fontSize['3xl'], color:colors.ink[900] },
+  safe: { flex: 1, backgroundColor: colors.sand[50] },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: spacing[5], paddingTop: spacing[6], gap: spacing[5] },
 
-  addFab:      { flexDirection:'row', alignItems:'center', gap:spacing[2], backgroundColor:colors.clay[500], borderRadius:radius.pill, paddingHorizontal:spacing[4], paddingVertical:spacing[2] },
-  addFabLabel: { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:'#fff' },
-
-  trackerCard:     { backgroundColor:colors.clay[700], borderRadius:radius.xl, padding:spacing[5], gap:spacing[4] },
-  trackerCardOver: { backgroundColor:'#5c1a0e' },
-  trackerTop:      { flexDirection:'row', alignItems:'center' },
-  trackerEyebrow:  { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.xs, color:colors.clay[300], letterSpacing:0.6 },
-  trackerMain:     { fontFamily:fontFamily.spectral.medium, fontSize:fontSize['2xl'], color:'#fff', lineHeight:fontSize['2xl']*lineHeight.snug },
-  trackerGoal:     { fontFamily:fontFamily.spectral.regular, fontSize:fontSize.lg, color:colors.clay[300] },
-  trackerRemaining:{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.clay[200] },
-  trackerTrack:    { height:6, borderRadius:3, backgroundColor:'rgba(0,0,0,0.25)', overflow:'hidden' },
-  trackerFill:     { height:'100%' as any, borderRadius:3, backgroundColor:colors.clay[400] },
-
-  macroRow:  { flexDirection:'row', justifyContent:'space-between' },
-  macroItem: { flexDirection:'row', alignItems:'center', gap:spacing[1.5] },
-  macroDot:  { width:8, height:8, borderRadius:4 },
-  macroLabel:{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.clay[200] },
-  macroVal:  { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.xs, color:'#fff' },
-
-  sectionTitle: { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.md, color:colors.ink[900] },
-
-  entriesCard: { backgroundColor:'#fff', borderRadius:radius.xl, overflow:'hidden', ...shadows.sm },
-  entryRow:    { flexDirection:'row', alignItems:'center', gap:spacing[3], paddingHorizontal:spacing[4], paddingVertical:spacing[3] },
-  entryName:   { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[900] },
-  entryTime:   { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.ink[500], marginTop:2 },
-  entryKcal:   { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.clay[600] },
-  deleteBtn:   { width:30, height:30, borderRadius:15, backgroundColor:colors.ink[100], alignItems:'center', justifyContent:'center' },
-  divider:     { height:1, backgroundColor:colors.ink[100], marginHorizontal:spacing[4] },
-
-  emptyTracker: { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:spacing[3], padding:spacing[5], borderRadius:radius.xl, borderWidth:2, borderColor:colors.clay[200], borderStyle:'dashed' },
-  emptyTrackerText: { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:colors.clay[500] },
-
-  planCard: { backgroundColor:colors.sage[50], borderRadius:radius.xl, padding:spacing[5], gap:spacing[2], borderWidth:1, borderColor:colors.sage[200] },
-  planTitle:{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:colors.sage[700] },
-  planText: { fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[900] },
-  planHint: { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600], lineHeight:fontSize.sm*lineHeight.relaxed },
-
-  recipeBookBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[4],
-    borderWidth: 1.5, borderColor: colors.ink[200], ...shadows.sm
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  screenTitle: { fontFamily: fontFamily.spectral.medium, fontSize: fontSize['3xl'], color: colors.ink[900] },
+  screenSubtitle: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[500], marginTop: 2 },
+  addFab: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.sage[700], paddingHorizontal: spacing[3], paddingVertical: spacing[2],
+    borderRadius: radius.full, ...shadows.sm,
   },
-  recipeBookIconCircle: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: colors.sage[50], alignItems: 'center', justifyContent: 'center'
-  },
-  recipeBookTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] },
-  recipeBookSub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[500], marginTop: 2 },
+  addFabLabel: { fontFamily: fontFamily.hanken.semibold, fontSize: fontSize.sm, color: '#fff' },
 
-  medicalDisclaimer: { marginTop:spacing[4], padding:spacing[3], backgroundColor:colors.sand[100], borderRadius:radius.md, borderWidth:1, borderColor:colors.sand[200] },
-  medicalDisclaimerText: { fontFamily:fontFamily.hanken.regular, fontSize:10, color:colors.ink[500], textAlign:'center', lineHeight:14 },
+  scannerBtnDark: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    backgroundColor: colors.sage[800], borderRadius: radius.xl,
+    paddingHorizontal: spacing[4], paddingVertical: spacing[4], ...shadows.md,
+  },
+  scannerIconWrap: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center',
+  },
+  scannerBtnLabel: { fontFamily: fontFamily.hanken.semibold, fontSize: fontSize.sm, color: '#fff' },
+
+  trackerCardMarron: {
+    backgroundColor: colors.clay[700], borderRadius: radius['2xl'],
+    padding: spacing[5], gap: spacing[3], ...shadows.md,
+  },
+  trackerCardOver: { backgroundColor: '#7f1d1d' },
+  trackerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  trackerEyebrow: {
+    fontFamily: fontFamily.hanken.semibold, fontSize: 11, color: colors.clay[200],
+    letterSpacing: 1.2,
+  },
+  trackerKcalRow: { flexDirection: 'row', alignItems: 'baseline' },
+  trackerKcalMain: { fontFamily: fontFamily.spectral.medium, fontSize: fontSize['3xl'], color: '#fff' },
+  trackerKcalGoal: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.base, color: colors.clay[100] },
+  trackerTrack: { height: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden' },
+  trackerFill: { height: '100%', backgroundColor: colors.sage[300], borderRadius: 4 },
+  macroRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing[1] },
+  macroItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  macroDot: { width: 8, height: 8, borderRadius: 4 },
+  macroText: { fontFamily: fontFamily.hanken.medium, fontSize: fontSize.xs, color: colors.clay[100] },
+
+  sectionBlock: { gap: spacing[3] },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionEyebrow: {
+    fontFamily: fontFamily.hanken.semibold, fontSize: 11, color: colors.ink[400],
+    letterSpacing: 1.2,
+  },
+  iconBtn: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: colors.sage[100],
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  planCard: {
+    backgroundColor: '#fff', borderRadius: radius.xl, borderWidth: 1,
+    borderColor: colors.ink[100], padding: spacing[4], gap: spacing[3], ...shadows.sm,
+  },
+  planDayLabel: { fontFamily: fontFamily.hanken.semibold, fontSize: fontSize.sm, color: colors.ink[700] },
+  planHint: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[500], textAlign: 'center' },
+  planFoot: { fontFamily: fontFamily.hanken.regular, fontSize: 11, color: colors.ink[400], lineHeight: 16 },
+  mealRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    paddingVertical: spacing[3], borderTopWidth: 1, borderTopColor: colors.ink[100],
+  },
+  mealSlot: { fontFamily: fontFamily.hanken.medium, fontSize: 11, color: colors.sage[700], textTransform: 'uppercase', letterSpacing: 0.6 },
+  mealName: { fontFamily: fontFamily.hanken.semibold, fontSize: fontSize.sm, color: colors.ink[900] },
+  mealMacros: { fontFamily: fontFamily.hanken.regular, fontSize: 11, color: colors.ink[500] },
+  mealActions: { flexDirection: 'row', gap: spacing[2] },
+  miniBtn: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: colors.sage[100],
+    alignItems: 'center', justifyContent: 'center',
+  },
+  miniBtnDone: { backgroundColor: colors.sage[600] },
+  regenBtn: {
+    alignSelf: 'center', marginTop: spacing[2],
+    backgroundColor: colors.sage[700], paddingHorizontal: spacing[4], paddingVertical: spacing[2],
+    borderRadius: radius.full,
+  },
+  regenBtnText: { fontFamily: fontFamily.hanken.semibold, fontSize: fontSize.sm, color: '#fff' },
+
+  lastMealCard: {
+    backgroundColor: '#fff', borderRadius: radius.xl, borderWidth: 1,
+    borderColor: colors.ink[100], padding: spacing[4], ...shadows.sm,
+  },
+  lastMealRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  lastMealIconCircle: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: colors.sand[100],
+    alignItems: 'center', justifyContent: 'center',
+  },
+  lastMealTitle: { fontFamily: fontFamily.hanken.semibold, fontSize: fontSize.base, color: colors.ink[900] },
+  lastMealSub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[500], marginTop: 2 },
+  lastMealBadge: { backgroundColor: colors.sand[100], paddingHorizontal: spacing[2], paddingVertical: 4, borderRadius: radius.md },
+  lastMealKcal: { fontFamily: fontFamily.hanken.semibold, fontSize: fontSize.xs, color: colors.ink[700] },
+  deleteBtn: { padding: spacing[1] },
+  entriesList: { marginTop: spacing[3], gap: spacing[2], borderTopWidth: 1, borderTopColor: colors.ink[100], paddingTop: spacing[3] },
+  entrySubRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  entrySubName: { fontFamily: fontFamily.hanken.medium, fontSize: fontSize.sm, color: colors.ink[800] },
+  entrySubTime: { fontFamily: fontFamily.hanken.regular, fontSize: 11, color: colors.ink[400] },
+  entrySubKcal: { fontFamily: fontFamily.hanken.semibold, fontSize: fontSize.xs, color: colors.ink[600] },
+
+  toolsCard: {
+    backgroundColor: '#fff', borderRadius: radius.xl, borderWidth: 1,
+    borderColor: colors.ink[100], overflow: 'hidden', ...shadows.sm,
+  },
+  toolRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], padding: spacing[4] },
+  toolIconWrap: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: colors.sand[100],
+    alignItems: 'center', justifyContent: 'center',
+  },
+  toolLabel: { flex: 1, fontFamily: fontFamily.hanken.medium, fontSize: fontSize.sm, color: colors.ink[800] },
+  toolDivider: { height: 1, backgroundColor: colors.ink[100], marginHorizontal: spacing[4] },
+
+  medicalDisclaimer: { paddingHorizontal: spacing[2], paddingBottom: spacing[2] },
+  medicalDisclaimerText: {
+    fontFamily: fontFamily.hanken.regular, fontSize: 11, color: colors.ink[400],
+    textAlign: 'center', lineHeight: lineHeight.relaxed * 11,
+  },
 });
+
 export default MealsScreen;

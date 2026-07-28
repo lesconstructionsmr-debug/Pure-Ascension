@@ -1,14 +1,19 @@
 import React from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, Platform, Modal, TextInput } from 'react-native';
-import { Activity, ChevronRight, Droplets, Plus, Minus, Bot, Leaf, X, Check, Sparkles, ChevronLeft } from 'lucide-react-native';
+import { Activity, ChevronRight, Droplets, Plus, Minus, Bot, Leaf, X, Check, Sparkles, ChevronLeft, Moon, Brain, Star, Users, Camera, ShoppingBag, MoreHorizontal, Utensils } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { colors, fontFamily, fontSize, lineHeight, letterSpacing, spacing, radius, shadows } from '../theme/theme';
 import { Avatar }   from '../components/Avatar';
 import { Badge }    from '../components/Badge';
 import { Card }     from '../components/Card';
 import { Progress } from '../components/Progress';
 import { Ring }     from '../components/Ring';
+import { ReferralModal } from '../components/ReferralModal';
+import { AscensionCardModal } from '../components/AscensionCardModal';
+import { GroceryListModal } from '../components/GroceryListModal';
+import { MealScannerModal } from '../components/MealScannerModal';
 import { useDailyProgress } from '../context/DailyProgressContext';
-import { useStreak } from '../hooks/useStreak';
+import { useCalorie } from '../context/CalorieContext';
 import { FeedbackButton } from '../components/FeedbackButton';
 import { EmptyState } from '../components/EmptyState';
 import { useProgramStore } from '../store/useProgramStore';
@@ -26,21 +31,13 @@ function getGreeting(name: string): string {
 }
 
 const Eyebrow: React.FC<{children:string}> = ({children}) => (
-  <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.clay[500], letterSpacing:letterSpacing.eyebrow, textTransform:'uppercase' }}>{children}</Text>
+  <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.xs, color:colors.clay[300], letterSpacing:letterSpacing.eyebrow, textTransform:'uppercase' }}>{children}</Text>
 );
 
 const SectionHeader: React.FC<{title:string;action?:string;onAction?:()=>void}> = ({title,action,onAction}) => (
   <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
-    <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.md, color:colors.ink[900] }}>{title}</Text>
+    <Text style={{ fontFamily:fontFamily.hanken.bold, fontSize:fontSize.xs, color:colors.ink[500], letterSpacing:0.8, textTransform:'uppercase' }}>{title}</Text>
     {action && <Pressable onPress={onAction} hitSlop={12} accessibilityRole="button"><Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.sm, color:colors.sage[600] }}>{action}</Text></Pressable>}
-  </View>
-);
-
-const RingItem: React.FC<{label:string;sublabel:string;value:number;fill:string;ringLabel:string}> = ({label,sublabel,value,fill,ringLabel}) => (
-  <View style={{ alignItems:'center', gap:spacing[1.5], flex:1 }}>
-    <Ring value={value} size={72} strokeWidth={7} fillColor={fill} label={ringLabel} />
-    <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.xs, color:colors.ink[900], textAlign:'center' }}>{label}</Text>
-    <Text style={{ fontFamily:fontFamily.hanken.regular,  fontSize:fontSize.xs, color:colors.ink[600], textAlign:'center' }}>{sublabel}</Text>
   </View>
 );
 
@@ -48,8 +45,20 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const program = useProgramStore(s => s.program);
   const profile = useProgramStore(s => s.profile);
   const storeName = useProgramStore(s => s.userName);
-  const { mealsPct, mealsCount, workoutPct, waterPct, waterGlasses, addWater, removeWater } = useDailyProgress();
-  const [streakDays, setStreakDays] = React.useState(1);
+  const completedWorkoutsCount = useProgramStore(s => s.completedWorkoutsCount);
+  const streakDays = useProgramStore(s => s.streakDays);
+
+  const { 
+    mealsPct, mealsCount, workoutPct, waterPct, waterGlasses, addWater, removeWater,
+    sleepScore, mentalCheckin, setSleepScore, toggleMentalCheckin, ascensionScore
+  } = useDailyProgress();
+  const { totalKcal, totalProteins, goalKcal } = useCalorie();
+
+  // Modals state
+  const [showReferralModal, setShowReferralModal] = React.useState(false);
+  const [showAscensionCardModal, setShowAscensionCardModal] = React.useState(false);
+  const [showGroceryListModal, setShowGroceryListModal] = React.useState(false);
+  const [showMealScannerModal, setShowMealScannerModal] = React.useState(false);
 
   React.useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -58,7 +67,14 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
       if (snap.exists()) {
         const d = snap.data();
         if (d.streakDays !== undefined) {
-          setStreakDays(d.streakDays);
+          useProgramStore.getState().setStreakDays(d.streakDays);
+        }
+        if (d.completedWorkoutsCount !== undefined) {
+          // Ne jamais faire régresser le compteur : le local peut contenir des séances non encore synchronisées.
+          const local = useProgramStore.getState().completedWorkoutsCount;
+          useProgramStore.getState().setCompletedWorkoutsCount(
+            Math.max(local, Number(d.completedWorkoutsCount) || 0)
+          );
         }
       }
     });
@@ -68,7 +84,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const [showDigestiveModal, setShowDigestiveModal] = React.useState(false);
   const [diagStep, setDiagStep] = React.useState(1);
 
-  // Form states
+  // Form states synchronisés avec le profil global
   const [digestiveSymptoms, setDigestiveSymptoms] = React.useState<string[]>([]);
   const [energyLevel, setEnergyLevel] = React.useState<string>('moyen');
   const [hydrationLevel, setHydrationLevel] = React.useState<string>('2.0');
@@ -78,6 +94,9 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   React.useEffect(() => {
     if (profile) {
       setDigestiveSymptoms(profile.digestiveSymptoms || []);
+      if (profile.energyLevel) setEnergyLevel(profile.energyLevel);
+      if (profile.hydrationLevel) setHydrationLevel(String(profile.hydrationLevel));
+      if (profile.stomachAcid) setStomachAcid(profile.stomachAcid);
       setDeepWhy(profile.deepWhy !== 'Non renseigné' ? profile.deepWhy || '' : '');
     }
   }, [profile]);
@@ -125,7 +144,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
 
       setShowDigestiveModal(false);
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde du bilan digestif :', error);
+      console.error('Erreur lors de la sauvegarde de la synthèse fitness :', error);
       alert('Une erreur est survenue lors de la sauvegarde de vos données.');
     }
   };
@@ -133,7 +152,6 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const displayName = storeName || 'toi';
   const greeting    = getGreeting(displayName);
 
-  // Aucun programme réel → jamais de données factices
   if (!program) {
     return (
       <SafeAreaView style={s.safe}>
@@ -146,13 +164,22 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
 
   const progress = getProgramProgress(program);
   const today    = getTodaySession(program);
+  
+  const totalSessions = program.totalWeeks * (program.sessionsPerWeek || 4);
+  const programWorkoutPct = totalSessions > 0 ? Math.round((completedWorkoutsCount / totalSessions) * 100) : 0;
+  const dailyBonusPct = Math.round((ascensionScore / 100) * (100 / (totalSessions || 1)));
+  const calculatedPct = Math.min(100, Math.max(progress.completionPct, programWorkoutPct + dailyBonusPct));
+  const currentDayCalculated = completedWorkoutsCount > 0 ? Math.min(progress.totalDays, Math.max(progress.day, completedWorkoutsCount + 1)) : progress.day;
+  const currentWeekCalculated = Math.min(program.totalWeeks, Math.ceil(currentDayCalculated / 7));
+
+  const programNameUpper = (program.name || 'FAT BURNER PRO').toUpperCase();
   const displayProgram = {
-    eyebrow: `PROGRAMME ${program.name.toUpperCase()}`,
-    currentDay: progress.day,
-    currentWeek: progress.week,
-    totalWeeks: progress.totalWeeks,
-    tagline: progress.week === 1 ? 'on démarre !' : 'tu avances bien.',
-    completionPct: progress.completionPct,
+    eyebrow: `${programNameUpper} · JOUR ${currentDayCalculated}`,
+    currentDay: currentDayCalculated,
+    currentWeek: currentWeekCalculated,
+    totalWeeks: progress.totalWeeks || 12,
+    tagline: currentWeekCalculated === 1 ? 'on démarre !' : 'tu avances bien.',
+    completionPct: calculatedPct,
   };
 
   const showDigestiveBanner = profile && !profile.digestiveDiagnosticCompleted;
@@ -162,18 +189,53 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
       <SafeAreaView style={s.safe}>
         <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-          {/* Header */}
+          {/* Header avec Titre 'Accueil' en grand & Bouton '...' en haut à droite */}
           <View style={s.header}>
-            <View style={{ flex:1, marginRight:spacing[4] }}>
-              <Text style={s.greeting} accessibilityRole="header">{greeting}</Text>
-              <Text style={s.subgreeting}>
-                {streakDays > 1 ? `🔥 ${streakDays} jours de série` : progress.day <= 1 ? 'Bienvenue ! C\'est parti 🌿' : 'Voici ton tableau de bord.'}
-              </Text>
+            <View style={{ flex:1 }}>
+              <Text style={s.headerTitle} accessibilityRole="header">Accueil</Text>
+              <Text style={s.subgreeting}>{greeting}</Text>
             </View>
-            <Avatar name={displayName} size={44} ring />
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowAscensionCardModal(true);
+              }}
+              style={s.moreBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Plus d'options"
+            >
+              <MoreHorizontal size={24} color={colors.ink[900]} />
+            </Pressable>
           </View>
 
-          {/* Programme card */}
+          {/* Barre d'action rapide supérieure : 'Scanner un repas' | 'Ajouter un aliment' */}
+          <View style={s.quickActionsRow}>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setShowMealScannerModal(true);
+              }}
+              style={s.quickBtnPrimary}
+              accessibilityRole="button"
+            >
+              <Camera size={16} color="#fff" />
+              <Text style={s.quickBtnPrimaryText}>Scanner un repas</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setShowGroceryListModal(true);
+              }}
+              style={s.quickBtnSecondary}
+              accessibilityRole="button"
+            >
+              <Utensils size={16} color={colors.sage[700]} />
+              <Text style={s.quickBtnSecondaryText}>Ajouter un aliment</Text>
+            </Pressable>
+          </View>
+
+          {/* Carte de programme : 'FAT BURNER PRO · JOUR 3' -> 'Semaine 1 sur 12 — on démarre !' */}
           <Card dark elevation="md" padding={spacing[6]}>
             <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:spacing[3] }}>
               <Eyebrow>{displayProgram.eyebrow}</Eyebrow>
@@ -183,39 +245,173 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
               Semaine {displayProgram.currentWeek} sur {displayProgram.totalWeeks} —{' '}
               <Text style={s.programTitleItalic}>{displayProgram.tagline}</Text>
             </Text>
-            <Progress value={displayProgram.completionPct} fillColor={colors.clay[300]} trackColor={colors.sage[700]} height={6} style={{ marginBottom:spacing[2] }} />
+            <Progress value={displayProgram.completionPct} fillColor={colors.sage[400]} trackColor={colors.sage[800]} height={6} style={{ marginBottom:spacing[2] }} />
             <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
               <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.sm, color:colors.sage[300] }}>{displayProgram.completionPct} % complété</Text>
               <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.sm, color:colors.sand[200] }}>{streakDays} jour{streakDays !== 1 ? 's' : ''} de série 🔥</Text>
             </View>
           </Card>
 
-          {/* Aujourd'hui */}
-          <SectionHeader title="Aujourd'hui" />
-          <Card elevation="sm" padding={spacing[5]}>
-            <View style={{ flexDirection:'row', justifyContent:'space-around', alignItems:'center' }}>
-              <RingItem label="Nutrition"    sublabel={`${mealsCount}/3 repas`}              value={mealsPct}   fill={colors.sage[500]}   ringLabel={`${mealsPct}%`} />
-              <View style={{ width:1, height:72, backgroundColor:colors.ink[200] }} />
-              <RingItem label="Entraînement" sublabel={workoutPct === 100 ? 'Complété ✓' : '0/1 séance'} value={workoutPct}  fill={colors.clay[500]}   ringLabel={`${workoutPct}%`} />
-              <View style={{ width:1, height:72, backgroundColor:colors.ink[200] }} />
-              <RingItem label="Hydratation"  sublabel={`${waterGlasses}/8 verres`}           value={waterPct}   fill={colors.status.info} ringLabel={`${waterPct}%`} />
-            </View>
-            {/* Compteur eau rapide */}
-            <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'center', gap:spacing[4], marginTop:spacing[4], paddingTop:spacing[4], borderTopWidth:1, borderTopColor:colors.ink[100] }}>
-              <Pressable onPress={removeWater} style={{ width:32, height:32, borderRadius:16, backgroundColor:colors.ink[100], alignItems:'center', justifyContent:'center' }}>
-                <Minus size={14} color={colors.ink[600]} strokeWidth={2.5} />
-              </Pressable>
-              <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[2] }}>
-                <Droplets size={16} color={colors.status.info} strokeWidth={2} />
-                <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[900] }}>{waterGlasses} verre{waterGlasses !== 1 ? 's' : ''} d'eau</Text>
+          {/* Carte 'Score d'Ascension' (13% / 'Corps, esprit, mindset — en un coup d'œil') */}
+          <Card elevation="md" padding={spacing[5]}>
+            <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:spacing[4] }}>
+              <View style={{ flex:1, marginRight: spacing[2] }}>
+                <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[2], flexWrap: 'wrap' }}>
+                  <Text style={{ fontFamily:fontFamily.hanken.bold, fontSize:fontSize.lg, color:colors.ink[900] }}>
+                    Score d'Ascension
+                  </Text>
+                  <Badge label={`${ascensionScore}%`} variant="clay" />
+                </View>
+                <Text style={{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.ink[600], marginTop:2 }}>
+                  Corps, esprit, mindset — en un coup d'œil
+                </Text>
               </View>
-              <Pressable onPress={addWater} style={{ width:32, height:32, borderRadius:16, backgroundColor:colors.sage[100], alignItems:'center', justifyContent:'center' }}>
-                <Plus size={14} color={colors.sage[600]} strokeWidth={2.5} />
-              </Pressable>
+              <Ring value={ascensionScore} size={48} strokeWidth={5} fillColor={colors.clay[500]} label={`${ascensionScore}%`} />
+            </View>
+
+            {/* Grille des 4 Piliers */}
+            <View style={{ gap:spacing[3] }}>
+              
+              {/* 💧 Vitalité & Nutrition (2/8 verres) */}
+              <View style={{ backgroundColor:colors.sage[50], borderRadius:radius.md, padding:spacing[3] }}>
+                <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
+                  <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[2] }}>
+                    <Droplets size={18} color={colors.sage[600]} />
+                    <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[900] }}>
+                      Vitalité & Nutrition
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.xs, color:colors.sage[700] }}>
+                    ({waterGlasses}/8 verres · {totalKcal} kcal)
+                  </Text>
+                </View>
+                <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginTop:spacing[2] }}>
+                  <Progress value={Math.round((waterGlasses/8) * 100)} fillColor={colors.sage[500]} height={6} style={{ flex:1, marginRight:spacing[3] }} />
+                  <View style={{ flexDirection:'row', gap:spacing[2] }}>
+                    <Pressable 
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeWater(); }} 
+                      style={{ width:28, height:28, borderRadius:14, backgroundColor:colors.ink[100], alignItems:'center', justifyContent:'center' }}
+                    >
+                      <Minus size={12} color={colors.ink[600]} />
+                    </Pressable>
+                    <Pressable 
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); addWater(); }} 
+                      style={{ width:28, height:28, borderRadius:14, backgroundColor:colors.sage[600], alignItems:'center', justifyContent:'center' }}
+                    >
+                      <Plus size={12} color="#fff" />
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+
+              {/* 💪 Puissance & Entraînement (En attente) */}
+              <View style={{ backgroundColor:colors.clay[50], borderRadius:radius.md, padding:spacing[3] }}>
+                <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
+                  <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[2] }}>
+                    <Activity size={18} color={colors.clay[600]} />
+                    <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[900] }}>
+                      Puissance & Entraînement
+                    </Text>
+                  </View>
+                  <Badge 
+                    label={workoutPct === 100 ? 'Validé ✓' : 'En attente'} 
+                    variant={workoutPct === 100 ? 'solid' : 'outline'} 
+                  />
+                </View>
+              </View>
+
+              {/* 🌙 Récupération & Sommeil — Micro Check-in Réveil (Sans devinette) */}
+              <View style={{ backgroundColor:colors.sand[100], borderRadius:radius.md, padding:spacing[3], gap:spacing[2] }}>
+                <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
+                  <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[2] }}>
+                    <Moon size={18} color={colors.ink[700]} />
+                    <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[900] }}>
+                      Récupération & Sommeil
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.xs, color:colors.ink[600] }}>
+                    {sleepScore >= 5 ? '⚡ Reposé' : sleepScore >= 3 ? '😐 Moyen' : sleepScore === 1 ? '😴 Fatigué' : 'Check-in 1-tap'}
+                  </Text>
+                </View>
+
+                {/* 3 boutons 1-tap réveil intuitive */}
+                <View style={{ flexDirection:'row', gap:spacing[2], marginTop:2 }}>
+                  {[
+                    { val: 5, label: '⚡ Reposé (7h+)', bg: colors.sage[600], activeBg: colors.sage[700] },
+                    { val: 3, label: '😐 Moyen (6h)', bg: colors.clay[500], activeBg: colors.clay[600] },
+                    { val: 1, label: '😴 Fatigué (-6h)', bg: colors.ink[600], activeBg: colors.ink[800] },
+                  ].map(item => {
+                    const isSelected = sleepScore === item.val;
+                    return (
+                      <Pressable
+                        key={item.val}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          setSleepScore(item.val);
+                        }}
+                        style={{
+                          flex: 1,
+                          paddingVertical: spacing[2],
+                          paddingHorizontal: spacing[1],
+                          borderRadius: radius.md,
+                          backgroundColor: isSelected ? item.bg : colors.sand[200],
+                          alignItems: 'center',
+                          justify: 'center',
+                          borderWidth: isSelected ? 0 : 1,
+                          borderColor: colors.ink[200],
+                        }}
+                        accessibilityRole="button"
+                      >
+                        <Text
+                          style={{
+                            fontFamily: fontFamily.hanken.bold,
+                            fontSize: 11,
+                            color: isSelected ? '#ffffff' : colors.ink[800],
+                          }}
+                        >
+                          {item.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 🎯 Mental & Intention (Valider →) */}
+              <View style={{ backgroundColor:colors.sage[100], borderRadius:radius.md, padding:spacing[3] }}>
+                <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
+                  <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[2] }}>
+                    <Brain size={18} color={colors.sage[700]} />
+                    <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.sm, color:colors.ink[900] }}>
+                      Mental & Intention
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                      toggleMentalCheckin();
+                    }}
+                    style={{
+                      flexDirection:'row',
+                      alignItems:'center',
+                      gap:spacing[1],
+                      backgroundColor: mentalCheckin ? colors.sage[600] : colors.clay[500],
+                      paddingHorizontal:spacing[3],
+                      paddingVertical:spacing[1.5],
+                      borderRadius:radius.full,
+                    }}
+                  >
+                    <Text style={{ fontFamily:fontFamily.hanken.bold, fontSize:fontSize.xs, color: '#fff' }}>
+                      {mentalCheckin ? 'Validé ✓' : 'Valider →'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+
             </View>
           </Card>
 
-          {/* Diagnostic Naturopathique Banner */}
+          {/* Aperçu Profil Fitness Banner */}
           {showDigestiveBanner && (
             <Card elevation="sm" padding={spacing[4]} style={s.digestivePromoCard}>
               <View style={{ flexDirection: 'row', gap: spacing[3], alignItems: 'flex-start' }}>
@@ -223,9 +419,9 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
                   <Leaf size={20} color={colors.sage[600]} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.digestivePromoTitle}>🌿 Optimise ta digestion & vitalité</Text>
+                  <Text style={s.digestivePromoTitle}>🌿 Optimise ton hygiène de vie & énergie</Text>
                   <Text style={s.digestivePromoText}>
-                    Complète ton diagnostic naturopathique (symptômes, hydratation, énergie) pour adapter tes recommandations métaboliques.
+                    Complète ton questionnaire de profil fitness pour adapter tes recommandations d'entraînement.
                   </Text>
                   <Pressable
                     onPress={() => {
@@ -242,30 +438,39 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             </Card>
           )}
 
-          {/* Prochaine séance */}
-          {today && (
-            <>
-              <SectionHeader title={today.isToday ? 'Séance du jour' : 'Prochaine séance'} />
-              <Pressable onPress={()=>{}} accessibilityRole="button">
-                <Card elevation="sm" padding={spacing[5]}>
-                  <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[4] }}>
-                    <View style={{ width:44, height:44, borderRadius:22, backgroundColor:colors.clay[100], alignItems:'center', justifyContent:'center' }}>
-                      <Activity size={20} color={colors.clay[500]} strokeWidth={2} />
-                    </View>
-                    <View style={{ flex:1 }}>
-                      <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:colors.ink[900], marginBottom:spacing[0.5] }}>{today.session.title}</Text>
-                      <Text style={{ fontFamily:fontFamily.hanken.regular,  fontSize:fontSize.sm,   color:colors.ink[600] }}>{today.session.day} · {today.session.duration} min · {today.session.exerciseCount} exercices</Text>
-                    </View>
-                    <ChevronRight size={20} color={colors.ink[500]} strokeWidth={2} />
-                  </View>
-                </Card>
-              </Pressable>
-            </>
-          )}
+          {/* Carte 'PROCHAINE SÉANCE' : 'Circuit training' (Lundi · 45 min · 5 exercices) */}
+          <SectionHeader title="PROCHAINE SÉANCE" />
+          <Pressable 
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation?.navigate('Séances');
+            }} 
+            accessibilityRole="button"
+          >
+            <Card elevation="sm" padding={spacing[5]}>
+              <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[4] }}>
+                <View style={{ width:44, height:44, borderRadius:22, backgroundColor:colors.clay[100], alignItems:'center', justifyContent:'center' }}>
+                  <Activity size={20} color={colors.clay[500]} strokeWidth={2} />
+                </View>
+                <View style={{ flex:1 }}>
+                  <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:colors.ink[900], marginBottom:spacing[0.5] }}>
+                    {today?.session?.title || 'Circuit training'}
+                  </Text>
+                  <Text style={{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600] }}>
+                    {today?.session?.day || 'Lundi'} · {today?.session?.duration || 45} min · {today?.session?.exerciseCount || 5} exercices
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={colors.ink[500]} strokeWidth={2} />
+              </View>
+            </Card>
+          </Pressable>
 
-          {/* Coach IA */}
+          {/* Bannière verte 'Coach IA Pure Ascension' : 'Posez une question à votre coach' */}
           <Pressable
-            onPress={() => navigation?.navigate('AICoach')}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              navigation?.navigate('AICoach');
+            }}
             accessibilityRole="button"
             style={s.coachBanner}
           >
@@ -274,7 +479,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
                 <Bot size={22} color="#fff" />
               </View>
               <View>
-                <Text style={s.coachBannerTitle}>Coach IA Pure Ascension 🌿</Text>
+                <Text style={s.coachBannerTitle}>Coach IA Pure Ascension</Text>
                 <Text style={s.coachBannerSub}>Posez une question à votre coach</Text>
               </View>
             </View>
@@ -286,13 +491,13 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
       </SafeAreaView>
       <FeedbackButton />
 
-      {/* Modal du Diagnostic Digestif */}
+      {/* Modal du Bilan Fitness & Énergie */}
       <Modal visible={showDigestiveModal} animationType="slide" transparent>
         <View style={s.modalBackdrop}>
           <View style={s.modalContent}>
             {/* Header */}
             <View style={s.modalHeader}>
-              <Text style={s.modalHeaderTitle}>Bilan Digestif & Vitalité</Text>
+              <Text style={s.modalHeaderTitle}>Synthèse Hygiène & Énergie</Text>
               <Pressable onPress={() => setShowDigestiveModal(false)} style={s.closeBtn} accessibilityRole="button">
                 <X size={20} color={colors.ink[600]} />
               </Pressable>
@@ -306,14 +511,14 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             <ScrollView contentContainerStyle={s.modalScroll} keyboardShouldPersistTaps="handled">
               {diagStep === 1 && (
                 <View style={s.modalStepBody}>
-                  <Text style={s.modalQuestion}>1. Inconforts digestifs ?</Text>
-                  <Text style={s.modalSubQuestion}>Sélectionne tous les symptômes réguliers.</Text>
+                  <Text style={s.modalQuestion}>1. Inconforts ou lourdeurs ?</Text>
+                  <Text style={s.modalSubQuestion}>Sélectionne tes ressentis réguliers.</Text>
                   {[
-                    { id: 'ballonnements', label: '🎈 Ballonnements post-repas', sub: 'Estomac gonflé juste après manger.' },
-                    { id: 'reflux', label: '🔥 Reflux / Brûlures d\'estomac', sub: 'Remontées acides ou sensation de brûlure.' },
-                    { id: 'fatigue-post-prandiale', label: '😴 Somnolence post-repas', sub: 'Grosse baisse d\'énergie après manger.' },
-                    { id: 'transit-irregulier', label: '🔄 Transit irrégulier / Constipation', sub: 'Ballonnements réguliers ou inconfort.' },
-                    { id: 'aucun', label: '🌿 Aucun problème particulier', sub: 'Digestion légère et fluide.' },
+                    { id: 'ballonnements', label: '🎈 Sensations de lourdeur post-repas', sub: 'Estomac lourd juste après manger.' },
+                    { id: 'reflux', label: '🔥 Sensations de brûlure', sub: 'Inconfort ou sensation de chaleur.' },
+                    { id: 'fatigue-post-prandiale', label: '😴 Somnolence post-repas', sub: 'Baisse d\'énergie après manger.' },
+                    { id: 'transit-irregulier', label: '🔄 Transit irrégulier', sub: 'Inconforts légers au quotidien.' },
+                    { id: 'aucun', label: '🌿 Aucun problème particulier', sub: 'Sensations fluides et confortables.' },
                   ].map(opt => {
                     const isSelected = digestiveSymptoms.includes(opt.id);
                     return (
@@ -367,7 +572,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
                   <Text style={s.modalSubQuestion}>Volume d'eau pure visé par jour.</Text>
                   {[
                     { id: '1.5', label: '💧 1.5 Litre', sub: 'Recommandation minimale pour activité sédentaire.' },
-                    { id: '2.0', label: '💧 2 Litres', sub: 'Excellent équilibre métabolique.' },
+                    { id: '2.0', label: '💧 2 Litres', sub: 'Excellent équilibre d\'hydratation.' },
                     { id: '2.5', label: '💧 2.5 Litres', sub: 'Recommandé si tu t\'entraînes régulièrement.' },
                     { id: '3.0', label: '💧 3 Litres ou plus', sub: 'Optimal pour l\'endurance et la performance.' },
                   ].map(opt => {
@@ -390,11 +595,11 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
 
               {diagStep === 4 && (
                 <View style={s.modalStepBody}>
-                  <Text style={s.modalQuestion}>4. Acide stomacal</Text>
-                  <Text style={s.modalSubQuestion}>Est-ce que tu ressens des lourdeurs d'estomac persistantes ou des gaz 1h après les repas ?</Text>
+                  <Text style={s.modalQuestion}>4. Confort d'assimilation</Text>
+                  <Text style={s.modalSubQuestion}>Est-ce que tu ressens des lourdeurs persistantes 1h après les repas ?</Text>
                   {[
-                    { id: 'normal', label: 'Digestion légère', sub: 'Pas de lourdeurs ni de ballonnements tardifs.' },
-                    { id: 'hypo', label: 'Lourdeurs persistantes', sub: 'Sensation d\'indigestion, de fatigue intense ou de gaz après le repas (indique potentiellement un manque d\'acide gastrique).' },
+                    { id: 'normal', label: 'Ressenti fluide', sub: 'Pas de lourdeurs ni de gêne tardive.' },
+                    { id: 'hypo', label: 'Lourdeurs persistantes', sub: 'Sensation de fatigue après le repas.' },
                   ].map(opt => {
                     const isSelected = stomachAcid === opt.id;
                     return (
@@ -454,6 +659,40 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Referral Modal */}
+      <ReferralModal
+        visible={showReferralModal}
+        onClose={() => setShowReferralModal(false)}
+      />
+
+      {/* Ascension Card Modal */}
+      <AscensionCardModal
+        visible={showAscensionCardModal}
+        onClose={() => setShowAscensionCardModal(false)}
+        data={{
+          userName: storeName || profile?.name || 'Guerrier',
+          ascensionScore,
+          streakDays,
+          workoutCompleted: workoutPct === 100,
+          mealsCount,
+          waterGlasses,
+          sleepScore,
+          mentalCheckin,
+        }}
+      />
+
+      {/* Grocery List Modal */}
+      <GroceryListModal
+        visible={showGroceryListModal}
+        onClose={() => setShowGroceryListModal(false)}
+      />
+
+      {/* Meal Scanner Modal */}
+      <MealScannerModal
+        visible={showMealScannerModal}
+        onClose={() => setShowMealScannerModal(false)}
+      />
     </View>
   );
 };
@@ -462,13 +701,49 @@ const s = StyleSheet.create({
   safe:    { flex:1, backgroundColor:colors.sand[50] },
   scroll:  { flex:1 },
   content: { paddingHorizontal:spacing[5], paddingTop:spacing[6], gap:spacing[4] },
-  header:  { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:spacing[2] },
-  greeting:        { fontFamily:fontFamily.spectral.regular,      fontSize:fontSize['2xl'], color:colors.ink[900], lineHeight:fontSize['2xl']*lineHeight.snug },
-  greetingName:    { fontFamily:fontFamily.spectral.mediumItalic, color:colors.sage[600] },
-  subgreeting:     { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600], marginTop:spacing[0.5] },
+  
+  /* Header */
+  header:  { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:spacing[1] },
+  headerTitle: { fontFamily:fontFamily.spectral.regular, fontSize:fontSize['3xl'], color:colors.ink[900], lineHeight:fontSize['3xl']*lineHeight.snug },
+  subgreeting: { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600], marginTop:spacing[0.5] },
+  moreBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.sand[100], alignItems: 'center', justifyContent: 'center' },
+
+  /* Quick Actions Bar */
+  quickActionsRow: { flexDirection: 'row', gap: spacing[3], marginBottom: spacing[1] },
+  quickBtnPrimary: {
+    flex: 1,
+    backgroundColor: colors.sage[800],
+    paddingVertical: spacing[3.5],
+    paddingHorizontal: spacing[3],
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    ...shadows.sm,
+  },
+  quickBtnPrimaryText: { fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.xs, color: '#fff' },
+  quickBtnSecondary: {
+    flex: 1,
+    backgroundColor: colors.sand[100],
+    borderWidth: 1,
+    borderColor: colors.ink[200],
+    paddingVertical: spacing[3.5],
+    paddingHorizontal: spacing[3],
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    ...shadows.sm,
+  },
+  quickBtnSecondaryText: { fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.xs, color: colors.ink[900] },
+
+  /* Programme Card */
   programTitle:       { fontFamily:fontFamily.spectral.regular,       fontSize:fontSize.xl, color:colors.sand[100], lineHeight:fontSize.xl*lineHeight.snug, marginBottom:spacing[5] },
   programTitleItalic: { fontFamily:fontFamily.spectral.regularItalic, color:colors.sand[50] },
 
+  /* Coach Banner */
   coachBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: colors.sage[800], borderRadius: 16, padding: spacing[4],
@@ -481,6 +756,7 @@ const s = StyleSheet.create({
   coachBannerTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: '#fff' },
   coachBannerSub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.sage[300], marginTop: 2 },
 
+  /* Digestive Promo Banner */
   digestivePromoCard: {
     backgroundColor: '#F3F6F3',
     borderColor: colors.sage[200],
@@ -514,166 +790,38 @@ const s = StyleSheet.create({
     backgroundColor: colors.sage[600],
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[2],
-    borderRadius: 8,
+    borderRadius: radius.pill,
   },
   digestivePromoBtnText: {
-    fontFamily: fontFamily.hanken.bold,
-    fontSize: fontSize.sm,
+    fontFamily: fontFamily.hanken.semiBold,
+    fontSize: fontSize.xs,
     color: '#fff',
   },
 
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(30, 42, 34, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing[4],
-  },
-  modalContent: {
-    width: '100%',
-    maxHeight: '95%',
-    backgroundColor: '#FFF',
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing[5],
-    paddingVertical: spacing[4],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.ink[100],
-  },
-  modalHeaderTitle: {
-    fontFamily: fontFamily.hanken.bold,
-    fontSize: fontSize.base,
-    color: colors.ink[900],
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.ink[100],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalProgressTrack: {
-    height: 4,
-    backgroundColor: colors.ink[100],
-  },
-  modalProgressFill: {
-    height: 4,
-    backgroundColor: colors.sage[500],
-  },
-  modalScroll: {
-    paddingHorizontal: spacing[5],
-    paddingVertical: spacing[5],
-  },
-  modalStepBody: {
-    gap: spacing[3],
-  },
-  modalQuestion: {
-    fontFamily: fontFamily.spectral.medium,
-    fontSize: fontSize.xl,
-    color: colors.ink[900],
-    marginBottom: spacing[1],
-  },
-  modalSubQuestion: {
-    fontFamily: fontFamily.hanken.regular,
-    fontSize: fontSize.sm,
-    color: colors.ink[600],
-    marginBottom: spacing[2],
-    lineHeight: 18,
-  },
-  modalOptionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[4],
-    padding: spacing[4],
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: colors.ink[200],
-  },
-  modalOptionCardSelected: {
-    borderColor: colors.sage[500],
-    backgroundColor: colors.sage[50],
-    borderWidth: 2,
-  },
-  modalOptionLabel: {
-    fontFamily: fontFamily.hanken.semiBold,
-    fontSize: fontSize.base,
-    color: colors.ink[900],
-  },
-  modalOptionSub: {
-    fontFamily: fontFamily.hanken.regular,
-    fontSize: fontSize.sm,
-    color: colors.ink[600],
-    marginTop: 2,
-  },
-  modalCheckbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.ink[300],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalCheckboxOn: {
-    backgroundColor: colors.sage[500],
-    borderColor: colors.sage[500],
-  },
-  modalInput: {
-    fontFamily: fontFamily.hanken.regular,
-    fontSize: fontSize.base,
-    color: colors.ink[800],
-    minHeight: 100,
-    textAlignVertical: 'top',
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: colors.ink[200],
-    borderRadius: 12,
-    padding: spacing[3],
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing[5],
-    borderTopWidth: 1,
-    borderTopColor: colors.ink[100],
-  },
-  modalNavBtnPrev: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-    paddingVertical: spacing[2],
-  },
-  modalNavBtnPrevText: {
-    fontFamily: fontFamily.hanken.bold,
-    fontSize: fontSize.sm,
-    color: colors.ink[700],
-  },
-  modalNavBtnNext: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1.5],
-    backgroundColor: colors.sage[600],
-    paddingHorizontal: spacing[5],
-    paddingVertical: spacing[2.5],
-    borderRadius: 8,
-  },
-  modalNavBtnNextText: {
-    fontFamily: fontFamily.hanken.bold,
-    fontSize: fontSize.sm,
-    color: '#fff',
-  },
+  /* Modal Styles */
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: colors.sand[50], borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, maxHeight: '85%', paddingBottom: spacing[6] },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing[4], borderBottomWidth: 1, borderBottomColor: colors.ink[200] },
+  modalHeaderTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.md, color: colors.ink[900] },
+  closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.ink[100], alignItems: 'center', justifyContent: 'center' },
+  modalProgressTrack: { height: 4, backgroundColor: colors.ink[200], width: '100%' },
+  modalProgressFill: { height: '100%', backgroundColor: colors.sage[500] },
+  modalScroll: { padding: spacing[5] },
+  modalStepBody: { gap: spacing[3] },
+  modalQuestion: { fontFamily: fontFamily.spectral.regular, fontSize: fontSize.xl, color: colors.ink[900] },
+  modalSubQuestion: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600], marginBottom: spacing[2] },
+  modalOptionCard: { flexDirection: 'row', alignItems: 'center', padding: spacing[4], borderRadius: radius.lg, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.ink[200], gap: spacing[3] },
+  modalOptionCardSelected: { borderColor: colors.sage[500], backgroundColor: colors.sage[50] },
+  modalOptionLabel: { fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.base, color: colors.ink[900] },
+  modalOptionSub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[500], marginTop: 2 },
+  modalCheckbox: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: colors.ink[300], alignItems: 'center', justifyContent: 'center' },
+  modalCheckboxOn: { backgroundColor: colors.sage[500], borderColor: colors.sage[500] },
+  modalInput: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.ink[200], borderRadius: radius.md, padding: spacing[4], minHeight: 100, textAlignVertical: 'top', fontFamily: fontFamily.hanken.regular, fontSize: fontSize.base, color: colors.ink[900] },
+  modalFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing[5], paddingTop: spacing[3] },
+  modalNavBtnPrev: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], paddingVertical: spacing[2.5], paddingHorizontal: spacing[4] },
+  modalNavBtnPrevText: { fontFamily: fontFamily.hanken.medium, fontSize: fontSize.sm, color: colors.ink[700] },
+  modalNavBtnNext: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], backgroundColor: colors.sage[600], paddingVertical: spacing[3], paddingHorizontal: spacing[5], borderRadius: radius.pill },
+  modalNavBtnNextText: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: '#fff' }
 });
+
 export default HomeScreen;

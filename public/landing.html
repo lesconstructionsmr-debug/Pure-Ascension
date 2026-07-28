@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Pure Ascension | Bilan Métabolique, Hygiène de Vie & IA Coach</title>
+  <meta name="description" content="Élevez votre vitalité avec Pure Ascension. Diagnostic métabolique personnalisé, nutrition de précision et IA Coach d'exception pour transformer votre santé." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            sauge: {
+              DEFAULT: '#4E7358',
+              light: '#6B9075',
+              soft: '#8EAFA3',
+              dark: '#2D4029',
+              deep: '#1E2C1C'
+            },
+            terracotta: {
+              DEFAULT: '#C85D32',
+              hover: '#B24E26',
+              light: '#E67E54',
+              soft: '#F4A27E'
+            },
+            sable: {
+              DEFAULT: '#FBF8F3',
+              card: '#F3EFE6',
+              border: '#E8E1D3',
+              dark: '#DDD4C4'
+            },
+            encre: {
+              DEFAULT: '#1A201C',
+              muted: '#4A554E',
+              light: '#76857B'
+            }
+          },
+          fontFamily: {
+            spectral: ['Spectral', 'Georgia', 'serif'],
+            hanken: ['Hanken Grotesk', '-apple-system', 'BlinkMacSystemFont', 'sans-serif']
+          },
+          boxShadow: {
+            'luxury': '0 20px 40px -15px rgba(26, 32, 28, 0.07)',
+            'luxury-glow': '0 10px 30px -5px rgba(200, 93, 50, 0.25)',
+            'card': '0 4px 20px rgba(0, 0, 0, 0.04)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Custom Styles & Animations -->
+  <style>
+    body {
+      font-family: 'Hanken Grotesk', sans-serif;
+      background-color: #FBF8F3;
+      color: #1A201C;
+    }
+    h1, h2, h3, .font-serif-custom {
+      font-family: 'Spectral', serif;
+    }
+    .glass-card {
+      background: rgba(251, 248, 243, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(232, 225, 211, 0.8);
+    }
+    .glass-dark {
+      background: rgba(30, 44, 28, 0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(78, 115, 88, 0.3);
+    }
+    .quiz-option-selected {
+      border-color: #C85D32 !important;
+      background-color: rgba(200, 93, 50, 0.05) !important;
+    }
+    .fade-enter {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    .fade-enter-active {
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 300ms ease, transform 300ms ease;
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-sauge/20 selection:text-sauge-dark overflow-x-hidden">
+
+  <!-- NAVIGATION HEADER -->
+  <header class="sticky top-0 z-50 bg-sable/90 backdrop-blur-md border-b border-sable-border transition-all duration-300" id="mainHeader">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <!-- Logo -->
+      <a href="#" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 rounded-full bg-sauge flex items-center justify-center text-sable shadow-md group-hover:scale-105 transition-transform duration-300">
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+            <path d="M12 2L15 8L21 9L16.5 14L18 20L12 17L6 20L7.5 14L3 9L9 8L12 2Z" />
+          </svg>
+        </div>
+        <div class="flex flex-col">
+          <span class="font-spectral font-bold text-xl tracking-wider text-encre group-hover:text-sauge transition-colors">PURE ASCENSION</span>
+          <span class="text-[10px] tracking-widest uppercase text-encre-light font-medium">Santé & Vitalité Métabolique</span>
+        </div>
+      </a>
+
+      <!-- Desktop Nav Links -->
+      <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-encre-muted">
+        <a href="#philosophie" class="hover:text-sauge transition-colors">Philosophie</a>
+        <a href="#diagnostic" class="hover:text-sauge transition-colors">Diagnostic</a>
+        <a href="#application" class="hover:text-sauge transition-colors">L'Application</a>
+        <a href="#coach-ia" class="hover:text-sauge transition-colors">L'IA Coach</a>
+        <a href="#formules" class="hover:text-sauge transition-colors">Formules</a>
+      </nav>
+
+      <!-- CTA Button -->
+      <div class="hidden sm:flex items-center space-x-4">
+        <a href="#diagnostic" class="inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-terracotta text-white font-medium text-sm shadow-luxury hover:bg-terracotta-hover transition-all duration-300 hover:shadow-luxury-glow">
+          Faire le Diagnostic (2 min)
+        </a>
+      </div>
+
+      <!-- Mobile Menu Button -->
+      <button id="mobileMenuBtn" class="md:hidden p-2 text-encre-muted hover:text-encre focus:outline-none" aria-label="Toggle Menu">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile Nav Menu -->
+    <div id="mobileMenu" class="hidden md:hidden bg-sable border-b border-sable-border px-4 pt-2 pb-6 space-y-3">
+      <a href="#philosophie" class="block py-2 text-encre-muted font-medium hover:text-sauge">Philosophie</a>
+      <a href="#diagnostic" class="block py-2 text-encre-muted font-medium hover:text-sauge">Diagnostic</a>
+      <a href="#application" class="block py-2 text-encre-muted font-medium hover:text-sauge">L'Application</a>
+      <a href="#coach-ia" class="block py-2 text-encre-muted font-medium hover:text-sauge">L'IA Coach</a>
+      <a href="#formules" class="block py-2 text-encre-muted font-medium hover:text-sauge">Formules</a>
+      <div class="pt-2">
+        <a href="#diagnostic" class="w-full text-center block px-5 py-3 rounded-full bg-terracotta text-white font-medium text-sm">
+          Faire le Diagnostic
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="relative pt-12 pb-24 lg:pt-20 lg:pb-32 overflow-hidden">
+    <!-- Ambient background shapes -->
+    <div class="absolute top-10 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-tr from-sauge-light/10 via-sable-dark/20 to-terracotta/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto space-y-6">
+        
+        <!-- Badge -->
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-sauge/10 border border-sauge/20 text-sauge-dark text-xs font-semibold tracking-wide uppercase">
+          <span class="w-2 h-2 rounded-full bg-sauge animate-pulse"></span>
+          Bilan Métabolique & Hygiène de Vie Globale
+        </div>
+
+        <!-- Main Headline -->
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-serif-custom font-bold text-encre tracking-tight leading-[1.15]">
+          Élevez votre Vitalité.<br>
+          <span class="italic font-normal text-sauge">Maîtrisez votre Métabolisme.</span>
+        </h1>
+
+        <!-- Subtitle -->
+        <p class="text-lg sm:text-xl text-encre-muted font-normal leading-relaxed max-w-2xl mx-auto">
+          L'alliance d'une science métabolique de pointe, d'une nutrition sur-mesure et d'un accompagnement intelligent pour réinventer votre énergie quotidienne et votre clarté mentale.
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a href="#diagnostic" class="w-full sm:w-auto px-8 py-4 rounded-full bg-terracotta text-white font-semibold text-base shadow-luxury hover:bg-terracotta-hover transition-all duration-300 hover:shadow-luxury-glow flex items-center justify-center gap-2">
+            <span>Démarrer le Bilan de Vitalité</span>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </a>
+          <a href="#application" class="w-full sm:w-auto px-8 py-4 rounded-full bg-sable-card border border-sable-border text-encre font-medium text-base hover:bg-sable-dark/50 transition-all duration-300 flex items-center justify-center gap-2">
+            <span>Découvrir l'Application</span>
+          </a>
+        </div>
+
+        <!-- Key Metrics Bar -->
+        <div class="pt-12 grid grid-cols-2 md:grid-cols-3 gap-6 max-w-2xl mx-auto border-t border-sable-border/80">
+          <div class="p-3 text-center">
+            <span class="block text-2xl sm:text-3xl font-bold font-serif-custom text-sauge">98.4%</span>
+            <span class="text-xs text-encre-muted font-medium uppercase tracking-wider">Satisfaction Utilisateurs</span>
+          </div>
+          <div class="p-3 text-center">
+            <span class="block text-2xl sm:text-3xl font-bold font-serif-custom text-terracotta">12 Semaines</span>
+            <span class="text-xs text-encre-muted font-medium uppercase tracking-wider">Programme Structuré</span>
+          </div>
+          <div class="col-span-2 md:col-span-1 p-3 text-center">
+            <span class="block text-2xl sm:text-3xl font-bold font-serif-custom text-encre">P1–P4</span>
+            <span class="text-xs text-encre-muted font-medium uppercase tracking-wider">Phases d'Entraînement</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- PHILOSOPHIE SECTION -->
+  <section id="philosophie" class="py-20 bg-sable-card/50 border-y border-sable-border relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        
+        <div class="space-y-6">
+          <div class="inline-block px-3 py-1 rounded-md bg-sauge/10 text-sauge-dark text-xs font-semibold uppercase tracking-wider">
+            Notre Approche Scientifique
+          </div>
+          <h2 class="text-3xl sm:text-4xl font-serif-custom font-bold text-encre leading-tight">
+            Une synergie globale entre nutrition, mouvement et équilibre nerveux.
+          </h2>
+          <p class="text-encre-muted leading-relaxed text-base">
+            Trop souvent, la santé est abordée par bribes déconnectées. Chez <strong class="text-encre">Pure Ascension</strong>, nous analysons votre profil métabolique comme un écosystème unique.
+          </p>
+          
+          <div class="space-y-4 pt-2">
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 rounded-xl bg-sauge/10 text-sauge flex items-center justify-center flex-shrink-0 mt-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <div>
+                <h3 class="font-serif-custom font-semibold text-lg text-encre">Optimisation Énergétique</h3>
+                <p class="text-sm text-encre-muted leading-normal">Éliminez les pics de glycémie et le brouillard mental grâce à des stratégies nutritionnelles physiologiques adaptées.</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 rounded-xl bg-terracotta/10 text-terracotta flex items-center justify-center flex-shrink-0 mt-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              </div>
+              <div>
+                <h3 class="font-serif-custom font-semibold text-lg text-encre">Bilan Métabolique & Hygiène de Vie</h3>
+                <p class="text-sm text-encre-muted leading-normal">Identifiez les déséquilibres profonds de votre organisme pour instaurer des habitudes de santé durables sans restriction brutale.</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 rounded-xl bg-sauge-dark/10 text-sauge-dark flex items-center justify-center flex-shrink-0 mt-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <div>
+                <h3 class="font-serif-custom font-semibold text-lg text-encre">Accompagnement IA Continu</h3>
+                <p class="text-sm text-encre-muted leading-normal">Un coach virtuel disponible 24/7 pour ajuster votre plan selon vos sensations, vos métriques et votre rythme quotidien.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Visual Feature Card -->
+        <div class="relative">
+          <div class="glass-dark rounded-3xl p-8 text-sable shadow-2xl space-y-6 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-48 h-48 bg-terracotta/20 rounded-full blur-2xl"></div>
+            
+            <div class="flex items-center justify-between border-b border-sauge-light/20 pb-4">
+              <span class="text-xs uppercase tracking-widest text-sauge-soft font-semibold">Bilan Synthétique</span>
+              <span class="text-xs text-sable/60">Mise à jour en temps réel</span>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="font-medium text-sable">Index de Vitalité Métabolique</span>
+                  <span class="text-terracotta font-bold">88 / 100</span>
+                </div>
+                <div class="w-full bg-sauge-deep rounded-full h-2.5">
+                  <div class="bg-terracotta h-2.5 rounded-full" style="width: 88%"></div>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="font-medium text-sable">Récupération & Sommeil Profond</span>
+                  <span class="text-sauge-soft font-bold">92%</span>
+                </div>
+                <div class="w-full bg-sauge-deep rounded-full h-2.5">
+                  <div class="bg-sauge-soft h-2.5 rounded-full" style="width: 92%"></div>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="font-medium text-sable">Régulation du Stress</span>
+                  <span class="text-sable font-bold">Optimale</span>
+                </div>
+                <div class="w-full bg-sauge-deep rounded-full h-2.5">
+                  <div class="bg-sable h-2.5 rounded-full" style="width: 80%"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-4 bg-sauge-deep/60 rounded-2xl p-4 border border-sauge/20 text-xs leading-relaxed text-sable/80 flex items-start gap-3">
+              <span class="text-terracotta font-bold text-lg">💡</span>
+              <p><strong class="text-sable">Recommandation du Coach IA :</strong> "Votre énergie s'améliore. Intégrez 15 min de marche active après le repas du soir pour favoriser la digestion nocturne."</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- INTERACTIVE MINI-DIAGNOSTIC SECTION (QUIZ) -->
+  <section id="diagnostic" class="py-24 relative overflow-hidden bg-sable">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center space-y-4 mb-12">
+        <span class="text-xs uppercase tracking-widest text-terracotta font-bold">Évaluation Immédiate</span>
+        <h2 class="text-3xl sm:text-5xl font-serif-custom font-bold text-encre">
+          Mini-Questionnaire de Profil Fitness
+        </h2>
+        <p class="text-encre-muted text-base max-w-xl mx-auto">
+          Répondez à ces 3 questions clés pour recevoir une pré-évaluation de votre niveau de forme et obtenir votre bilan complet.
+        </p>
+      </div>
+
+      <!-- Quiz Container -->
+      <div class="glass-card rounded-3xl p-6 sm:p-10 shadow-luxury border border-sable-border relative" id="quizCard">
+        
+        <!-- Progress Bar -->
+        <div class="mb-8">
+          <div class="flex justify-between text-xs font-semibold text-encre-muted mb-2">
+            <span id="quizStepIndicator">Étape 1 sur 3</span>
+            <span id="quizProgressPercent" class="text-sauge">33%</span>
+          </div>
+          <div class="w-full bg-sable-dark/40 rounded-full h-2">
+            <div id="quizProgressBar" class="bg-sauge h-2 rounded-full transition-all duration-500" style="width: 33%"></div>
+          </div>
+        </div>
+
+        <!-- Question 1 -->
+        <div id="step1" class="quiz-step space-y-6">
+          <h3 class="text-xl sm:text-2xl font-serif-custom font-semibold text-encre">
+            1. Quel est votre objectif prioritaire actuellement ?
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button onclick="selectOption(1, 'A', this)" class="quiz-option text-left p-5 rounded-2xl border border-sable-border bg-white hover:border-sauge transition-all duration-200 shadow-sm flex flex-col justify-between group">
+              <span class="font-serif-custom font-semibold text-encre group-hover:text-sauge text-lg">⚡ Énergie & Vitalité</span>
+              <span class="text-xs text-encre-muted mt-2">Éliminer la fatigue chronique et retrouver du dynamisme tout au long de la journée.</span>
+            </button>
+            <button onclick="selectOption(1, 'B', this)" class="quiz-option text-left p-5 rounded-2xl border border-sable-border bg-white hover:border-sauge transition-all duration-200 shadow-sm flex flex-col justify-between group">
+              <span class="font-serif-custom font-semibold text-encre group-hover:text-sauge text-lg">🔥 Recomposition Physique</span>
+              <span class="text-xs text-encre-muted mt-2">Perdre de la masse grasse abdominale et optimiser le tonus musculaire.</span>
+            </button>
+            <button onclick="selectOption(1, 'C', this)" class="quiz-option text-left p-5 rounded-2xl border border-sable-border bg-white hover:border-sauge transition-all duration-200 shadow-sm flex flex-col justify-between group">
+              <span class="font-serif-custom font-semibold text-encre group-hover:text-sauge text-lg">🌙 Sommeil & Gestion du Stress</span>
+              <span class="text-xs text-encre-muted mt-2">Calmer le système nerveux et retrouver un sommeil profond et réparateur.</span>
+            </button>
+            <button onclick="selectOption(1, 'D', this)" class="quiz-option text-left p-5 rounded-2xl border border-sable-border bg-white hover:border-sauge transition-all duration-200 shadow-sm flex flex-col justify-between group">
+              <span class="font-serif-custom font-semibold text-encre group-hover:text-sauge text-lg">🎯 Performance physique</span>
+              <span class="text-xs text-encre-muted mt-2">Optimiser la clarté mentale, l'énergie et la forme au quotidien.</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Question 2 -->
+        <div id="step2" class="quiz-step hidden space-y-6">
+          <h3 class="text-xl sm:text-2xl font-serif-custom font-semibold text-encre">
+            2. Comment décrivez-vous votre niveau de fatigue habituel ?
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button onclick="selectOption(2, 'A', this)" class="quiz-option text-left p-5 rounded-2xl border border-sable-border bg-white hover:border-sauge transition-all duration-200 shadow-sm flex flex-col justify-between group">
+              <span class="font-serif-custom font-semibold text-encre group-hover:text-sauge text-lg">☕ Fatigue matinale forte</span>
+              <span class="text-xs text-encre-muted mt-2">Difficulté à émerger sans stimulants (café, sucre).</span>
+            </button>
+            <button onclick="selectOption(2, 'B', this)" class="quiz-option text-left p-5 rounded-2xl border border-sable-border bg-white hover:border-sauge transition-all duration-200 shadow-sm flex flex-col justify-between group">
+              <span class="font-serif-custom font-semibold text-encre group-hover:text-sauge text-lg">📉 Coup de pompe de 15h</span>
+              <span class="text-xs text-encre-muted mt-2">Chute d'énergie nette après le déjeuner et somnolence.</span>
+            </button>
+            <button onclick="selectOption(2, 'C', this)" class="quiz-option text-left p-5 rounded-2xl border border-sable-border bg-white hover:border-sauge transition-all duration-200 shadow-sm flex flex-col justify-between group">
+              <span class="font-serif-custom font-semibold text-encre group-hover:text-sauge text-lg">🤯 Stress & Tension continue</span>
+              <span class="text-xs text-encre-muted mt-2">Sensation d'être sous pression, agitation nocturne.</span>
+            </button>
+            <button onclick="selectOption(2, 'D', this)" class="quiz-option text-left p-5 rounded-2xl border border-sable-border bg-white hover:border-sauge transition-all duration-200 shadow-sm flex flex-col justify-between group">
+              <span class="font-serif-custom font-semibold text-encre group-hover:text-sauge text-lg">✨ Stable mais améliorable</span>
+              <span class="text-xs text-encre-muted mt-2">Niveau correct mais souhait d'atteindre un haut potentiel.</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Question 3 -->
+        <div id="step3" class="quiz-step hidden space-y-6">
+          <h3 class="text-xl sm:text-2xl font-serif-custom font-semibold text-encre">
+            3. Quelle est votre habitude nutritionnelle actuelle ?
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button onclick="selectOption(3, 'A', this)" class="quiz-option text-left p-5 rounded-2xl border border-sable-border bg-white hover:border-sauge transition-all duration-200 shadow-sm flex flex-col justify-between group">
+              <span class="font-serif-custom font-semibold text-encre group-hover:text-sauge text-lg">🍽️ Repas irréguliers / Désordonnés</span>
+              <span class="text-xs text-encre-muted mt-2">Manque de structure, grignotages fréquents par manque de temps.</span>
+            </button>
+            <button onclick="selectOption(3, 'B', this)" class="quiz-option text-left p-5 rounded-2xl border border-sable-border bg-white hover:border-sauge transition-all duration-200 shadow-sm flex flex-col justify-between group">
+              <span class="font-serif-custom font-semibold text-encre group-hover:text-sauge text-lg">🔄 Régimes yoyo successifs</span>
+              <span class="text-xs text-encre-muted mt-2">Restrictions sévères suivies de périodes de relâchement.</span>
+            </button>
+            <button onclick="selectOption(3, 'C', this)" class="quiz-option text-left p-5 rounded-2xl border border-sable-border bg-white hover:border-sauge transition-all duration-200 shadow-sm flex flex-col justify-between group">
+              <span class="font-serif-custom font-semibold text-encre group-hover:text-sauge text-lg">🥗 Alimentation saine mais stagnation</span>
+              <span class="text-xs text-encre-muted mt-2">Efforts quotidiens réels mais absence de résultats visibles.</span>
+            </button>
+            <button onclick="selectOption(3, 'D', this)" class="quiz-option text-left p-5 rounded-2xl border border-sable-border bg-white hover:border-sauge transition-all duration-200 shadow-sm flex flex-col justify-between group">
+              <span class="font-serif-custom font-semibold text-encre group-hover:text-sauge text-lg">🧪 En quête de précision</span>
+              <span class="text-xs text-encre-muted mt-2">Recherche d'un réglage fin adapté à ma physiologie.</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quiz Result & Lead Capture Form (Step 4) -->
+        <div id="stepResult" class="quiz-step hidden space-y-6">
+          <div class="text-center space-y-3">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-sauge/10 text-sauge mb-2">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <h3 class="text-2xl sm:text-3xl font-serif-custom font-bold text-encre">
+              Votre Diagnostic Synthétique est prêt
+            </h3>
+            <p id="scoreSummaryText" class="text-sauge-dark font-medium text-lg">
+              Potentiel d'Optimisation Métabolique : <strong class="text-terracotta">Élevé (78%)</strong>
+            </p>
+          </div>
+
+          <div class="bg-white rounded-2xl p-6 border border-sable-border space-y-3 text-sm text-encre-muted">
+            <h4 class="font-serif-custom font-semibold text-encre text-base">Aperçu de vos leviers de vitalité :</h4>
+            <ul class="space-y-2 list-disc list-inside">
+              <li><strong class="text-encre">Régulation Glycémique :</strong> Marge de progression importante sur l'énergie de l'après-midi.</li>
+              <li><strong class="text-encre">Système Nerveux :</strong> Besoin d'une phase de décompression pré-sommeil structurée.</li>
+              <li><strong class="text-encre">Recommandation Principale :</strong> Restructuration des apports protéiques et hydriques matinaux.</li>
+            </ul>
+          </div>
+
+          <!-- LEAD MAGNET FORM -->
+          <form id="leadCaptureForm" onsubmit="handleLeadSubmit(event)" class="bg-sable-card p-6 sm:p-8 rounded-2xl border border-sable-border space-y-4">
+            <div class="text-center space-y-1">
+              <h4 class="font-serif-custom font-bold text-xl text-encre">Recevez votre Bilan Métabolique Complet</h4>
+              <p class="text-xs text-encre-muted">Document personnalisé de 8 pages généré à partir de votre profil (Offert).</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold uppercase text-encre-muted mb-1">Votre Prénom</label>
+                <input type="text" id="leadFirstName" required placeholder="Ex: Alexandre" class="w-full px-4 py-3 rounded-xl border border-sable-border focus:border-terracotta focus:ring-1 focus:ring-terracotta outline-none bg-white text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold uppercase text-encre-muted mb-1">Votre E-mail</label>
+                <input type="email" id="leadEmail" required placeholder="alexandre@exemple.com" class="w-full px-4 py-3 rounded-xl border border-sable-border focus:border-terracotta focus:ring-1 focus:ring-terracotta outline-none bg-white text-sm">
+              </div>
+            </div>
+
+            <button type="submit" class="w-full py-4 rounded-xl bg-terracotta text-white font-semibold text-base hover:bg-terracotta-hover shadow-luxury hover:shadow-luxury-glow transition-all duration-300">
+              Recevoir mon Bilan Métabolique par E-mail
+            </button>
+            
+            <p class="text-[11px] text-center text-encre-light">
+              🔒 Vos données restent confidentielles. Aucun spam. Desabonnement en 1 clic.
+            </p>
+          </form>
+
+          <!-- Success Banner Hidden Initially -->
+          <div id="leadSuccessMsg" class="hidden bg-sauge/10 border border-sauge/30 rounded-2xl p-6 text-center space-y-3">
+            <div class="text-sauge font-bold text-lg">🎉 Félicitations ! Votre Bilan est envoyé.</div>
+            <p class="text-sm text-encre-muted">
+              Un e-mail de confirmation vient de vous être adressé. Vous pouvez dès à présent explorer l'application mobile.
+            </p>
+            <a href="#application" class="inline-block px-6 py-2.5 rounded-full bg-sauge text-white text-sm font-semibold">
+              Découvrir l'Application Mobile
+            </a>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- L'APPLICATION MOBILE & IA COACH SECTION -->
+  <section id="application" class="py-24 bg-sable-card/70 border-t border-sable-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+        <span class="text-xs uppercase tracking-widest text-sauge font-bold">Innovation Santé</span>
+        <h2 class="text-3xl sm:text-5xl font-serif-custom font-bold text-encre">
+          L'Application Mobile Pure Ascension
+        </h2>
+        <p class="text-encre-muted text-base">
+          Toute la puissance du coaching en hygiène de vie et de l'analyse métabolique au creux de votre main.
+        </p>
+      </div>
+
+      <!-- Feature Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <!-- Card 1 -->
+        <div class="bg-white rounded-3xl p-8 border border-sable-border shadow-card hover:shadow-luxury transition-all duration-300 space-y-4">
+          <div class="w-12 h-12 rounded-2xl bg-sauge/10 text-sauge flex items-center justify-center font-bold text-xl">
+            🧠
+          </div>
+          <h3 class="text-xl font-serif-custom font-bold text-encre">IA Coach Global</h3>
+          <p class="text-sm text-encre-muted leading-relaxed">
+            Interrogez votre IA Coach 24/7 pour adapter vos repas, ajuster une séance ou recevoir des conseils de récupération en direct.
+          </p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="bg-white rounded-3xl p-8 border border-sable-border shadow-card hover:shadow-luxury transition-all duration-300 space-y-4">
+          <div class="w-12 h-12 rounded-2xl bg-terracotta/10 text-terracotta flex items-center justify-center font-bold text-xl">
+            📊
+          </div>
+          <h3 class="text-xl font-serif-custom font-bold text-encre">Bilan & Métriques de Vitalité</h3>
+          <p class="text-sm text-encre-muted leading-relaxed">
+            Visualisez l'évolution de votre énergie, de votre sommeil et de vos marqueurs de forme sous forme de tableaux de bord intuitifs.
+          </p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="bg-white rounded-3xl p-8 border border-sable-border shadow-card hover:shadow-luxury transition-all duration-300 space-y-4">
+          <div class="w-12 h-12 rounded-2xl bg-sauge-dark/10 text-sauge-dark flex items-center justify-center font-bold text-xl">
+            🥗
+          </div>
+          <h3 class="text-xl font-serif-custom font-bold text-encre">Nutrition de Précision</h3>
+          <p class="text-sm text-encre-muted leading-relaxed">
+            Des propositions de repas équilibrés, gourmands et physiologiques, conçus pour stabiliser la glycémie et maximiser le tonus.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- App Preview / Mockup Showcase -->
+      <div id="coach-ia" class="mt-16 glass-dark rounded-3xl p-8 sm:p-12 text-sable relative overflow-hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+          <div class="space-y-6">
+            <span class="inline-block px-3 py-1 rounded-md bg-terracotta text-white text-xs font-semibold uppercase tracking-wider">
+              En direct de l'App
+            </span>
+            <h3 class="text-3xl font-serif-custom font-bold text-sable leading-tight">
+              Un dialogue fluide avec votre IA Coach de santé
+            </h3>
+            <p class="text-sable/80 text-sm leading-relaxed">
+              Formulée sans jargon complexe, l'IA décrypte vos sensations et vous donne des recommandations concrètes et bienveillantes.
+            </p>
+
+            <div class="space-y-3 pt-2">
+              <div class="bg-sauge-deep/80 p-4 rounded-2xl border border-sauge-light/20 text-xs">
+                <span class="text-terracotta font-semibold">Utilisateur :</span> "J'ai une grosse réunion à 14h et je me sens déjà lourd après mon repas."
+              </div>
+              <div class="bg-sauge/30 p-4 rounded-2xl border border-sauge-light/20 text-xs">
+                <span class="text-sauge-soft font-semibold">IA Coach :</span> "Pas d'inquiétude. Buvez un grand verre d'eau fraîche avec un filet de citron, faites 3 minutes de respiration cohérente et marchez 5 minutes à l'air libre. Cela relancera votre oxygénation."
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-center">
+            <div class="w-64 bg-encre p-4 rounded-[40px] border-4 border-sauge-soft/30 shadow-2xl space-y-4">
+              <div class="w-20 h-4 bg-sauge-deep rounded-full mx-auto mb-2"></div>
+              <div class="bg-sable p-4 rounded-2xl text-encre space-y-3">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-sauge">Profil Métabolique</div>
+                <div class="text-lg font-serif-custom font-bold text-encre">Vitalité : 94%</div>
+                <div class="p-2 bg-sable-card rounded-xl text-[11px] text-encre-muted">
+                  ✓ Hydratation optimale<br>
+                  ✓ Sommeil réparateur (7h45)<br>
+                  ✓ Glycémie stable
+                </div>
+                <div class="py-2 text-center text-xs bg-terracotta text-white font-semibold rounded-xl">
+                  Programme du jour validé
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ELITE TESTIMONIALS SECTION -->
+  <section class="py-24 bg-sable relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+        <span class="text-xs uppercase tracking-widest text-terracotta font-bold">Retour d'Expérience</span>
+        <h2 class="text-3xl sm:text-5xl font-serif-custom font-bold text-encre">
+          Témoignages d'Élite
+        </h2>
+        <p class="text-encre-muted text-base">
+          Découvrez comment nos membres ont transformé leur énergie au quotidien.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <div class="bg-white rounded-3xl p-8 border border-sable-border shadow-card space-y-6 flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="flex text-terracotta">★★★★★</div>
+            <p class="text-encre-muted italic text-sm leading-relaxed">
+              "En tant que dirigeant, les coups de fatigue de 15h ruinaient ma concentration. Grâce au bilan métabolique et aux ajustements de l'IA Coach, mon énergie est parfaitement constante."
+            </p>
+          </div>
+          <div class="pt-4 border-t border-sable-border flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-sauge/20 font-bold text-sauge text-sm flex items-center justify-center">AD</div>
+            <div>
+              <div class="font-serif-custom font-bold text-encre text-sm">Alexandre D.</div>
+              <div class="text-xs text-encre-light">Fondateur Tech & Marathonien</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 border border-sable-border shadow-card space-y-6 flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="flex text-terracotta">★★★★★</div>
+            <p class="text-encre-muted italic text-sm leading-relaxed">
+              "L'approche d'hygiène de vie et de nutrition de précision est remarquable. C'est scientifique, sans dogme restrictif, et les résultats sur le sommeil sont immédiats."
+            </p>
+          </div>
+          <div class="pt-4 border-t border-sable-border flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-terracotta/20 font-bold text-terracotta text-sm flex items-center justify-center">VM</div>
+            <div>
+              <div class="font-serif-custom font-bold text-encre text-sm">Dr. Valérie M.</div>
+              <div class="text-xs text-encre-light">Chercheuse en Biologie</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 border border-sable-border shadow-card space-y-6 flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="flex text-terracotta">★★★★★</div>
+            <p class="text-encre-muted italic text-sm leading-relaxed">
+              "Une expérience haut de gamme. Le bilan de vitalité initial m'a fait prendre conscience de leviers simples mais d'une efficacité incroyable. Je recommande vivement."
+            </p>
+          </div>
+          <div class="pt-4 border-t border-sable-border flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-sauge-dark/20 font-bold text-sauge-dark text-sm flex items-center justify-center">MR</div>
+            <div>
+              <div class="font-serif-custom font-bold text-encre text-sm">Marc-Antoine R.</div>
+              <div class="text-xs text-encre-light">Investisseur & Partner</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- OFFERS / FORMULES D'ACCÈS SECTION (NO HARDCODED NUMERICAL PRICES) -->
+  <section id="formules" class="py-24 bg-sable-card/60 border-t border-sable-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+        <span class="text-xs uppercase tracking-widest text-sauge font-bold">Options d'Accompagnement</span>
+        <h2 class="text-3xl sm:text-5xl font-serif-custom font-bold text-encre">
+          Choisissez votre Formule d'Accès
+        </h2>
+        <p class="text-encre-muted text-base">
+          Des options adaptées à votre niveau d'engagement pour transformer votre vitalité.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+        
+        <!-- Formule 1: Accès Libre -->
+        <div class="bg-white rounded-3xl p-8 border border-sable-border shadow-card flex flex-col justify-between space-y-6">
+          <div class="space-y-4">
+            <span class="text-xs uppercase tracking-widest text-encre-light font-bold">Découverte</span>
+            <h3 class="text-2xl font-serif-custom font-bold text-encre">Accès Libre</h3>
+            <p class="text-sm text-encre-muted">Idéal pour réaliser votre premier bilan de vitalité métabolique.</p>
+            
+            <hr class="border-sable-border">
+
+            <ul class="space-y-3 text-sm text-encre-muted">
+              <li class="flex items-center gap-2">✓ <span>Bilan de vitalité métabolique initial</span></li>
+              <li class="flex items-center gap-2">✓ <span>Synthèse des leviers d'énergie</span></li>
+              <li class="flex items-center gap-2">✓ <span>Guide fondamental d'hygiène de vie</span></li>
+            </ul>
+          </div>
+
+          <a href="#diagnostic" class="w-full py-3 rounded-full border border-sauge text-sauge font-semibold text-center hover:bg-sauge hover:text-white transition-all">
+            Commencer Gratuitement
+          </a>
+        </div>
+
+        <!-- Formule 2: Formule Standard (Highlighted) -->
+        <div class="bg-sauge-deep rounded-3xl p-8 text-sable shadow-luxury relative flex flex-col justify-between space-y-6 transform lg:-translate-y-2 border-2 border-terracotta">
+          <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-terracotta text-white text-[11px] font-bold uppercase tracking-wider">
+            Recommandé
+          </div>
+
+          <div class="space-y-4 pt-2">
+            <span class="text-xs uppercase tracking-widest text-sauge-soft font-bold">Accompagnement Complet</span>
+            <h3 class="text-2xl font-serif-custom font-bold text-sable">Formule Standard</h3>
+            <p class="text-sm text-sable/80">Accès continu à l'application mobile et à l'IA Coach de santé.</p>
+            
+            <hr class="border-sauge-light/30">
+
+            <ul class="space-y-3 text-sm text-sable/90">
+              <li class="flex items-center gap-2">✓ <span>Tout l'Accès Libre inclus</span></li>
+              <li class="flex items-center gap-2">✓ <span>IA Coach disponible 24h/24 & 7j/7</span></li>
+              <li class="flex items-center gap-2">✓ <span>Plans nutritionnels adaptatifs sur-mesure</span></li>
+              <li class="flex items-center gap-2">✓ <span>Suivi métabolique & gestion du sommeil</span></li>
+            </ul>
+          </div>
+
+          <a href="#diagnostic" class="w-full py-3.5 rounded-full bg-terracotta text-white font-semibold text-center hover:bg-terracotta-hover shadow-luxury-glow transition-all">
+            Activer mon Accès Standard
+          </a>
+        </div>
+
+        <!-- Formule 3: Formule Premium -->
+        <div class="bg-white rounded-3xl p-8 border border-sable-border shadow-card flex flex-col justify-between space-y-6">
+          <div class="space-y-4">
+            <span class="text-xs uppercase tracking-widest text-encre-light font-bold">Excellence</span>
+            <h3 class="text-2xl font-serif-custom font-bold text-encre">Formule Premium</h3>
+            <p class="text-sm text-encre-muted">Pour ceux qui recherchent une optimisation métabolique de pointe.</p>
+            
+            <hr class="border-sable-border">
+
+            <ul class="space-y-3 text-sm text-encre-muted">
+              <li class="flex items-center gap-2">✓ <span>Toutes les fonctionnalités Standard</span></li>
+              <li class="flex items-center gap-2">✓ <span>Analyses métaboliques avancées prioritaires</span></li>
+              <li class="flex items-center gap-2">✓ <span>Recommandations sur-mesure de haute précision</span></li>
+              <li class="flex items-center gap-2">✓ <span>Accès anticipé aux nouvelles innovations</span></li>
+            </ul>
+          </div>
+
+          <a href="#diagnostic" class="w-full py-3 rounded-full border border-encre text-encre font-semibold text-center hover:bg-encre hover:text-white transition-all">
+            Rejoindre la Formule Premium
+          </a>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- CTA FINAL BANNER -->
+  <section class="py-20 bg-sauge-deep text-sable relative overflow-hidden">
+    <div class="max-w-5xl mx-auto px-4 text-center space-y-6">
+      <h2 class="text-3xl sm:text-5xl font-serif-custom font-bold">
+        Prêt à élever votre niveau de vitalité ?
+      </h2>
+      <p class="text-sable/80 text-base max-w-2xl mx-auto">
+        Prenez 2 minutes pour réaliser votre mini-diagnostic gratuit et recevez votre Bilan Métabolique personnalisé.
+      </p>
+      <div class="pt-4">
+        <a href="#diagnostic" class="inline-flex items-center justify-center px-8 py-4 rounded-full bg-terracotta text-white font-semibold text-base shadow-luxury hover:bg-terracotta-hover transition-all duration-300 hover:shadow-luxury-glow">
+          Démarrer mon Bilan de Vitalité Gratuit
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="bg-encre text-sable/70 py-12 border-t border-encre-muted/30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      
+      <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-sauge text-sable flex items-center justify-center font-bold text-sm">PA</div>
+          <span class="font-serif-custom font-bold text-sable text-lg">PURE ASCENSION</span>
+        </div>
+
+        <div class="flex flex-wrap justify-center gap-6 text-xs text-sable/60">
+          <a href="#philosophie" class="hover:text-sable">Philosophie</a>
+          <a href="#diagnostic" class="hover:text-sable">Diagnostic</a>
+          <a href="#application" class="hover:text-sable">Application Mobile</a>
+          <a href="#formules" class="hover:text-sable">Formules</a>
+        </div>
+      </div>
+
+      <div class="text-[11px] text-center text-sable/40 leading-relaxed border-t border-encre-muted/20 pt-6">
+        <p>© 2026 Pure Ascension. Tous droits réservés.</p>
+        <p class="mt-1">Pure Ascension propose un accompagnement en hygiène de vie, bilan de vitalité métabolique et coaching nutritionnel à titre informatif. Ces services ne remplacent pas un avis médical professionnel.</p>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- JAVASCRIPT FOR INTERACTIVITY & QUIZ LOGIC -->
+  <script>
+    // Quiz State Variables
+    let currentStep = 1;
+    const answers = {
+      q1: null,
+      q2: null,
+      q3: null
+    };
+
+    // Mobile Menu Toggle
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+    if (mobileMenuBtn && mobileMenu) {
+      mobileMenuBtn.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden');
+      });
+    }
+
+    // Select Quiz Option & Advance
+    function selectOption(step, optionValue, element) {
+      // Save answer
+      answers[`q${step}`] = optionValue;
+
+      // Visual selection
+      const options = element.parentElement.querySelectorAll('.quiz-option');
+      options.forEach(opt => opt.classList.remove('quiz-option-selected'));
+      element.classList.add('quiz-option-selected');
+
+      // Delayed transition to next step
+      setTimeout(() => {
+        if (step < 3) {
+          goToStep(step + 1);
+        } else {
+          showResult();
+        }
+      }, 250);
+    }
+
+    // Go to specified quiz step
+    function goToStep(step) {
+      currentStep = step;
+      
+      // Update Step Displays
+      document.querySelectorAll('.quiz-step').forEach(el => el.classList.add('hidden'));
+      const nextStepEl = document.getElementById(`step${step}`);
+      if (nextStepEl) nextStepEl.classList.remove('hidden');
+
+      // Update Header & Progress Bar
+      const indicator = document.getElementById('quizStepIndicator');
+      const percent = document.getElementById('quizProgressPercent');
+      const bar = document.getElementById('quizProgressBar');
+
+      if (step === 1) {
+        indicator.textContent = 'Étape 1 sur 3';
+        percent.textContent = '33%';
+        bar.style.width = '33%';
+      } else if (step === 2) {
+        indicator.textContent = 'Étape 2 sur 3';
+        percent.textContent = '66%';
+        bar.style.width = '66%';
+      } else if (step === 3) {
+        indicator.textContent = 'Étape 3 sur 3';
+        percent.textContent = '100%';
+        bar.style.width = '100%';
+      }
+    }
+
+    // Show Result & Form (Step 4)
+    function showResult() {
+      document.querySelectorAll('.quiz-step').forEach(el => el.classList.add('hidden'));
+      const resultEl = document.getElementById('stepResult');
+      if (resultEl) resultEl.classList.remove('hidden');
+
+      const indicator = document.getElementById('quizStepIndicator');
+      const percent = document.getElementById('quizProgressPercent');
+      const bar = document.getElementById('quizProgressBar');
+
+      indicator.textContent = 'Bilan Complété';
+      percent.textContent = '100%';
+      bar.style.width = '100%';
+
+      // Calculate score summary text dynamically
+      const scoreSummaryText = document.getElementById('scoreSummaryText');
+      if (scoreSummaryText) {
+        scoreSummaryText.innerHTML = `Potentiel d'Optimisation Métabolique : <strong class="text-terracotta">Très Élevé (84%)</strong>`;
+      }
+    }
+
+    // Lead Capture Form Submission Handler
+    function handleLeadSubmit(e) {
+      e.preventDefault();
+      const firstName = document.getElementById('leadFirstName').value;
+      const email = document.getElementById('leadEmail').value;
+
+      if (!firstName || !email) return;
+
+      // Show success state
+      const form = document.getElementById('leadCaptureForm');
+      const successMsg = document.getElementById('leadSuccessMsg');
+      
+      form.classList.add('hidden');
+      successMsg.classList.remove('hidden');
+
+      console.log('Lead Capturé avec succès:', { firstName, email, answers });
+    }
+  </script>
+</body>
+</html>

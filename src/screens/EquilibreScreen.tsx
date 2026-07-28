@@ -22,28 +22,28 @@ const ANTI_INFLAM_HABITS: Habit[] = [
     desc: 'Exposition solaire directe dès le réveil pour caler l\'horloge biologique et sécréter l\'hormone du dynamisme.'
   },
   {
-    id: 'h2', icon: Heart, title: 'Thérapie par le Froid',
+    id: 'h2', icon: Heart, title: 'Douche Vivifiante',
     color: '#3498db', bg: '#ecf0f1',
     tag: 'Douche · 30s à 2 min',
-    desc: 'Terminer la douche par un jet d\'eau froide pour stimuler le système parasympathique et réduire l\'inflammation.'
+    desc: 'Terminer la douche par un jet d\'eau froide pour stimuler le système parasympathique et favoriser la récupération.'
   },
   {
     id: 'h3', icon: Wind, title: 'Respiration 4-7-8',
     color: colors.sage[600], bg: colors.sage[50],
     tag: 'Calme · 2x par jour',
-    desc: 'Inspire 4s, retiens 7s, expire 8s. Idéal pour inhiber la réponse de stress aiguë du cortisol.'
+    desc: 'Inspire 4s, retiens 7s, expire 8s. Idéal pour apaiser la réponse de stress.'
   },
   {
     id: 'h4', icon: Eye, title: 'Coupure Écrans',
     color: colors.clay[500], bg: colors.clay[100],
     tag: 'Soir · 1 heure avant',
-    desc: 'Coupure stricte de tous les écrans avant le sommeil pour préserver la sécrétion naturelle de mélatonine.'
+    desc: 'Coupure stricte de tous les écrans avant le sommeil pour préserver la qualité du sommeil.'
   },
   {
     id: 'h5', icon: Wind, title: 'Qualité de l\'Air Intérieur',
     color: colors.info[500], bg: colors.info[50],
     tag: 'Maison · 10 min',
-    desc: 'Aérer vos pièces de vie 10 minutes par jour pour évacuer les perturbateurs chimiques et rafraîchir l\'oxygène.'
+    desc: 'Aérer vos pièces de vie 10 minutes par jour pour rafraîchir l\'air ambiant.'
   }
 ];
 
@@ -75,14 +75,14 @@ export const EquilibreScreen: React.FC = () => {
 
         {/* Header */}
         <View style={st.header}>
-          <Text style={st.headerTitle}>Équilibre & Vitalité</Text>
-          <Text style={st.headerSub}>Optimisation du microbiote et réduction de l'inflammation.</Text>
+          <Text style={st.headerTitle}>Équilibre & Forme</Text>
+          <Text style={st.headerSub}>Optimisation de ton hygiène de vie et de ton énergie.</Text>
         </View>
 
         {/* Global Progress card */}
         <View style={st.summaryCard}>
           <View style={st.summaryTop}>
-            <Text style={st.summaryHeading}>Score Anti-Inflammatoire</Text>
+            <Text style={st.summaryHeading}>Score de Récupération & Forme</Text>
             <Text style={st.summaryCount}>{doneCount}/{totalCount}</Text>
           </View>
           <View style={st.progressTrack}>

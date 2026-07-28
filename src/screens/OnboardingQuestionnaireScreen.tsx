@@ -516,8 +516,8 @@ export const OnboardingQuestionnaireScreen: React.FC<Props> = ({
                 <View style={st.refCard}>
                   <TextInput
                     style={st.textArea}
-                    value={otherNotes && !otherNotes.includes(',') ? '' : ''}
-                    onChangeText={() => {}}
+                    value={otherNotes}
+                    onChangeText={setOtherNotes}
                     placeholder="Autre condition ou précision… (optionnel)"
                     placeholderTextColor={colors.ink[400]}
                     multiline

@@ -1,18 +1,38 @@
 /**
- * programService — le "cerveau" local de Pure Ascension.
- * Génère le programme réel (entraînement + cibles nutrition) à partir du
- * profil diagnostic, et le persiste dans Firestore (users/{uid}.program).
- *
- * En Phase 2, le pipeline IA (Make/Claude) pourra écrire le même schéma
- * dans users/{uid}.program — le front n'aura pas à changer.
+ * programService — Le moteur d'IA & Génération Dynamique de Pure Ascension.
+ * 
+ * 1. Moteur de génération dynamique adapté au matériel exact de l'utilisateur
+ *    (Salle complète, Haltères maison, Poids du corps & Kettlebell) et à son niveau réel.
+ * 2. Structure chaque séance générée en 4 phases explicites :
+ *    1. Échauffement Dynamique & Activation
+ *    2. Mouvements Polyarticulaires Principaux
+ *    3. Isolation & Supersets Métaboliques
+ *    4. Finisher & Récupération P1-P4
+ * 3. Périodisation sur 12 semaines (Semaines 1-4 Fondation, 5-8 Intensification, 9-11 Peak, 12 Deload)
+ *    et service de substitution d'exercice par équivalence biomécanique.
  */
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { cleanObject } from './dbService';
-import type { UserProfile, WorkoutSession, Exercise } from '../data';
+import type { UserProfile, WorkoutSession, Exercise, GymAccess, TrainingExperience } from '../data';
 
-/* ─── Types ──────────────────────────────────────────────────────────────── */
+/* ─── Types & Interfaces ─────────────────────────────────────────────────── */
 export interface ProgramMacros { protein: number; carbs: number; fat: number }
+
+export interface WeekPeriodizationConfig {
+  week: number;
+  phaseName: 'Fondation' | 'Intensification' | 'Peak' | 'Deload';
+  phaseTitle: string;
+  description: string;
+  volumeMultiplier: number;
+  repsCompound: string;
+  repsIsolation: string;
+  rpeTarget: string;
+  tempo: string;
+  restCompoundSec: number;
+  restIsolationSec: number;
+  finisherIntensity: string;
+}
 
 export interface GeneratedProgram {
   id:              string;
@@ -27,10 +47,20 @@ export interface GeneratedProgram {
   trainingDays:    string[];
   sessions:        WorkoutSession[];
   totalWeeks:      number;
+  currentWeek?:    number;
   startDate:       string; // ISO — début du programme
   cardioZones?:    { z2: string; z3: string; z4: string; z5: string };
   cardioSport?:    UserProfile['cardioSport'];
   digestiveProtocol?: { condition: string; recommendation: string }[];
+  periodizationConfig?: WeekPeriodizationConfig;
+}
+
+export interface BiomechanicalPatternInfo {
+  id: string;
+  patternName: string;
+  primaryMuscles: string[];
+  exercises: Record<GymAccess, string[]>;
+  defaultNotes: string;
 }
 
 /* ─── Nom du programme selon objectif + expérience ──────────────────────── */
@@ -41,20 +71,18 @@ export function getProgramName(p: UserProfile): string {
     tone:   { débutante: 'Corps Léger',     intermédiaire: 'Corps Sculpté',     avancée: 'Corps Athlétique' },
     force:  { débutante: 'Puissance I',     intermédiaire: 'Puissance II',      avancée: 'Puissance Élite'  },
   };
-  return names[p.mainGoal][p.experience];
+  return names[p.mainGoal]?.[p.experience] ?? 'Programme Sur-Mesure Pure Ascension';
 }
 
-/* ─── Calories cibles (Mifflin-St Jeor — sexe, âge et activité réels) ───── */
+/* ─── Calories cibles (Mifflin-St Jeor) ─────────────────────────────────── */
 export function getCalories(p: UserProfile): number {
   const age = Number(p.age) || 28;
   const currentWeightKg = Number(p.currentWeightKg) || 70;
   const heightCm = Number(p.heightCm) || 165;
 
-  // Constante Mifflin : homme +5, femme −161, non précisé → moyenne
   const sexConst = p.sex === 'homme' ? 5 : p.sex === 'femme' ? -161 : -78;
   const bmr = 10 * currentWeightKg + 6.25 * heightCm - 5 * age + sexConst;
 
-  // Facteur d'activité : NEAT quotidien + volume d'entraînement prévu
   const base: Record<NonNullable<UserProfile['activityLevel']>, number> = {
     sedentaire: 1.2, leger: 1.375, actif: 1.55, 'tres-actif': 1.725,
   };
@@ -74,7 +102,7 @@ export function getCalories(p: UserProfile): number {
   return Number.isNaN(targetCals) ? 1800 : targetCals;
 }
 
-/* ─── Macros en grammes depuis les calories (ajustées au morphotype) ────── */
+/* ─── Macros ─────────────────────────────────────────────────────────────── */
 export function getMacros(
   calories: number,
   goal: UserProfile['mainGoal'],
@@ -89,8 +117,6 @@ export function getMacros(
     force:  { p: 0.28, c: 0.48, f: 0.24 },
   };
   let { p, c, f } = splits[mainGoal];
-  // Ectomorphe : métabolise vite → plus de glucides. Endomorphe : sensibilité
-  // insulinique plus faible → moins de glucides, plus de protéines/lipides.
   if (morphotype === 'ectomorphe')  { c += 0.05; f -= 0.03; p -= 0.02; }
   if (morphotype === 'endomorphe')  { c -= 0.07; p += 0.04; f += 0.03; }
   
@@ -105,7 +131,7 @@ export function getMacros(
   };
 }
 
-/* ─── Jours d'entraînement selon fréquence ──────────────────────────────── */
+/* ─── Jours d'entraînement ──────────────────────────────────────────────── */
 export function getTrainingDays(freq: UserProfile['frequency']): string[] {
   const options: Record<UserProfile['frequency'], string[]> = {
     2: ['Lundi', 'Jeudi'],
@@ -114,420 +140,636 @@ export function getTrainingDays(freq: UserProfile['frequency']): string[] {
     5: ['Lundi', 'Mardi', 'Mercredi', 'Vendredi', 'Samedi'],
     6: ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'],
   };
-  return options[freq];
+  return options[freq] ?? options[3];
 }
 
-/* ─── Type de séance selon objectif + jour ──────────────────────────────── */
-export function getSessionType(goal: UserProfile['mainGoal'], dayIdx: number): string {
-  const types: Record<UserProfile['mainGoal'], string[]> = {
-    muscle: ['Haut du corps — Push', 'Bas du corps', 'Haut du corps — Pull', 'Full Body', 'Cardio HIIT'],
-    gras:   ['Circuit training', 'Cardio HIIT', 'Musculation métabolique', 'Cardio steady-state', 'Full Body brûle-graisses'],
-    tone:   ['Fessiers & Abdos', 'Haut du corps léger', 'Circuit cardio', 'Bas du corps', 'Pilates fonctionnel'],
-    force:  ['Squat & Deadlift', 'Bench & Rows', 'Overhead & Core', 'Squat volume', 'Accessoires & mobilité'],
+/* ─── Type de séance ────────────────────────────────────────────────────── */
+export function getSessionType(
+  goal: UserProfile['mainGoal'],
+  dayIdx: number,
+  exp: UserProfile['experience'] = 'intermédiaire'
+): string {
+  const types: Record<UserProfile['mainGoal'], Record<UserProfile['experience'], string[]>> = {
+    muscle: {
+      débutante: ['Haut du corps — Push Fondations', 'Bas du corps — Squat & Fentes', 'Haut du corps — Pull Fondations', 'Full Body — Volume Doux', 'Bras & Core — Tonification'],
+      intermédiaire: ['Push — Force & Hypertrophie', 'Bas du corps — Chaîne antérieure', 'Pull — Épaisseur & Largeur', 'Bas du corps — Chaîne postérieure', 'Haut du corps — Pump & Core'],
+      avancée: ['Push Élite — Calisthenics & KB Lourd', 'Bas du corps — Squat Lourd & Deficit RDL', 'Pull Élite — L-Sit & Tractions Lestées', 'Bas du corps — Pistol & Front Squat KB', 'Full Body Élite — Core & Force Biomécanique'],
+    },
+    gras: {
+      débutante: ['Circuit Métabolique Doux', 'Renforcement Fondations', 'Circuit Cardio Sans Impact', 'Musculation Métabolique', 'Full Body Forme'],
+      intermédiaire: ['Complexes KB & Haltères', 'Haut du corps Métabolique', 'Bas du corps Puissance', 'Conditionnement Athlétique', 'Full Body Brûle-Graisses'],
+      avancée: ['Conditionnement Élite Calisthenics', 'Complex Double KB Métabolique', 'Incinérateur Chaîne Postérieure', 'Conditionnement Haute Densité', 'Full Body Force-Endurance'],
+    },
+    tone: {
+      débutante: ['Fessiers & Sangle Abdominale', 'Haut du corps Sculpteur', 'Bas du corps & Stabilité', 'Sangle Abdominale & Posture', 'Full Body Tonalité'],
+      intermédiaire: ['Chaîne Postérieure & Fessiers', 'Haut du corps Athlétique', 'Bas du corps Volume', 'Core Stabilité & Obliques', 'Full Body Sculpture'],
+      avancée: ['Pistol Squat & Fessiers Élite', 'Ring Dips & Upper Body Élite', 'Double KB & Core Explosif', 'Dragon Flag & Abdo Élite', 'Athletic Performance Élite'],
+    },
+    force: {
+      débutante: ['Squat & Soulevé de Terre I', 'Développé & Tirage I', 'Développé Militaire & Core I', 'Squat Volume I', 'Accessoires & Stabilité'],
+      intermédiaire: ['Force Pure — Squat & SDT', 'Force Pure — Bench & Rows', 'Overhead Press & Grip', 'Squat Volume & RDL', 'Force Accessoires'],
+      avancée: ['Force Élite — Heavy Barbell & Pistol', 'Force Élite — Heavy Bench & Ring Dips', 'Force Élite — Double KB & Overhead', 'Force Élite — Deficit RDL & Heavy Squat', 'Force Élite — Dragon Flag & Grip'],
+    },
   };
-  const list = types[goal];
-  return list[dayIdx % list.length];
+  const goalTypes = types[goal] ?? types['muscle'];
+  const expTypes = goalTypes[exp] ?? goalTypes['intermédiaire'];
+  return expTypes[dayIdx % expTypes.length];
 }
 
-/* ─── Bibliothèque d'exercices ───────────────────────────────────────────
- * Par objectif : 5 séances × 6 exercices (version salle complète).
- * `main: true` = mouvement principal → volume ajusté selon l'expérience.
- * Les variantes maison / équipement limité sont gérées par substitution.  */
-type ExTemplate = { name: string; reps: number | string; main?: boolean; notes?: string };
+/* ─── BASE DE DONNÉES BIOMÉCANIQUE & SUBSTITUTION ───────────────────────── */
+export const BIOMECHANICAL_PATTERNS: Record<string, BiomechanicalPatternInfo> = {
+  squat: {
+    id: 'squat',
+    patternName: 'Squat Genou-Dominant (Quadriceps & Fessiers)',
+    primaryMuscles: ['Quadriceps', 'Grand Fessier', 'Adducteurs'],
+    exercises: {
+      full: ['Squat barre arrière', 'Squat barre avant', 'Hack Squat machine', 'Presse à cuisses 45°'],
+      limited: ['Squat gobelet haltère lourd', 'Squat bulgare haltères', 'Fentes marchées haltères'],
+      home: ['Squat gobelet kettlebell', 'Squat bulgare poids du corps (sur chaise)', 'Pistol squat assisté', 'Squat sumo tempo lent']
+    },
+    defaultNotes: 'Garde les talons ancrés au sol, poitrine haute et genoux alignés avec les orteils.'
+  },
+  hinge: {
+    id: 'hinge',
+    patternName: 'Extension de Hanche / Hinge (Ischio-Jambiers & Fessiers)',
+    primaryMuscles: ['Ischio-Jambiers', 'Grand Fessier', 'Lombaires'],
+    exercises: {
+      full: ['Soulevé de terre barre', 'Soulevé de terre roumain barre', 'Hip Thrust barre', 'Leg curl allongé machine'],
+      limited: ['Soulevé de terre roumain haltères', 'Hip Thrust haltère', 'Soulevé de terre unilatéral haltère'],
+      home: ['Kettlebell Swings', 'Soulevé de terre unilatéral KB', 'Leg curl au sol (glissement serviette)', 'Pont fessier unilatéral']
+    },
+    defaultNotes: 'Charnière de hanche : pousse le bassin vers l\'arrière en maintenant un dos plat.'
+  },
+  push_horizontal: {
+    id: 'push_horizontal',
+    patternName: 'Poussée Horizontale (Pectoraux & Triceps)',
+    primaryMuscles: ['Grand Pectoral', 'Deltoïde Antérieur', 'Triceps'],
+    exercises: {
+      full: ['Développé couché barre', 'Développé couché haltères', 'Développé incliné barre', 'Pec Deck machine'],
+      limited: ['Développé couché haltères', 'Développé incliné haltères', 'Développé au sol haltères (Floor Press)'],
+      home: ['Pompes classiques', 'Pompes déclinées (pieds surélevés)', 'Pompes diamant', 'Floor Press kettlebell unilatéral']
+    },
+    defaultNotes: 'Omoplates rétractées et baissées. Contrôle la descente sur 2 à 3 secondes.'
+  },
+  push_vertical: {
+    id: 'push_vertical',
+    patternName: 'Poussée Verticale (Épaules & Triceps)',
+    primaryMuscles: ['Deltoïdes', 'Triceps', 'Haut des pectoraux'],
+    exercises: {
+      full: ['Développé militaire barre', 'Développé militaire haltères assis', 'Shoulder Press machine'],
+      limited: ['Développé militaire haltères debout', 'Arnold Press haltères'],
+      home: ['Press militaire unilatéral Kettlebell', 'Pompes piquées (Pike Push-ups)', 'Pompes piquées pieds surélevés']
+    },
+    defaultNotes: 'Garde le buste gainé, ne cambre pas le bas du dos pendant la poussée overhead.'
+  },
+  pull_horizontal: {
+    id: 'pull_horizontal',
+    patternName: 'Tirage Horizontal (Grand Dorsal & Rhomboïdes)',
+    primaryMuscles: ['Grand Dorsal', 'Rhomboïdes', 'Trapeze Moyen/Inférieur', 'Biceps'],
+    exercises: {
+      full: ['Rowing barre buste penché', 'Rowing poulie basse', 'Rowing T-Bar', 'Rowing haltère unilatéral'],
+      limited: ['Rowing haltères buste penché', 'Rowing haltère unilatéral appuyé banc'],
+      home: ['Rowing Kettlebell Gorilla', 'Rowing inversé sous une table', 'Rowing unilatéral KB', 'Tirage élastique porte']
+    },
+    defaultNotes: 'Tire les coudes vers les hanches en resserrant les omoplates à la fin du mouvement.'
+  },
+  pull_vertical: {
+    id: 'pull_vertical',
+    patternName: 'Tirage Vertical (Grand Dorsal & Biceps)',
+    primaryMuscles: ['Grand Dorsal', 'Grand Rond', 'Biceps'],
+    exercises: {
+      full: ['Tractions prises pronation', 'Tirage vertical poulie haute', 'Tirage vertical prise neutre'],
+      limited: ['Tractions assistées élastique', 'Tirage vertical élastique haut'],
+      home: ['Tractions poids du corps (barre porte)', 'Tirage élastique ancrage haut', 'Kettlebell High Pull']
+    },
+    defaultNotes: 'Engage les dorsaux en tirant les coudes vers le bas et vers l\'arrière.'
+  },
+  glute_isolation: {
+    id: 'glute_isolation',
+    patternName: 'Isolation Fessiers & Abduction (Moyen Fessier & Isolation)',
+    primaryMuscles: ['Moyen Fessier', 'Grand Fessier (Isolation)'],
+    exercises: {
+      full: ['Hip Thrust machine / barre', 'Abduction hanche poulie', 'Kickback poulie'],
+      limited: ['Hip Thrust unilatéral haltère', 'Abduction élastique debout'],
+      home: ['Frog Pumps', 'Clamshell avec élastique', 'Abduction hanche allongée', 'Hip Thrust unilatéral au sol']
+    },
+    defaultNotes: 'Presse à travers le talon, contraction maximale de 1-2 s en haut.'
+  },
+  core_stability: {
+    id: 'core_stability',
+    patternName: 'Stabilité du Tronc & Anti-Extension / Anti-Rotation',
+    primaryMuscles: ['Transverse', 'Grand Droit', 'Obliques'],
+    exercises: {
+      full: ['Pallof Press poulie', 'Ab Wheel Rollout', 'Farmer Walk lourd avec haltères'],
+      limited: ['Farmer Walk haltères', 'Pallof Press avec élastique', 'Planche avec charge'],
+      home: ['Gainage planche dynamique', 'Deadbug contrôlé', 'Bird-Dog avec pause', 'Farmer Walk KB unilatéral (Suitcase Carry)']
+    },
+    defaultNotes: 'Garde la ceinture abdominale verrouillée et respire par le diaphragme.'
+  },
+  metabolic_finisher: {
+    id: 'metabolic_finisher',
+    patternName: 'Finisher Métabolique & Conditionnement',
+    primaryMuscles: ['Système Cardiovasculaire', 'Full Body'],
+    exercises: {
+      full: ['Sled Push (Traîneau)', 'Assault Bike sprint', 'Rameur intervalle 200m'],
+      limited: ['Thrusters haltères', 'Burpees avec haltères légers', 'Dumbbell Snatch alterné'],
+      home: ['Kettlebell Swings explosifs', 'Burpees', 'Mountain Climbers rapide', 'Squats sautés']
+    },
+    defaultNotes: 'Donne une intensité maximale tout en conservant une posture sécuritaire.'
+  },
+  warmup_mobility: {
+    id: 'warmup_mobility',
+    patternName: 'Échauffement Dynamique & Activation Neuromusculaire',
+    primaryMuscles: ['Mobilité Articulaire', 'Transverse', 'Fessiers'],
+    exercises: {
+      full: ['World\'s Greatest Stretch', 'Rotations thoraciques à genoux', 'Activation fessiers poulie/élastique'],
+      limited: ['World\'s Greatest Stretch', 'Mobilité hanches 90/90', 'Band Pull-Apart élastique'],
+      home: ['World\'s Greatest Stretch', 'Mobilité hanches 90/90', 'Bird-Dog activation', 'Cat-Cow dynamique']
+    },
+    defaultNotes: 'Mouvement fluide, respire profondément sans forcer les amplitudes.'
+  }
+};
 
-const LIBRARY: Record<UserProfile['mainGoal'], ExTemplate[][]> = {
+/** Recherche le patron biomécanique à partir du nom d'un exercice */
+export function getBiomechanicalPattern(exerciseName: string): BiomechanicalPatternInfo {
+  const name = exerciseName.toLowerCase();
+  if (name.includes('squat') || name.includes('fente') || name.includes('presse') || name.includes('pistol')) return BIOMECHANICAL_PATTERNS.squat;
+  if (name.includes('terre') || name.includes('deadlift') || name.includes('thrust') || name.includes('swing') || name.includes('ischio') || name.includes('hinge')) return BIOMECHANICAL_PATTERNS.hinge;
+  if (name.includes('couché') || name.includes('pompe') || name.includes('push-up') || name.includes('pec') || name.includes('incliné')) return BIOMECHANICAL_PATTERNS.push_horizontal;
+  if (name.includes('militaire') || name.includes('overhead') || name.includes('pike') || name.includes('arnold') || name.includes('shoulder')) return BIOMECHANICAL_PATTERNS.push_vertical;
+  if (name.includes('rowing') || name.includes('inversé') || name.includes('t-bar')) return BIOMECHANICAL_PATTERNS.pull_horizontal;
+  if (name.includes('traction') || name.includes('tirage') || name.includes('lat pulldown') || name.includes('high pull')) return BIOMECHANICAL_PATTERNS.pull_vertical;
+  if (name.includes('abduction') || name.includes('frog') || name.includes('clamshell') || name.includes('kickback')) return BIOMECHANICAL_PATTERNS.glute_isolation;
+  if (name.includes('gainage') || name.includes('planche') || name.includes('deadbug') || name.includes('bird-dog') || name.includes('farmer') || name.includes('pallof')) return BIOMECHANICAL_PATTERNS.core_stability;
+  if (name.includes('burpee') || name.includes('climber') || name.includes('thruster') || name.includes('snatch') || name.includes('sled') || name.includes('bike')) return BIOMECHANICAL_PATTERNS.metabolic_finisher;
+  return BIOMECHANICAL_PATTERNS.warmup_mobility;
+}
+
+/** Trouve l'exercice équivalent selon le matériel exact du sportif */
+export function getEquivalentExercise(exerciseName: string, targetAccess: GymAccess): { name: string; notes: string; alternatives: string[] } {
+  const pattern = getBiomechanicalPattern(exerciseName);
+  const options = pattern.exercises[targetAccess] ?? pattern.exercises.home;
+  const mainEquiv = options[0] || exerciseName;
+  const alternatives = options.slice(1);
+  return {
+    name: mainEquiv,
+    notes: pattern.defaultNotes,
+    alternatives,
+  };
+}
+
+/** Substitue un exercice dans une séance donnée par son équivalent biomécanique */
+export function substituteExerciseInSession(session: WorkoutSession, exerciseId: string, targetAccess: GymAccess): WorkoutSession {
+  const updatedExercises = session.exercises.map(ex => {
+    if (ex.id === exerciseId) {
+      const equiv = getEquivalentExercise(ex.name, targetAccess);
+      return {
+        ...ex,
+        name: equiv.name,
+        notes: equiv.notes,
+        alternativeExercises: equiv.alternatives,
+      };
+    }
+    return ex;
+  });
+
+  return {
+    ...session,
+    exercises: updatedExercises,
+  };
+}
+
+/* ─── CONFIGURATION DE LA PÉRIODISATION SUR 12 SEMAINES ──────────────────── */
+export const PERIODIZATION_WEEKS: Record<number, WeekPeriodizationConfig> = {
+  1:  { week: 1,  phaseName: 'Fondation', phaseTitle: 'Semaine 1 — Adaptation Anatomique', description: 'Volume modéré, apprentissage moteur et conditionnement des tendons.', volumeMultiplier: 1.0, repsCompound: '10–12', repsIsolation: '12–15', rpeTarget: 'RPE 6.5 - 7.0', tempo: '3010', restCompoundSec: 90, restIsolationSec: 60, finisherIntensity: '70% VMA' },
+  2:  { week: 2,  phaseName: 'Fondation', phaseTitle: 'Semaine 2 — Consolidation Technique', description: 'Augmentation progressive de la tension sans atteindre l\'échec.', volumeMultiplier: 1.0, repsCompound: '10–12', repsIsolation: '12–15', rpeTarget: 'RPE 7.0', tempo: '3010', restCompoundSec: 90, restIsolationSec: 60, finisherIntensity: '72% VMA' },
+  3:  { week: 3,  phaseName: 'Fondation', phaseTitle: 'Semaine 3 — Surcharge Progressive Initiale', description: 'Ajout de charge légère ou 1 rép supplémentaire par série.', volumeMultiplier: 1.05, repsCompound: '10–12', repsIsolation: '12–15', rpeTarget: 'RPE 7.5', tempo: '3010', restCompoundSec: 90, restIsolationSec: 60, finisherIntensity: '75% VMA' },
+  4:  { week: 4,  phaseName: 'Fondation', phaseTitle: 'Semaine 4 — Culmination du Bloc Fondation', description: 'Dernière semaine de base avant la montée en charge.', volumeMultiplier: 1.1, repsCompound: '10', repsIsolation: '12', rpeTarget: 'RPE 7.5 - 8.0', tempo: '2010', restCompoundSec: 90, restIsolationSec: 60, finisherIntensity: '78% VMA' },
+
+  5:  { week: 5,  phaseName: 'Intensification', phaseTitle: 'Semaine 5 — Hypertrophie & Tension Mécanique', description: 'Charges plus lourdes, accent sur la tension mécanique maximale.', volumeMultiplier: 1.15, repsCompound: '8–10', repsIsolation: '10–12', rpeTarget: 'RPE 8.0', tempo: '2010', restCompoundSec: 90, restIsolationSec: 60, finisherIntensity: '82% VMA' },
+  6:  { week: 6,  phaseName: 'Intensification', phaseTitle: 'Semaine 6 — Supersets Métaboliques', description: 'Surcharge métabolique accrue sur les phases d\'isolation.', volumeMultiplier: 1.2, repsCompound: '8', repsIsolation: '10', rpeTarget: 'RPE 8.0 - 8.5', tempo: '2010', restCompoundSec: 75, restIsolationSec: 45, finisherIntensity: '85% VMA' },
+  7:  { week: 7,  phaseName: 'Intensification', phaseTitle: 'Semaine 7 — Recrutement Neuro-Musculaire', description: 'Répétitions plus basses sur polyarticulaires, tempo contrôlé.', volumeMultiplier: 1.2, repsCompound: '6–8', repsIsolation: '8–10', rpeTarget: 'RPE 8.5', tempo: '2010', restCompoundSec: 90, restIsolationSec: 60, finisherIntensity: '88% VMA' },
+  8:  { week: 8,  phaseName: 'Intensification', phaseTitle: 'Semaine 8 — Peak du Bloc Intensification', description: 'Volumétrie et intensité maximale du bloc d\'hypertrophie.', volumeMultiplier: 1.25, repsCompound: '6–8', repsIsolation: '8–10', rpeTarget: 'RPE 8.5 - 9.0', tempo: '2010', restCompoundSec: 90, restIsolationSec: 60, finisherIntensity: '90% VMA' },
+
+  9:  { week: 9,  phaseName: 'Peak', phaseTitle: 'Semaine 9 — Conversion Puissance & Force', description: 'Charges lourdes, recrutement des unités motrices de haut seuil.', volumeMultiplier: 1.1, repsCompound: '5–6', repsIsolation: '8', rpeTarget: 'RPE 9.0', tempo: '1010', restCompoundSec: 120, restIsolationSec: 60, finisherIntensity: '92% VMA' },
+  10: { week: 10, phaseName: 'Peak', phaseTitle: 'Semaine 10 — Overreach Contrôlé', description: 'Semaine la plus exigeante. Focus total sur chaque répétition.', volumeMultiplier: 1.15, repsCompound: '4–6', repsIsolation: '6–8', rpeTarget: 'RPE 9.0 - 9.5', tempo: '1010', restCompoundSec: 120, restIsolationSec: 60, finisherIntensity: '95% VMA' },
+  11: { week: 11, phaseName: 'Peak', phaseTitle: 'Semaine 11 — Peak Performance Maximale', description: 'Test de capacité maximale sur les mouvements principaux.', volumeMultiplier: 1.0, repsCompound: '4–5', repsIsolation: '6–8', rpeTarget: 'RPE 9.5', tempo: '1010', restCompoundSec: 120, restIsolationSec: 60, finisherIntensity: '95% VMA' },
+
+  12: { week: 12, phaseName: 'Deload', phaseTitle: 'Semaine 12 — Décharge & Supercompensation', description: 'Réduction de 40% du volume, dissipation de la fatigue centrale.', volumeMultiplier: 0.6, repsCompound: '8–10', repsIsolation: '10–12', rpeTarget: 'RPE 5.5 - 6.0', tempo: '2020', restCompoundSec: 60, restIsolationSec: 45, finisherIntensity: 'Récupération active' }
+};
+
+export function getWeekPeriodizationConfig(weekNumber: number): WeekPeriodizationConfig {
+  const safeWeek = Math.min(12, Math.max(1, Math.round(weekNumber)));
+  return PERIODIZATION_WEEKS[safeWeek] ?? PERIODIZATION_WEEKS[1];
+}
+
+/** Calcule les paramètres exacts d'une séance selon la semaine de périodisation (1-12) */
+export function getPeriodizedSession(
+  session: WorkoutSession,
+  weekNumber: number,
+  experience?: TrainingExperience
+): WorkoutSession {
+  const config = getWeekPeriodizationConfig(weekNumber);
+  const expFactor = experience === 'débutante' ? 0.85 : experience === 'avancée' ? 1.15 : 1.0;
+
+  const periodizedExercises: Exercise[] = session.exercises.map(ex => {
+    let sets = ex.sets;
+    let reps = ex.reps;
+    let rest = ex.restSeconds ?? 60;
+    let rpe = ex.rpe ?? config.rpeTarget;
+    let tempo = ex.tempo ?? config.tempo;
+
+    if (ex.phase === 1) {
+      // Phase 1 : Échauffement Dynamique & Activation
+      sets = 2;
+      reps = ex.reps || '10 reps';
+      rest = 30;
+    } else if (ex.phase === 2) {
+      // Phase 2 : Mouvements Polyarticulaires Principaux
+      sets = Math.max(2, Math.round(ex.sets * config.volumeMultiplier * expFactor));
+      if (config.phaseName === 'Deload') sets = 2; // Deload strict
+      reps = config.repsCompound;
+      rest = config.restCompoundSec;
+    } else if (ex.phase === 3) {
+      // Phase 3 : Isolation & Supersets Métaboliques
+      sets = Math.max(2, Math.round(ex.sets * config.volumeMultiplier));
+      if (config.phaseName === 'Deload') sets = 2;
+      reps = config.repsIsolation;
+      rest = config.restIsolationSec;
+    } else if (ex.phase === 4) {
+      // Phase 4 : Finisher & Récupération P1-P4
+      sets = config.phaseName === 'Deload' ? 1 : ex.sets;
+      rest = 40;
+    }
+
+    return {
+      ...ex,
+      sets,
+      reps,
+      restSeconds: rest,
+      rpe,
+      tempo,
+      notes: ex.notes ? `${ex.notes} | Tempo : ${tempo} | ${rpe}` : `Tempo : ${tempo} | ${rpe}`,
+    };
+  });
+
+  return {
+    ...session,
+    exercises: periodizedExercises,
+  };
+}
+
+/** Adapte tout un programme à une semaine de périodisation spécifique */
+export function getPeriodizedProgram(program: GeneratedProgram, weekNumber: number): GeneratedProgram {
+  const config = getWeekPeriodizationConfig(weekNumber);
+  const periodizedSessions = program.sessions.map(s => getPeriodizedSession(s, weekNumber, program.experience));
+  return {
+    ...program,
+    currentWeek: weekNumber,
+    periodizationConfig: config,
+    sessions: periodizedSessions,
+  };
+}
+
+/* ─── TEMPLATES DE SÉANCES STRUCTUREES EN 4 PHASES (P1-P4) ───────────────── */
+
+interface PhaseDef {
+  phase: 1 | 2 | 3 | 4;
+  phaseName: string;
+  category: 'warmup' | 'compound' | 'isolation' | 'finisher';
+  name: Record<GymAccess, string>;
+  reps: string | number;
+  tempo?: string;
+  restSeconds?: number;
+  supersetGroup?: string;
+  notes?: string;
+}
+
+const GOAL_TEMPLATES_4PHASES: Record<UserProfile['mainGoal'], PhaseDef[][]> = {
   muscle: [
-    [ // Haut du corps — Push
-      { name: 'Développé couché haltères', reps: '8–10', main: true, notes: 'Coudes à ~45°, contrôle la descente 2 s.' },
-      { name: 'Développé militaire haltères', reps: '8–10', main: true },
-      { name: 'Développé incliné haltères', reps: 10 },
-      { name: 'Élévations latérales', reps: '12–15' },
-      { name: 'Dips sur banc', reps: '10–12' },
-      { name: 'Extensions triceps corde', reps: 12 },
+    // Séance 1 : Haut du corps — Push
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Rotations d\'épaules & Ouverture thoracique', limited: 'Rotations d\'épaules & Ouverture thoracique', home: 'Rotations d\'épaules & Ouverture thoracique' }, reps: '2 min', restSeconds: 30, notes: 'Activation de la coiffe des rotateurs.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Band Pull-Apart élastique', limited: 'Band Pull-Apart élastique', home: 'Pompes murales lentes & rétraction scapulaire' }, reps: '12–15', restSeconds: 30, notes: 'Activation de la ceinture scapulaire.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Développé couché barre', limited: 'Développé couché haltères', home: 'Pompes déclinées (pieds sur élevés)' }, reps: '8–10', tempo: '3010', restSeconds: 90, notes: 'Poussée lourde. Omoplates resserrées, coudes à ~45°.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Développé militaire haltères assis', limited: 'Développé militaire haltères debout', home: 'Pompes piquées (Pike Push-ups)' }, reps: '8–10', tempo: '2010', restSeconds: 90, notes: 'Presse verticale. Gainage abdominal ferme.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'A1', name: { full: 'Élévations latérales poulie', limited: 'Élévations latérales haltères', home: 'Élévations latérales avec bouteilles / bande' }, reps: '12–15', restSeconds: 45, notes: 'Superset A1 — Deltoïde latéral.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'A2', name: { full: 'Extensions triceps corde poulie', limited: 'Extensions triceps au-dessus de la tête', home: 'Dips sur chaise' }, reps: '12–15', restSeconds: 60, notes: 'Superset A2 — Isolation triceps.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Finisher Pompes Tabata (4 min)', limited: 'Finisher Pompes Tabata (4 min)', home: 'Finisher Pompes & Gainage Tabata' }, reps: '4 min (20s/10s)', restSeconds: 40, notes: 'Pulsations maximales.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Respiration diaphragmatique & étirement pecs', limited: 'Respiration diaphragmatique & étirement pecs', home: 'Respiration diaphragmatique & étirement pecs' }, reps: '3 min', restSeconds: 0, notes: 'Retour au calme nerveux.' }
     ],
-    [ // Bas du corps
-      { name: 'Squat barre', reps: '6–8', main: true, notes: 'Descends jusqu\'à 90° de flexion. Dos droit, regard devant.' },
-      { name: 'Soulevé de terre roumain', reps: '8–10', main: true },
-      { name: 'Presse à cuisses', reps: 10 },
-      { name: 'Fentes marchées', reps: '10/jambe' },
-      { name: 'Mollets debout', reps: 15 },
-      { name: 'Gainage planche', reps: '45 s' },
+    // Séance 2 : Bas du corps — Legs
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Mobilité hanches 90/90', limited: 'Mobilité hanches 90/90', home: 'Mobilité hanches 90/90' }, reps: '2 min', restSeconds: 30, notes: 'Déverrouillage des hanches.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Pont fessier d\'activation', limited: 'Pont fessier d\'activation', home: 'Pont fessier unilatéral' }, reps: '15', restSeconds: 30, notes: 'Activation grand fessier.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Squat barre arrière', limited: 'Squat gobelet haltère lourd', home: 'Squat gobelet Kettlebell / Sac lesté' }, reps: '6–8', tempo: '3010', restSeconds: 90, notes: 'Flexion profonde à 90°. Genoux alignés.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Soulevé de terre roumain barre', limited: 'Soulevé de terre roumain haltères', home: 'Kettlebell Swings / Soulevé de terre unilatéral' }, reps: '8–10', tempo: '2010', restSeconds: 90, notes: 'Tension maximale sur ischio-jambiers.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'B1', name: { full: 'Fentes marchées haltères', limited: 'Fentes arrières haltères', home: 'Squat bulgare sur chaise' }, reps: '10/jambe', restSeconds: 45, notes: 'Superset B1 — Quadriceps & fessiers.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'B2', name: { full: 'Leg curl machine', limited: 'Leg curl haltère entre les pieds', home: 'Leg curl au sol (glissement serviette)' }, reps: '12', restSeconds: 60, notes: 'Superset B2 — Isolation ischios.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Finisher Kettlebell Swings / Burpees', limited: 'Finisher Kettlebell Swings / Burpees', home: 'Finisher Burpees & Squats sautés' }, reps: '3 min (30s effort / 15s repos)', restSeconds: 40, notes: 'Épuisement métabolique bas du corps.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Étirements statiques psoas & ischios', limited: 'Étirements statiques psoas & ischios', home: 'Étirements statiques psoas & ischios' }, reps: '3 min', restSeconds: 0, notes: 'Décompression articulaire.' }
     ],
-    [ // Haut du corps — Pull
-      { name: 'Tractions assistées', reps: '6–8', main: true },
-      { name: 'Rowing barre', reps: '8–10', main: true },
-      { name: 'Tirage vertical poulie', reps: 10 },
-      { name: 'Rowing haltère unilatéral', reps: '10/bras' },
-      { name: 'Face pull', reps: 15 },
-      { name: 'Curl biceps haltères', reps: '10–12' },
+    // Séance 3 : Haut du corps — Pull
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Cat-Cow & Rotations thoraciques', limited: 'Cat-Cow & Rotations thoraciques', home: 'Cat-Cow & Rotations thoraciques' }, reps: '2 min', restSeconds: 30, notes: 'Mobilité de la colonne vertébrale.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'YTWL d\'activation dorsale', limited: 'YTWL d\'activation dorsale', home: 'Bird-Dog avec contraction 2s' }, reps: '12', restSeconds: 30, notes: 'Activation de la chaîne postérieure.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Tractions prises pronation', limited: 'Tractions assistées élastique', home: 'Rowing inversé sous une table' }, reps: '6–8', tempo: '2010', restSeconds: 90, notes: 'Tirage vertical lourd. Coudes vers les hanches.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Rowing barre buste penché', limited: 'Rowing haltères buste penché', home: 'Rowing Kettlebell Gorilla' }, reps: '8–10', tempo: '2010', restSeconds: 90, notes: 'Tirage horizontal. Omoplates serrées.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'C1', name: { full: 'Face pull poulie', limited: 'Oiseau haltères buste penché', home: 'Tirage élastique ancrage porte' }, reps: '15', restSeconds: 45, notes: 'Superset C1 — Deltoïde postérieur.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'C2', name: { full: 'Curl biceps barre EZ', limited: 'Curl biceps haltères supination', home: 'Curl biceps Kettlebell / bouteilles' }, reps: '10–12', restSeconds: 60, notes: 'Superset C2 — Biceps.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Farmer Walk lourd avec haltères', limited: 'Farmer Walk haltères', home: 'Farmer Walk KB unilatéral (Suitcase)' }, reps: '3 × 40 m', restSeconds: 40, notes: 'Grip & stabilité du buste.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Suspension barre & Étirements dorsaux', limited: 'Étirements dorsaux & suspension', home: 'Étirements grands dorsaux au sol' }, reps: '3 min', restSeconds: 0, notes: 'Décompression vertébrale.' }
     ],
-    [ // Full Body
-      { name: 'Squat gobelet', reps: 10, main: true },
-      { name: 'Développé couché haltères', reps: 10, main: true },
-      { name: 'Rowing haltères buste penché', reps: 10 },
-      { name: 'Hip thrust', reps: 12 },
-      { name: 'Planche latérale', reps: '30 s/côté' },
-      { name: 'Farmer walk', reps: '30 m' },
+    // Séance 4 : Full Body Hypertrophie
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'World\'s Greatest Stretch', limited: 'World\'s Greatest Stretch', home: 'World\'s Greatest Stretch' }, reps: '2 min', restSeconds: 30, notes: 'Ouverture hanches & cheville.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Gainage planche avec touches d\'épaules', limited: 'Gainage planche touches épaules', home: 'Gainage planche touches épaules' }, reps: '12/côté', restSeconds: 30, notes: 'Anti-rotation du tronc.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Squat gobelet lourd', limited: 'Squat gobelet haltère lourd', home: 'Squat gobelet Kettlebell' }, reps: '10', tempo: '3010', restSeconds: 90, notes: 'Posture verticale parfaite.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Développé couché haltères', limited: 'Développé couché haltères', home: 'Pompes classique tempo 3-1-1' }, reps: '10', tempo: '3010', restSeconds: 90, notes: 'Volume pectoral et triceps.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'D1', name: { full: 'Hip Thrust machine / barre', limited: 'Hip Thrust haltère', home: 'Hip Thrust unilatéral au sol' }, reps: '12', restSeconds: 45, notes: 'Superset D1 — Extension fessiers.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'D2', name: { full: 'Rowing unilatéral haltère', limited: 'Rowing unilatéral haltère', home: 'Rowing unilatéral KB' }, reps: '10/bras', restSeconds: 60, notes: 'Superset D2 — Grand dorsal unilatéral.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Complex Métabolique (Thrusters & Swings)', limited: 'Thrusters haltères', home: 'Complex Burpees & KB Swings' }, reps: '3 tours x 10 reps', restSeconds: 40, notes: 'Burn métabolique ultime.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Respiration guidée 4-7-8 & étirements', limited: 'Respiration guidée 4-7-8 & étirements', home: 'Respiration guidée 4-7-8 & étirements' }, reps: '3 min', restSeconds: 0, notes: 'Resynthèse du système nerveux.' }
     ],
-    [ // Cardio HIIT
-      { name: 'Burpees', reps: '30 s' },
-      { name: 'Mountain climbers', reps: '30 s' },
-      { name: 'Squats sautés', reps: '30 s' },
-      { name: 'Kettlebell swings', reps: 15 },
-      { name: 'Corde à sauter', reps: '60 s' },
-      { name: 'Gainage dynamique', reps: '30 s' },
-    ],
+    // Séance 5 : Cardio & Core Métabolique
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Jumping Jacks & Mobilité dynamique', limited: 'Jumping Jacks & Mobilité', home: 'Jumping Jacks & Mobilité' }, reps: '2 min', restSeconds: 30, notes: 'Activation cardiovasculaire.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Deadbug contrôlé', limited: 'Deadbug contrôlé', home: 'Deadbug contrôlé' }, reps: '10/côté', restSeconds: 30, notes: 'Activation du transverse.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Kettlebell Swings balistiques', limited: 'Swings avec haltère', home: 'Kettlebell Swings balistiques' }, reps: '15–20', tempo: 'Explosif', restSeconds: 75, notes: 'Extension dynamique de hanche.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Mountain Climbers dynamique', limited: 'Mountain Climbers dynamique', home: 'Mountain Climbers dynamique' }, reps: '45 s', restSeconds: 75, notes: 'Rythme élevé, dos droit.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'E1', name: { full: 'Gainage planche dynamique', limited: 'Gainage planche dynamique', home: 'Gainage planche dynamique' }, reps: '45 s', restSeconds: 30, notes: 'Superset E1 — Gainage frontal.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'E2', name: { full: 'Planche latérale', limited: 'Planche latérale', home: 'Planche latérale' }, reps: '30 s/côté', restSeconds: 60, notes: 'Superset E2 — Obliques.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Tabata Burpees (4 min)', limited: 'Tabata Burpees (4 min)', home: 'Tabata Burpees (4 min)' }, reps: '4 min', restSeconds: 40, notes: 'Intensité maximale.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Étirements chaîne antérieure & respiration', limited: 'Étirements & respiration', home: 'Étirements & respiration' }, reps: '3 min', restSeconds: 0, notes: 'Récupération intégrale.' }
+    ]
   ],
   gras: [
-    [ // Circuit training
-      { name: 'Squat gobelet', reps: 12, main: true },
-      { name: 'Pompes (genoux si besoin)', reps: '10–12' },
-      { name: 'Rowing haltères', reps: 12 },
-      { name: 'Fentes alternées', reps: '10/jambe' },
-      { name: 'Mountain climbers', reps: '30 s' },
-      { name: 'Planche', reps: '40 s' },
-    ],
-    [ // Cardio HIIT
-      { name: 'Burpees', reps: '30 s' },
-      { name: 'Squats sautés', reps: '30 s' },
-      { name: 'High knees', reps: '30 s' },
-      { name: 'Jumping jacks', reps: '45 s' },
-      { name: 'Corde à sauter', reps: '60 s' },
-      { name: 'Récupération marche rapide', reps: '60 s' },
-    ],
-    [ // Musculation métabolique
-      { name: 'Soulevé de terre roumain haltères', reps: 12, main: true },
-      { name: 'Développé militaire haltères', reps: 12, main: true },
-      { name: 'Goblet squat tempo lent', reps: 10 },
-      { name: 'Rowing unilatéral', reps: '12/bras' },
-      { name: 'Kettlebell swings', reps: 15 },
-      { name: 'Gainage latéral', reps: '30 s/côté' },
-    ],
-    [ // Cardio steady-state
-      { name: 'Marche inclinée ou vélo (zone 2)', reps: '20–30 min', main: true, notes: 'Tu dois pouvoir tenir une conversation. C\'est le but.' },
-      { name: 'Étirements hanches', reps: '2 min' },
-      { name: 'Étirements ischio-jambiers', reps: '2 min' },
-      { name: 'Respiration profonde', reps: '2 min' },
-    ],
-    [ // Full Body brûle-graisses
-      { name: 'Thrusters haltères', reps: 12, main: true },
-      { name: 'Fentes sautées', reps: '8/jambe' },
-      { name: 'Pompes', reps: '10–12' },
-      { name: 'Rowing haltères', reps: 12 },
-      { name: 'Burpees', reps: 10 },
-      { name: 'Planche', reps: '45 s' },
-    ],
+    // Duplicate structure adapted for fat loss focus
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Jumping Jacks & Mobilité hanches', limited: 'Jumping Jacks & Mobilité', home: 'Jumping Jacks & Mobilité' }, reps: '2 min', restSeconds: 30, notes: 'Mise en route cardiovasculaire.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Band pull-apart & Squats air', limited: 'Band pull-apart & Squats air', home: 'Squats air & Rotations' }, reps: '15', restSeconds: 30, notes: 'Activation articulaire.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Squat gobelet tempo rapide', limited: 'Squat gobelet haltère', home: 'Squat au poids du corps tempo soutenu' }, reps: '12–15', tempo: '2010', restSeconds: 60, notes: 'Maintien de la masse musculaire sous déficit.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Développé militaire haltères', limited: 'Développé militaire haltères', home: 'Pompes piquées / Pompes genoux' }, reps: '12–15', restSeconds: 60, notes: 'Poussée métabolique.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'F1', name: { full: 'Fentes alternées rapides', limited: 'Fentes alternées', home: 'Fentes sautées ou alternées' }, reps: '12/jambe', restSeconds: 30, notes: 'Superset F1 — Circuit cardio bas du corps.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'F2', name: { full: 'Rowing haltères buste penché', limited: 'Rowing haltères', home: 'Rowing inversé sous table' }, reps: '12', restSeconds: 45, notes: 'Superset F2 — Tirage haut volume.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Circuit Burpees & Mountain Climbers', limited: 'Circuit Burpees & Mountain Climbers', home: 'Burpees & Mountain Climbers' }, reps: '4 min (30s/15s)', restSeconds: 40, notes: 'Consommation d\'oxygène post-effort (EPOC).' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Respiration diaphragmatique', limited: 'Respiration diaphragmatique', home: 'Respiration diaphragmatique' }, reps: '3 min', restSeconds: 0, notes: 'Baisser le cortisol.' }
+    ]
   ],
   tone: [
-    [ // Fessiers & Abdos
-      { name: 'Hip thrust', reps: 12, main: true, notes: 'Pause 1 s en haut, serre les fessiers.' },
-      { name: 'Squat sumo haltère', reps: 12, main: true },
-      { name: 'Fentes bulgares', reps: '10/jambe' },
-      { name: 'Abduction hanches élastique', reps: 15 },
-      { name: 'Crunch bicyclette', reps: 20 },
-      { name: 'Planche', reps: '40 s' },
-    ],
-    [ // Haut du corps léger
-      { name: 'Développé haltères légers', reps: 12, main: true },
-      { name: 'Rowing élastique ou haltères', reps: 12 },
-      { name: 'Élévations latérales', reps: 15 },
-      { name: 'Pompes inclinées', reps: '8–10' },
-      { name: 'Curl biceps', reps: 12 },
-      { name: 'Extensions triceps', reps: 12 },
-    ],
-    [ // Circuit cardio
-      { name: 'Jumping jacks', reps: '45 s' },
-      { name: 'Squats au poids du corps', reps: 15 },
-      { name: 'Mountain climbers', reps: '30 s' },
-      { name: 'Fentes alternées', reps: '10/jambe' },
-      { name: 'High knees', reps: '30 s' },
-      { name: 'Gainage', reps: '30 s' },
-    ],
-    [ // Bas du corps
-      { name: 'Squat gobelet', reps: 12, main: true },
-      { name: 'Soulevé de terre roumain haltères', reps: 12, main: true },
-      { name: 'Leg curl ou pont fessier', reps: 12 },
-      { name: 'Fentes marchées', reps: '10/jambe' },
-      { name: 'Mollets debout', reps: 15 },
-      { name: 'Gainage', reps: '45 s' },
-    ],
-    [ // Pilates fonctionnel
-      { name: 'Dead bug', reps: '10/côté', main: true },
-      { name: 'Bird dog', reps: '10/côté' },
-      { name: 'Pont fessier tempo lent', reps: 12 },
-      { name: 'Planche latérale', reps: '30 s/côté' },
-      { name: 'Superman', reps: 12 },
-      { name: 'Étirements colonne', reps: '2 min' },
-    ],
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Mobilité hanches & activation fessiers', limited: 'Mobilité hanches & fessiers', home: 'Mobilité hanches & fessiers' }, reps: '2 min', restSeconds: 30, notes: 'Préparation du bassin.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Clamshell avec élastique', limited: 'Clamshell élastique', home: 'Clamshell poids du corps' }, reps: '15/côté', restSeconds: 30, notes: 'Activation moyen fessier.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Hip Thrust machine / barre', limited: 'Hip Thrust haltère', home: 'Hip Thrust unilatéral au sol' }, reps: '12', tempo: '2011', restSeconds: 75, notes: 'Pause 1s en haut, contraction fessiers.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Squat sumo haltère lourd', limited: 'Squat sumo haltère', home: 'Squat sumo Kettlebell / sac' }, reps: '12', tempo: '3010', restSeconds: 75, notes: 'Accent adductions et fessiers.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'G1', name: { full: 'Fentes bulgares', limited: 'Fentes bulgares avec chaise', home: 'Fentes bulgares au sol' }, reps: '10/jambe', restSeconds: 45, notes: 'Superset G1 — Galbe fessier.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'G2', name: { full: 'Abduction hanche élastique / poulie', limited: 'Abduction élastique', home: 'Abduction hanche allongée' }, reps: '15/côté', restSeconds: 60, notes: 'Superset G2 — Fessier latéral.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Frog Pumps Finisher', limited: 'Frog Pumps Finisher', home: 'Frog Pumps Finisher' }, reps: '50 reps', restSeconds: 40, notes: 'Brûlure fessière ciblée.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Étirements fessiers & relaxation', limited: 'Étirements fessiers', home: 'Étirements fessiers' }, reps: '3 min', restSeconds: 0, notes: 'Relâchement musculaire.' }
+    ]
   ],
   force: [
-    [ // Squat & Deadlift
-      { name: 'Squat barre', reps: 5, main: true, notes: 'Charge lourde, technique parfaite. Filme-toi si possible.' },
-      { name: 'Soulevé de terre', reps: 5, main: true },
-      { name: 'Fentes arrières barre', reps: 8 },
-      { name: 'Mollets debout', reps: 12 },
-      { name: 'Gainage lesté', reps: '30 s' },
-      { name: 'Suspension barre (grip)', reps: '30 s' },
-    ],
-    [ // Bench & Rows
-      { name: 'Développé couché barre', reps: 5, main: true },
-      { name: 'Rowing barre', reps: 6, main: true },
-      { name: 'Développé incliné haltères', reps: 8 },
-      { name: 'Tractions', reps: '6–8' },
-      { name: 'Face pull', reps: 15 },
-      { name: 'Curl marteau', reps: 10 },
-    ],
-    [ // Overhead & Core
-      { name: 'Développé militaire barre', reps: 5, main: true },
-      { name: 'Push press', reps: 6, main: true },
-      { name: 'Élévations latérales', reps: 12 },
-      { name: 'Gainage planche lestée', reps: '40 s' },
-      { name: 'Pallof press', reps: '10/côté' },
-      { name: 'Farmer walk lourd', reps: '30 m' },
-    ],
-    [ // Squat volume
-      { name: 'Squat barre (volume)', reps: 8, main: true, notes: '70–75 % de ta charge lourde du jour 1.' },
-      { name: 'Presse à cuisses', reps: 10 },
-      { name: 'Soulevé de terre roumain', reps: 8 },
-      { name: 'Fentes marchées', reps: '8/jambe' },
-      { name: 'Leg curl', reps: 12 },
-      { name: 'Mollets assis', reps: 15 },
-    ],
-    [ // Accessoires & mobilité
-      { name: 'Hip thrust', reps: 10, main: true },
-      { name: 'Tirage vertical', reps: 10 },
-      { name: 'Rowing unilatéral', reps: '10/bras' },
-      { name: 'Mobilité hanches 90/90', reps: '2 min' },
-      { name: 'Mobilité épaules bâton', reps: '2 min' },
-      { name: 'Étirements complets', reps: '5 min' },
-    ],
-  ],
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'World\'s Greatest Stretch', limited: 'World\'s Greatest Stretch', home: 'World\'s Greatest Stretch' }, reps: '2 min', restSeconds: 30, notes: 'Mobilité articulaire complète.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Gainage planche avec charge', limited: 'Gainage planche', home: 'Gainage planche' }, reps: '40 s', restSeconds: 30, notes: 'Verrouillage de la sangle abdominale.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Squat barre arrière', limited: 'Squat gobelet lourd', home: 'Pistol squat assisté / Squat lourd KB' }, reps: '5', tempo: '2010', restSeconds: 120, notes: 'Charge lourde. Technique irréprochable.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Soulevé de terre conventionnel', limited: 'Soulevé de terre haltères lourds', home: 'Kettlebell Swings lourds / SDT unilatéral' }, reps: '5', tempo: '1010', restSeconds: 120, notes: 'Tension maximale du système nerveux.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'H1', name: { full: 'Fentes arrières barre', limited: 'Fentes arrières haltères', home: 'Fentes arrières KB' }, reps: '8/jambe', restSeconds: 60, notes: 'Superset H1 — Accessoire de force unilatéral.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'H2', name: { full: 'Gainage Pallof Press', limited: 'Pallof Press avec élastique', home: 'Bird-Dog avec pause 3s' }, reps: '10/côté', restSeconds: 60, notes: 'Superset H2 — Stabilité anti-rotation.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Suspension barre lourde (Grip strength)', limited: 'Serrage serviette / Haltères hold', home: 'KB Hold unilatéral 45s' }, reps: '3 × 45 s', restSeconds: 40, notes: 'Renforcement du grip.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Décompression vertébrale & respiration', limited: 'Décompression vertébrale', home: 'Décompression vertébrale' }, reps: '3 min', restSeconds: 0, notes: 'Récupération du système nerveux central.' }
+    ]
+  ]
 };
 
-/* Substitutions maison (pas de matériel lourd) */
-const HOME_SUBS: Record<string, string> = {
-  'Squat barre': 'Squat au poids du corps (ou sac lesté)',
-  'Squat barre (volume)': 'Squat tempo lent 3-1-3',
-  'Développé couché haltères': 'Pompes',
-  'Développé couché barre': 'Pompes lestées (sac à dos)',
-  'Développé incliné haltères': 'Pompes déclinées pieds surélevés',
-  'Développé militaire haltères': 'Pompes piquées (pike push-up)',
-  'Développé militaire barre': 'Pompes piquées (pike push-up)',
-  'Développé haltères légers': 'Pompes inclinées mains surélevées',
-  'Push press': 'Pompes piquées explosives',
-  'Presse à cuisses': 'Squat bulgare (pied arrière sur chaise)',
-  'Tractions assistées': 'Rowing inversé sous une table',
-  'Tractions': 'Rowing inversé sous une table',
-  'Rowing barre': 'Rowing élastique ou bouteilles d\'eau',
-  'Rowing haltères': 'Rowing élastique',
-  'Rowing haltères buste penché': 'Rowing élastique buste penché',
-  'Tirage vertical poulie': 'Tractions élastique porte',
-  'Tirage vertical': 'Tractions élastique porte',
-  'Face pull': 'Élastique face pull',
-  'Leg curl': 'Leg curl au sol (serviette glissée)',
-  'Leg curl ou pont fessier': 'Pont fessier une jambe',
-  'Soulevé de terre': 'Soulevé de terre sac lesté',
-  'Soulevé de terre roumain': 'Soulevé de terre roumain une jambe',
-  'Soulevé de terre roumain haltères': 'Soulevé de terre roumain une jambe',
-  'Kettlebell swings': 'Swings avec bouteille/sac',
-  'Farmer walk': 'Marche sacs de courses lourds',
-  'Farmer walk lourd': 'Marche sacs de courses lourds',
-  'Hip thrust': 'Hip thrust au sol une jambe',
-  'Mollets assis': 'Mollets debout sur marche',
-  'Fentes arrières barre': 'Fentes arrières sautées',
-  'Gainage lesté': 'Gainage planche',
-  'Gainage planche lestée': 'Gainage planche',
-  'Thrusters haltères': 'Squat + pompe enchaînés',
-  'Suspension barre (grip)': 'Serrage serviette 30 s',
-  'Marche inclinée ou vélo (zone 2)': 'Marche rapide extérieure (zone 2)',
-  'Squat sumo haltère': 'Squat sumo poids du corps tempo lent',
-  'Squat gobelet': 'Squat gobelet (sac ou bouteille)',
-};
+/* ─── GÉNÉRATION DES SÉANCES NORMALE & HYBRIDE ENDURANCE ──────────────── */
 
-/* Substitutions équipement limité (haltères ok, pas de barre/machines) */
-const LIMITED_SUBS: Record<string, string> = {
-  'Squat barre': 'Squat gobelet haltère lourd',
-  'Squat barre (volume)': 'Squat gobelet tempo lent',
-  'Développé couché barre': 'Développé couché haltères',
-  'Développé militaire barre': 'Développé militaire haltères',
-  'Push press': 'Push press haltères',
-  'Rowing barre': 'Rowing haltères buste penché',
-  'Presse à cuisses': 'Squat bulgare haltères',
-  'Tirage vertical poulie': 'Tractions assistées élastique',
-  'Tirage vertical': 'Tractions assistées élastique',
-  'Leg curl': 'Leg curl au sol (serviette)',
-  'Soulevé de terre': 'Soulevé de terre haltères',
-  'Fentes arrières barre': 'Fentes arrières haltères',
-  'Mollets assis': 'Mollets debout haltères',
-  'Face pull': 'Élastique face pull',
-};
-
-function adaptExercise(name: string, access: UserProfile['gymAccess']): string {
-  if (access === 'home')    return HOME_SUBS[name]    ?? name;
-  if (access === 'limited') return LIMITED_SUBS[name] ?? name;
-  return name;
+function getEquipmentAccessKey(gymAccess: UserProfile['gymAccess'], equipment?: UserProfile['equipment']): GymAccess {
+  if (gymAccess === 'home' || equipment?.includes('poids-corps')) return 'home';
+  if (gymAccess === 'limited' || equipment?.includes('halteres')) return 'limited';
+  return 'full';
 }
 
-/* ─── Séances Hybrides Endurance (Course / Trail / Marathon) ─────────────── */
-function buildEnduranceSessions(p: UserProfile, cardioZones: { z2: string; z3: string; z4: string; z5: string }): WorkoutSession[] {
+function buildStructuredSessions(p: UserProfile): WorkoutSession[] {
   const trainingDays = getTrainingDays(p.frequency);
-  
-  // Répartition de la semaine d'entraînement endurance (modèle polarisé 80/20)
-  // 80% Zone 2 (endurance fondamentale) + 20% haute intensité (Z4/Z5)
-  type EnduranceSessionTemplate = {
-    title: string;
-    category: string;
-    type: 'running' | 'strength';
-    exercises: ExTemplate[];
-    cardioInstructions?: string;
-  };
+  const accessKey = getEquipmentAccessKey(p.gymAccess, p.equipment);
+  const exp = p.experience ?? 'intermédiaire';
 
-  const ENDURANCE_WEEK: EnduranceSessionTemplate[] = [
-    {
-      title: 'Sortie Longue — Zone 2 (Endurance Fondamentale)',
-      category: 'Cardio',
-      type: 'running',
-      exercises: [],
-      cardioInstructions: `Cible FC : ${cardioZones.z2}. Course à allure conversationnelle. Durée : 60 à 90 min. C'est la pierre angulaire du marathon — brûle les graisses, épargne le glycogène.`
-    },
-    {
-      title: 'Renforcement Musculaire — Prévention Blessures',
-      category: 'Force',
-      type: 'strength',
-      exercises: [
-        { name: 'Hip thrust unilatéral', reps: '10–12', main: true, notes: 'Renforcement fessiers — moteur principal de la foulée. Tempo : 2010.' },
-        { name: 'Mollets debout sur marche (excentrique lent)', reps: '15–20', main: true, notes: 'Protection tendon d\'Achille. Descente 4 s, montée 1 s.' },
-        { name: 'Gainage planche latérale', reps: '30s', notes: 'Stabilité du bassin en foulée. Tempo : tenir 30 s.' },
-        { name: 'Fentes arrières haltères', reps: '10–12', main: true, notes: 'Renforcement VMO et gainage dynamique. Tempo : 2010.' },
-        { name: 'Good morning haltères', reps: 12, notes: 'Chaîne postérieure des ischio-jambiers — prévention claquage. Tempo : 2010.' },
-        { name: 'Gainage planche bras tendus', reps: '30–60s', notes: 'Gainage profond : transverse et érecteurs. Respiration diaphragmatique.' },
-      ]
-    },
-    {
-      title: 'Fractionné VMA — Zone 5 (Vitesse Maximale Aérobie)',
-      category: 'Cardio',
-      type: 'running',
-      exercises: [],
-      cardioInstructions: `Cible FC : ${cardioZones.z5}. 8 × 400m à allure maximale / 90s de récupération marche. Améliore le VO2max — indispensable pour améliorer ta vitesse de croisière en compétition.`
-    },
-    {
-      title: 'Sortie Récupération Active — Zone 2 (Footing léger)',
-      category: 'Cardio',
-      type: 'running',
-      exercises: [],
-      cardioInstructions: `Cible FC : ${cardioZones.z2}. 30 à 45 min à allure très lente. Objectif : favoriser l\'élimination des métabolites post-fractionné et maintenir le volume sans fatigue.`
-    },
-    {
-      title: 'Tempo Run — Zone 4 (Seuil Lactate)',
-      category: 'Cardio',
-      type: 'running',
-      exercises: [],
-      cardioInstructions: `Cible FC : ${cardioZones.z4}. 20 à 30 min continus à allure seuil — légèrement inconfortable. Repousse le mur du lactate pour courir plus vite plus longtemps.`
-    },
-    {
-      title: 'Gainage & Mobilité — Récupération Active',
-      category: 'Renforcement',
-      type: 'strength',
-      exercises: [
-        { name: 'Étirements psoas-iliaque', reps: '60s chaque côté', notes: 'Indispensable pour les coureurs — prévient la tendinite du TFL.' },
-        { name: 'Rotations thoraciques', reps: '10 chaque côté', notes: 'Mobilité vertébrale pour une foulée détendue.' },
-        { name: 'Gainage abdo creux', reps: '3 × 30s', notes: 'Respiration diaphragmatique profonde à chaque répétition.' },
-        { name: 'Foam roller mollets & IT Band', reps: '2 min chaque zone', notes: 'Défibrillation myofasciale post-effort.' },
-      ]
-    }
-  ];
+  // Définir la volumétrie initiale basée sur l'expérience
+  const mainSets = exp === 'débutante' ? 3 : exp === 'avancée' ? 5 : 4;
+  const templates = GOAL_TEMPLATES_4PHASES[p.mainGoal] ?? GOAL_TEMPLATES_4PHASES['muscle'];
 
   return trainingDays.map((day, i) => {
-    const template = ENDURANCE_WEEK[i % ENDURANCE_WEEK.length];
+    const rawTemplates = templates[i % templates.length];
     
-    if (template.type === 'running') {
-      // Séance de course — 1 exercice représentant les instructions cardio
-      const exercises: Exercise[] = [{
-        id: `s${i}-cardio`,
-        name: template.title,
-        sets: 1,
-        reps: template.cardioInstructions || '',
-        done: false,
-        notes: `🏃 Zone cible : ${i % 3 === 0 ? cardioZones.z2 : i % 3 === 1 ? cardioZones.z5 : cardioZones.z4}`,
-      }];
+    // Calcul de la répartition des phases
+    let warmupCount = 0;
+    let compoundCount = 0;
+    let isolationCount = 0;
+    let finisherCount = 0;
+
+    const exercises: Exercise[] = rawTemplates.map((t, j) => {
+      if (t.phase === 1) warmupCount++;
+      if (t.phase === 2) compoundCount++;
+      if (t.phase === 3) isolationCount++;
+      if (t.phase === 4) finisherCount++;
+
+      const exerciseName = t.name[accessKey] || t.name.home;
+      const sets = t.phase === 1 ? 2 : t.phase === 2 ? mainSets : t.phase === 3 ? 3 : 2;
+      const pattern = getBiomechanicalPattern(exerciseName);
+
+      const tempo = t.tempo || '3-1-1-0';
+      const rpe = t.rpe || (t.phase === 2 ? 'RPE 8.5' : t.phase === 3 ? 'RPE 8' : 'RPE 7');
+      const restSec = t.restSeconds || (t.phase === 2 ? 90 : 60);
+      const restStr = t.rest || `${restSec}s`;
+      const muscles = t.muscles || pattern.primaryMuscles;
+      const biomechanicsTip = t.biomechanicsTip || t.notes || pattern.defaultNotes;
+
       return {
-        id: `session-${i}`,
-        title: template.title,
-        category: template.category,
-        duration: p.sessionDuration,
-        exerciseCount: 1,
-        completionPct: 0,
-        isToday: false,
-        day,
-        exercises,
-      };
-    } else {
-      // Séance de renforcement musculaire
-      const exercises: Exercise[] = template.exercises.map((t, j) => ({
         id: `s${i}-e${j}`,
-        name: adaptExercise(t.name, p.gymAccess),
-        sets: t.main ? 3 : 2,
+        name: exerciseName,
+        sets,
         reps: t.reps,
         done: false,
-        notes: t.notes || 'Tempo : 2010 (2s descente, 0s bas, 1s montée, 0s haut)',
-      }));
+        phase: t.phase,
+        phaseName: t.phaseName,
+        category: t.category,
+        tempo,
+        rpe,
+        rest: restStr,
+        restSeconds: restSec,
+        supersetGroup: t.supersetGroup,
+        muscles,
+        biomechanicsTip,
+        level: exp,
+        notes: t.notes || `💡 ${biomechanicsTip}`,
+      };
+    });
+
+    return {
+      id: `session-${i}`,
+      title: getSessionType(p.mainGoal, i, exp),
+      category: p.mainGoal === 'force' ? 'Force' : p.mainGoal === 'gras' ? 'Cardio' : 'Renforcement',
+      duration: p.sessionDuration,
+      exerciseCount: exercises.length,
+      completionPct: 0,
+      isToday: false,
+      day,
+      exercises,
+      phaseBreakdown: {
+        warmupCount,
+        compoundCount,
+        isolationCount,
+        finisherCount,
+      }
+    };
+  });
+}
+
+function buildEnduranceSessions(p: UserProfile, cardioZones: { z2: string; z3: string; z4: string; z5: string }): WorkoutSession[] {
+  const trainingDays = getTrainingDays(p.frequency);
+  const accessKey = getEquipmentAccessKey(p.gymAccess, p.equipment);
+
+  return trainingDays.map((day, i) => {
+    const isRunning = i % 2 === 0;
+
+    if (isRunning) {
+      const isZ2 = i % 4 === 0;
+      const targetZone = isZ2 ? cardioZones.z2 : cardioZones.z5;
+      const title = isZ2 ? 'Sortie Longue — Zone 2 (Endurance Fondamentale)' : 'Fractionné VMA — Zone 5 (Haute Intensité)';
+
+      const exercises: Exercise[] = [
+        {
+          id: `s${i}-e0`,
+          name: 'Mobilité & Activation Chevilles / Hanches',
+          sets: 2,
+          reps: '3 min',
+          done: false,
+          phase: 1,
+          phaseName: '1. Échauffement Dynamique & Activation',
+          category: 'warmup',
+          notes: 'Dévrouillage des mollets & tendons d\'Achille.',
+        },
+        {
+          id: `s${i}-e1`,
+          name: title,
+          sets: 1,
+          reps: isZ2 ? '60 à 90 min continuous' : '8 × 400m à VMA',
+          done: false,
+          phase: 2,
+          phaseName: '2. Mouvements Polyarticulaires Principaux',
+          category: 'cardio',
+          notes: `🏃 Cible FC : ${targetZone}. Maintain target heart rate continuously.`,
+        },
+        {
+          id: `s${i}-e2`,
+          name: 'Gainage dynamique du bassin',
+          sets: 3,
+          reps: '45 s',
+          done: false,
+          phase: 3,
+          phaseName: '3. Isolation & Supersets Métaboliques',
+          category: 'isolation',
+          notes: 'Stabilité du bassin en foulée.',
+        },
+        {
+          id: `s${i}-e3`,
+          name: 'Récupération active & Étirements mollets / TFL',
+          sets: 1,
+          reps: '5 min',
+          done: false,
+          phase: 4,
+          phaseName: '4. Finisher & Récupération P1-P4',
+          category: 'finisher',
+          notes: 'Prévention de la tendinite du TFL et relâchement des soléaires.',
+        }
+      ];
+
       return {
         id: `session-${i}`,
-        title: template.title,
-        category: template.category,
+        title,
+        category: 'Cardio',
         duration: p.sessionDuration,
         exerciseCount: exercises.length,
         completionPct: 0,
         isToday: false,
         day,
         exercises,
+        phaseBreakdown: { warmupCount: 1, compoundCount: 1, isolationCount: 1, finisherCount: 1 }
+      };
+    } else {
+      // Renforcement spécifique pour coureur/cycliste
+      const exercises: Exercise[] = [
+        {
+          id: `s${i}-e0`,
+          name: 'Mobilité 90/90 & Activation fessiers',
+          sets: 2,
+          reps: '2 min',
+          done: false,
+          phase: 1,
+          phaseName: '1. Échauffement Dynamique & Activation',
+          category: 'warmup',
+          notes: 'Activation articulaire des hanches.',
+        },
+        {
+          id: `s${i}-e1`,
+          name: accessKey === 'full' ? 'Squat barre arrière' : accessKey === 'limited' ? 'Squat gobelet haltère' : 'Squat Kettlebell / Poids du corps',
+          sets: 4,
+          reps: '8–10',
+          done: false,
+          phase: 2,
+          phaseName: '2. Mouvements Polyarticulaires Principaux',
+          category: 'compound',
+          notes: 'Moteur principal de la foulée.',
+        },
+        {
+          id: `s${i}-e2`,
+          name: 'Mollets debout (excentrique lent 4s)',
+          sets: 3,
+          reps: '15',
+          done: false,
+          phase: 3,
+          phaseName: '3. Isolation & Supersets Métaboliques',
+          category: 'isolation',
+          notes: 'Protection tendon d\'Achille.',
+        },
+        {
+          id: `s${i}-e3`,
+          name: 'Foam Roller & Étirements psoas',
+          sets: 1,
+          reps: '5 min',
+          done: false,
+          phase: 4,
+          phaseName: '4. Finisher & Récupération P1-P4',
+          category: 'finisher',
+          notes: 'Défibrillation myofasciale.',
+        }
+      ];
+
+      return {
+        id: `session-${i}`,
+        title: 'Renforcement Musculaire & Prévention Blessures',
+        category: 'Renforcement',
+        duration: p.sessionDuration,
+        exerciseCount: exercises.length,
+        completionPct: 0,
+        isToday: false,
+        day,
+        exercises,
+        phaseBreakdown: { warmupCount: 1, compoundCount: 1, isolationCount: 1, finisherCount: 1 }
       };
     }
   });
 }
 
-/* ─── Génération des séances standards ────────────────────────────────────── */
-function buildSessions(p: UserProfile): WorkoutSession[] {
-  const trainingDays = getTrainingDays(p.frequency);
-  // Volume selon durée de séance et expérience
-  const exCount   = p.sessionDuration === 30 ? 4 : p.sessionDuration === 45 ? 5 : 6;
-  const mainSets  = p.experience === 'débutante' ? 3 : p.experience === 'avancée' ? 5 : 4;
-  const accSets   = 3;
-
-  return trainingDays.map((day, i) => {
-    const templates = LIBRARY[p.mainGoal][i % LIBRARY[p.mainGoal].length].slice(0, exCount);
-    const exercises: Exercise[] = templates.map((t, j) => ({
-      id:    `s${i}-e${j}`,
-      name:  adaptExercise(t.name, p.gymAccess),
-      sets:  t.main ? mainSets : accSets,
-      reps:  t.reps,
-      done:  false,
-      notes: t.notes || 'Tempo : 2010 (2s descente, 0s bas, 1s montée, 0s haut)',
-    }));
-    return {
-      id:            `session-${i}`,
-      title:         getSessionType(p.mainGoal, i),
-      category:      p.mainGoal === 'force' ? 'Force' : p.mainGoal === 'gras' ? 'Cardio' : 'Renforcement',
-      duration:      p.sessionDuration,
-      exerciseCount: exercises.length,
-      completionPct: 0,
-      isToday:       false,
-      day,
-      exercises,
-    };
-  });
-}
-
-/* ─── Programme complet ──────────────────────────────────────────────────── */
+/* ─── GÉNÉRATION DU PROGRAMME COMPLET ────────────────────────────────────── */
 export function generateProgram(p: UserProfile): GeneratedProgram {
   const calories = getCalories(p);
   const age = p.age ?? 28;
-  
-  // Calcul de la FC Max (Spécificité Vélo : FC Max - 5 bpm)
+
   const isVelo = p.cardioSport === 'velo';
   const fcMax = isVelo ? (220 - age - 5) : (220 - age);
 
-  // Plages de zones de FC cibles
   const cardioZones = {
     z2: `${Math.round(fcMax * 0.6)} - ${Math.round(fcMax * 0.7)} bpm`,
     z3: `${Math.round(fcMax * 0.7)} - ${Math.round(fcMax * 0.8)} bpm`,
@@ -535,46 +777,37 @@ export function generateProgram(p: UserProfile): GeneratedProgram {
     z5: `${Math.round(fcMax * 0.9)} - ${fcMax} bpm`
   };
 
-  // Logique du protocole digestif holistique (V9)
-  const digestiveProtocol: { condition: string; recommendation: string }[] = [];
-  
-  // Toujours proposer le reset métabolique au départ
-  digestiveProtocol.push({
-    condition: 'Reset Métabolique (14 jours)',
-    recommendation: 'Élimination complète des allergènes alimentaires courants (produits laitiers, gluten, sucres raffinés, alcools) pour restaurer la sensibilité à l\'insuline et détoxifier le foie.'
-  });
+  const nutritionTips: { condition: string; recommendation: string }[] = [];
 
   const symptoms = p.digestiveSymptoms ?? [];
   if (symptoms.includes('ballonnements') || symptoms.includes('reflux')) {
-    digestiveProtocol.push({
-      condition: 'Hypochlorhydrie (Manque d\'acide gastrique)',
-      recommendation: 'Prendre 1 c. à table de vinaigre de cidre de pomme dilué dans un peu d\'eau tiède 10-15 minutes avant les repas principaux pour stimuler la sécrétion d\'acide gastrique et réduire les fermentations.'
+    nutritionTips.push({
+      condition: 'Confort digestif au quotidien',
+      recommendation: 'Mange plus lentement, mastique bien, et privilégie les repas moins gras/ultra-transformés. Bois surtout entre les repas. Si l\'inconfort persiste, consulte un professionnel de santé.',
     });
   }
   if (symptoms.includes('fatigue-post-prandiale') || symptoms.includes('transit-irregulier')) {
-    digestiveProtocol.push({
-      condition: 'Hyperperméabilité Intestinale (Leaky Gut)',
-      recommendation: 'Éviter les produits ultra-transformés et les sucres rapides. Privilégier la supplémentation en L-Glutamine au réveil, les bouillons d\'os et les apports naturels en collagène.'
+    nutritionTips.push({
+      condition: 'Énergie stable après les repas',
+      recommendation: 'Construis des assiettes avec protéines + fibres + glucides complexes. Limite les sucres rapides seuls. Garde un rythme de repas régulier autour de tes séances.',
     });
   }
 
-  // Protocoles spécifiques endurance marathon (course / trail)
   const isEnduranceSport = p.cardioSport === 'course' || p.cardioSport === 'trail';
   if (isEnduranceSport) {
-    digestiveProtocol.push({
-      condition: '🏃 Nutrition Intra-Effort (Endurance)',
-      recommendation: 'Viser 60 à 90g de glucides par heure de course au-delà de 75 min. Eau enrichie en électrolytes (sodium, magnésium) toutes les 20 min. Éviter les aliments riches en fibres et en graisses dans les 3 heures avant l\'effort pour prévenir l\'ischémie intestinale.'
-    });
-    digestiveProtocol.push({
-      condition: '🏃 Recharge Glycogénique Pré-Compétition',
-      recommendation: 'Les 3 jours avant la course : augmenter les glucides complexes (riz, patate douce, avoine) à 60-65% des apports caloriques totaux. Réduire les fibres pour vider le transit intestinal. Hydratation à 3 L+ par jour.'
+    nutritionTips.push({
+      condition: 'Nutrition autour de l\'effort (endurance)',
+      recommendation: 'Au-delà de 75 min : 60 à 90 g de glucides / heure + eau avec électrolytes régulièrement. Après l\'effort : protéines + glucides dans l\'heure qui suit.',
     });
   }
 
-  // Choisir le type de séances selon le sport cardio
-  const sessions = isEnduranceSport
+  const baseSessions = isEnduranceSport
     ? buildEnduranceSessions(p, cardioZones)
-    : buildSessions(p);
+    : buildStructuredSessions(p);
+
+  // Appliquer la périodisation de la semaine 1 par défaut
+  const periodizationConfig = getWeekPeriodizationConfig(1);
+  const periodizedSessions = baseSessions.map(s => getPeriodizedSession(s, 1, p.experience));
 
   return {
     id:              `prog-${Date.now()}`,
@@ -587,16 +820,18 @@ export function generateProgram(p: UserProfile): GeneratedProgram {
     calories,
     macros:          getMacros(calories, p.mainGoal, p.morphotype),
     trainingDays:    getTrainingDays(p.frequency),
-    sessions,
-    totalWeeks:      12, // 12 semaines pour un cycle de préparation marathon
+    sessions:        periodizedSessions,
+    totalWeeks:      12,
+    currentWeek:     1,
+    periodizationConfig,
     startDate:       new Date().toISOString(),
     cardioZones,
     cardioSport:     p.cardioSport ?? 'general',
-    digestiveProtocol,
+    digestiveProtocol: nutritionTips,
   };
 }
 
-/* ─── Persistance Firestore ──────────────────────────────────────────────── */
+/* ─── PERSISTANCE FIRESTORE ──────────────────────────────────────────────── */
 export async function saveProgram(uid: string, program: GeneratedProgram) {
   const cleanProg = cleanObject(program);
   await setDoc(doc(db, 'users', uid), {
@@ -605,14 +840,13 @@ export async function saveProgram(uid: string, program: GeneratedProgram) {
   }, { merge: true });
 }
 
-/* ─── Ajustement de programme (Phase 2 - Premium) ─────────────────────────── */
+/* ─── AJUSTEMENT DU PROGRAMME ────────────────────────────────────────────── */
 export async function adjustProgram(
   uid: string,
   currentProgram: GeneratedProgram,
   feedback: 'too-easy' | 'perfect' | 'too-hard',
   newFrequency?: number
 ) {
-  // Ajuster le volume d'entraînement (reps)
   const adjustedSessions = currentProgram.sessions.map(session => {
     const adjustedExercises = session.exercises.map(ex => {
       let reps = ex.reps;
@@ -641,12 +875,11 @@ export async function adjustProgram(
     sessions: adjustedSessions,
     frequency: (newFrequency as any) || currentProgram.frequency,
     name: currentProgram.name.replace(' (Ajusté)', '') + ' (Ajusté)',
-    startDate: new Date().toISOString(), // Redémarre le début du programme pour le suivi de progression
+    startDate: new Date().toISOString(),
   };
 
   await saveProgram(uid, adjustedProgram);
   
-  // Mettre à jour les métadonnées de l'ajustement dans le document de l'utilisateur
   await setDoc(doc(db, 'users', uid), {
     lastProgramAdjustmentDate: new Date().toISOString(),
     adjustmentCount: ((currentProgram as any).adjustmentCount ?? 0) + 1,
@@ -655,10 +888,9 @@ export async function adjustProgram(
   return adjustedProgram;
 }
 
-/* ─── Helpers d'affichage ────────────────────────────────────────────────── */
+/* ─── HELPERS D'AFFICHAGE ET PROGRESSION ─────────────────────────────────── */
 const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
-/** Jour / semaine courants depuis la date de début */
 export function getProgramProgress(program: GeneratedProgram) {
   const start = new Date(program.startDate).getTime();
   const totalDays = program.totalWeeks * 7;
@@ -671,13 +903,11 @@ export function getProgramProgress(program: GeneratedProgram) {
   };
 }
 
-/** Séance du jour, sinon la prochaine dans la semaine */
 export function getTodaySession(program: GeneratedProgram): { session: WorkoutSession; isToday: boolean } | null {
-  if (!program.sessions.length) return null;
+  if (!program.sessions?.length) return null;
   const todayName = DAY_NAMES[new Date().getDay()];
   const todaySession = program.sessions.find(s => s.day === todayName);
   if (todaySession) return { session: todaySession, isToday: true };
-  // Prochaine séance après aujourd'hui (ordre semaine), sinon première de la semaine suivante
   const todayIdx = new Date().getDay() === 0 ? 7 : new Date().getDay();
   const upcoming = program.sessions.find(s => DAY_NAMES.indexOf(s.day ?? '') > todayIdx);
   return { session: upcoming ?? program.sessions[0], isToday: false };

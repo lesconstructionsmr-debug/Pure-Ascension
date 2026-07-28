@@ -24,6 +24,7 @@ import type {
 interface Props {
   onBack:     () => void;
   onComplete: (profile: UserProfile) => void;
+  initialName?: string;
 }
 
 const TOTAL_STEPS = 7;
@@ -119,15 +120,15 @@ function UnitInput({ value, onChange, unit, placeholder, flex }: {
 }
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
-export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete }) => {
-  const [step, setStep] = useState(1);
+export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete, initialName }) => {
+  const [step, setStep] = useState(initialName ? 2 : 1);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   // ── Réponses ──
-  const [firstName, setFirstName]       = useState('');
+  const [firstName, setFirstName]       = useState(initialName || '');
   const [goal, setGoal]                 = useState<{ main: MainGoal; label: string } | null>(null);
   const [sex, setSex]                   = useState<Sex | null>(null);
-  const [age, setAge]                   = useState(30);
+  const [ageStr, setAgeStr]             = useState('30');
   const [heightFt, setHeightFt]         = useState('');
   const [heightIn, setHeightIn]         = useState('');
   const [weightLb, setWeightLb]         = useState('');
@@ -186,7 +187,7 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
   const canContinue = (): boolean => {
     switch (step) {
       case 1:  return name.length >= 2;
-      case 2:  return goal !== null && sex !== null && age >= 14;
+      case 2:  return goal !== null && sex !== null && Number(ageStr) >= 14 && Number(ageStr) <= 100;
       case 3:  return Number(heightFt) >= 4 && Number(heightFt) <= 7 && Number(weightLb) >= 70 && Number(weightLb) <= 500 && experience !== null;
       case 4:  return equipment.length > 0 && frequency >= 2;
       case 5:  return activity !== null;
@@ -215,7 +216,7 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
       onComplete({
         firstName: name || 'Ami',
         sex: sex ?? 'nsp',
-        age: age || 30,
+        age: Number(ageStr) || 30,
         heightCm,
         currentWeightKg: weightKg,
         targetWeightKg: targetKg,
@@ -264,7 +265,7 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
           <ChevronLeft size={22} color={colors.ink[700]} strokeWidth={2} />
         </Pressable>
         <View style={st.headerCenter}>
-          <Text style={st.headerTitle}>Ton diagnostic</Text>
+          <Text style={st.headerTitle}>Ton profil fitness</Text>
           <Text style={st.headerSub}>Question {step} sur {TOTAL_STEPS}</Text>
         </View>
         <View style={{ width: 40 }} />
@@ -362,7 +363,7 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
 
                 <View style={{ gap: spacing[2] }}>
                   <Text style={st.fieldLabel}>Quel est ton âge ?</Text>
-                  <Stepper value={age} onChange={setAge} min={14} max={90} unit="ans" />
+                  <UnitInput value={ageStr} onChange={setAgeStr} unit="ans" placeholder="30" />
                 </View>
               </View>
             )}
@@ -502,7 +503,7 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
                   { id: 'course',  label: '🏃 Course à pied', sub: 'Optimiser mes temps de course, endurance et VO2 max' },
                   { id: 'velo',    label: '🚴 Vélo de route / Cyclisme', sub: 'Puissance sur le vélo, endurance et cardio ciblé (FC -5 bpm)' },
                   { id: 'trail',   label: '🏔️ Trail / Course en nature', sub: 'Résistance musculaire en montée et endurance extrême' },
-                  { id: 'general', label: '💪 Général / Musculation', sub: 'Cardio général et entretien métabolique standard' },
+                  { id: 'general', label: '💪 Général / Musculation', sub: 'Cardio général et entretien physique standard' },
                 ] as { id: 'course' | 'velo' | 'trail' | 'general'; label: string; sub: string }[]).map(opt => (
                   <Pressable
                     key={opt.id}
@@ -586,6 +587,9 @@ export const OnboardingDiagnosticScreen: React.FC<Props> = ({ onBack, onComplete
               onPress={goNext}
               iconRight={<ChevronRight size={18} color="#fff" strokeWidth={2} />}
             />
+            <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: 11, color: colors.ink[500], textAlign: 'center', marginTop: 12, lineHeight: 15 }}>
+              Pure Ascension est un outil de coaching fitness et nutrition. Il ne remplace pas un avis médical professionnel.
+            </Text>
           </View>
 
           <View style={{ height: 40 }} />

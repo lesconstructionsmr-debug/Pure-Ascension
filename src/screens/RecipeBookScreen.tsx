@@ -27,7 +27,7 @@ export interface Recipe {
 export const RECIPES: Recipe[] = [
   {
     id: 'rec-1',
-    name: 'Bouillon d\'Os Détox & Collagène',
+    name: 'Bouillon d\'Os & Collagène',
     category: 'petit-dej',
     categoryLabel: 'Petit-déjeuner',
     kcal: 75,
@@ -35,21 +35,21 @@ export const RECIPES: Recipe[] = [
     carbs: 1,
     fats: 2,
     prepTime: '15 min (hors cuisson)',
-    description: 'Une boisson hautement cicatrisante pour la barrière intestinale (Leaky Gut) et de soutien de la détox hépatique.',
+    description: 'Boisson chaude protéinée, simple à préparer, idéale le matin ou entre deux repas.',
     ingredients: [
       { name: 'Bouillon d\'os biologique', qty: '250 ml' },
       { name: 'Collagène hydrolysé', qty: '10g' },
       { name: 'Gingembre frais râpé', qty: '5g' },
       { name: 'Curcuma moulu', qty: '1/2 c. à thé' },
-      { name: 'Sel de mer non raffiné', qty: '1 pincée' }
+      { name: 'Sel de mer', qty: '1 pincée' }
     ],
     steps: [
       'Faire chauffer doucement le bouillon d\'os dans une casserole.',
-      'Hors du feu, ajouter la poudre de collagène et fouetter énergiquement pour l\'intégrer sans grumeaux.',
-      'Ajouter le gingembre frais et le curcuma anti-inflammatoire.',
-      'Déguster à jeun au lever ou entre les repas principaux pour apaiser l\'intestin.'
+      'Hors du feu, ajouter la poudre de collagène et fouetter pour l\'intégrer sans grumeaux.',
+      'Ajouter le gingembre frais et le curcuma.',
+      'Déguster au lever ou entre les repas principaux.'
     ],
-    notes: 'Totalement sans allergène courant. Parfait pour le matin de votre phase de reset.'
+    notes: 'Option légère et riche en protéines pour démarrer la journée.'
   },
   {
     id: 'rec-2',
@@ -61,7 +61,7 @@ export const RECIPES: Recipe[] = [
     carbs: 8,
     fats: 16,
     prepTime: '20 min',
-    description: 'Riche en oméga-3 et composés souffrés (brocoli) pour stimuler les phases 1 et 2 de la détoxication du foie.',
+    description: 'Riche en oméga-3 et composés précieux (brocoli) pour stimuler la vitalité et l\'énergie.',
     ingredients: [
       { name: 'Filet de saumon sauvage', qty: '120g' },
       { name: 'Brocoli coupé en florets', qty: '150g' },
@@ -79,7 +79,7 @@ export const RECIPES: Recipe[] = [
   },
   {
     id: 'rec-3',
-    name: 'Assiette Signature Estrogène-Balance',
+    name: 'Assiette Signature Équilibre',
     category: 'souper',
     categoryLabel: 'Souper',
     kcal: 440,
@@ -87,7 +87,7 @@ export const RECIPES: Recipe[] = [
     carbs: 35,
     fats: 14,
     prepTime: '25 min',
-    description: 'Respecte le ratio d\'architecture hormonale : 50% de légumes colorés, 25% protéines, 25% glucides complexes.',
+    description: 'Respecte le ratio d\'architecture nutritionnelle : 50% de légumes colorés, 25% protéines, 25% glucides complexes.',
     ingredients: [
       { name: 'Poitrine de dinde émincée', qty: '130g' },
       { name: 'Patate douce coupée en dés', qty: '120g' },
@@ -100,9 +100,9 @@ export const RECIPES: Recipe[] = [
       'Poêler les lanières de dinde dans une poêle antiadhésive avec les asperges coupées.',
       'Ajouter les pousses d\'épinards en fin de cuisson pour les faire tomber doucement.',
       'Dresser l\'assiette en divisant visuellement : la moitié de légumes verts, un quart de dinde et un quart de patate douce.',
-      'Arroser d\'un trait d\'aminos de coco pour le goût salé anti-inflammatoire.'
+      'Arroser d\'un trait d\'aminos de coco pour un assaisonnement sain et savoureux.'
     ],
-    notes: 'Optimise l\'équilibre hormonal du dîner et régule l\'insuline grâce à la patate douce à index glycémique modéré.'
+    notes: 'Optimise l\'équilibre du dîner et régule l\'énergie grâce à la patate douce à index glycémique modéré.'
   },
   {
     id: 'rec-4',
@@ -114,7 +114,7 @@ export const RECIPES: Recipe[] = [
     carbs: 32,
     fats: 18,
     prepTime: '15 min',
-    description: 'Richesse en antioxydants colorés pour neutraliser le stress oxydatif et réguler la progestérone.',
+    description: 'Richesse en antioxydants colorés pour soutenir la forme physique et l\'énergie.',
     ingredients: [
       { name: 'Pavé de thon rouge ou blanc', qty: '120g' },
       { name: 'Chou rouge et carotte râpée', qty: '120g' },
@@ -129,7 +129,7 @@ export const RECIPES: Recipe[] = [
       'Ajouter le thon coupé en tranches, le demi-avocat et saupoudrer de graines de chia.',
       'Assaisonner avec du vinaigre de cidre de pomme et un trait d\'huile de lin.'
     ],
-    notes: 'Le chou rouge contient des indoles-3-carbinols qui aident à la détoxification saine des estrogènes.'
+    notes: 'Le chou rouge apporte des micronutriments précieux pour l\'équilibre nutritionnel quotidien.'
   },
   {
     id: 'rec-5',
@@ -141,7 +141,7 @@ export const RECIPES: Recipe[] = [
     carbs: 18,
     fats: 9,
     prepTime: '5 min (hors repos)',
-    description: 'Collation riche en fibres solubles (chia) pour réguler le microbiote et le transit intestinal.',
+    description: 'Collation riche en fibres solubles (chia) pour réguler le confort et le transit intestinal.',
     ingredients: [
       { name: 'Graines de chia', qty: '2 c. à table' },
       { name: 'Lait d\'amande non sucré', qty: '150 ml' },
@@ -155,7 +155,7 @@ export const RECIPES: Recipe[] = [
       'Laisser reposer au réfrigérateur pendant au moins 4 heures (idéalement toute la nuit).',
       'Ajouter les bleuets frais sur le dessus juste avant de consommer.'
     ],
-    notes: 'La cannelle aide à stabiliser la glycémie en imitant l\'action de l\'insuline, parfait contre les rages de sucre.'
+    notes: 'La cannelle aide à favoriser une énergie constante, parfait contre les fringales.'
   },
   {
     id: 'rec-6',
@@ -192,7 +192,7 @@ export const RECIPES: Recipe[] = [
     carbs: 22,
     fats: 10,
     prepTime: '25 min',
-    description: 'Un velouté réconfortant, riche en antioxydants et graisses saines pour soutenir la barrière digestive.',
+    description: 'Un velouté réconfortant, riche en antioxydants et graisses saines pour soutenir le confort digestif.',
     ingredients: [
       { name: 'Courge butternut cuite', qty: '200g' },
       { name: 'Crème de coco biologique', qty: '50ml' },
@@ -206,7 +206,7 @@ export const RECIPES: Recipe[] = [
       'Réchauffer à feu doux pendant 5 minutes sans faire bouillir.',
       'Servir chaud avec un filet d\'huile de coco.'
     ],
-    notes: 'Excellente recette anti-inflammatoire et douce pour l\'intestin irrité.'
+    notes: 'Excellente recette réconfortante et douce pour le confort digestif.'
   },
   {
     id: 'rec-8',
@@ -218,7 +218,7 @@ export const RECIPES: Recipe[] = [
     carbs: 4,
     fats: 18,
     prepTime: '15 min',
-    description: 'Richesse en oméga-3 biodisponibles et très faible charge glycémique pour la phase de reset.',
+    description: 'Repas riche en protéines et oméga-3, rapide à préparer, idéal après l\'entraînement.',
     ingredients: [
       { name: 'Sardines fraîches vidées', qty: '120g' },
       { name: 'Concombre en tranches', qty: '150g' },
@@ -243,7 +243,7 @@ export const RECIPES: Recipe[] = [
     carbs: 36,
     fats: 12,
     prepTime: '25 min',
-    description: 'Une assiette équilibrée favorisant la synthèse protéique et le maintien de la masse musculaire.',
+    description: 'Une assiette équilibrée favorisant le développement musculaire et le maintien de la masse musculaire.',
     ingredients: [
       { name: 'Poitrine de poulet fermier', qty: '120g' },
       { name: 'Quinoa cuit', qty: '120g' },
@@ -344,7 +344,7 @@ const FlexibilityGuide: React.FC = () => {
         <View style={{ flex: 1 }}>
           <Text style={st.flexIntroTitle}>La Méthode Flexible Pure Ascension</Text>
           <Text style={st.flexIntroSub}>
-            Tu n'as pas le temps de cuisiner nos recettes holistiques ? Pas de problème. 
+            Tu n'as pas le temps de cuisiner nos recettes sur-mesure ? Pas de problème. 
             Tant que tu respectes tes macros, tu peux composer tes repas en piochant dans ces équivalences.
           </Text>
         </View>
@@ -432,6 +432,7 @@ interface Props {
 
 export const RecipeBookScreen: React.FC<Props> = ({ navigation }) => {
   const isPremium = useProgramStore(s => s.isPremium);
+
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'petit-dej' | 'diner' | 'collation' | 'souper'>('petit-dej');
   const { addEntry } = useCalorie();
@@ -731,7 +732,7 @@ const st = StyleSheet.create({
     backgroundColor: colors.sage[50], borderRadius: radius.lg, padding: spacing[3],
     marginTop: spacing[2]
   },
-  flexAdviceText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.sage[800], flex: 1, lineHeight: 16 }
+  flexAdviceText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.sage[800], flex: 1, lineHeight: 16 },
 });
 
 export default RecipeBookScreen;

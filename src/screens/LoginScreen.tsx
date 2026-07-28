@@ -7,19 +7,22 @@ import { Mail, Lock, ChevronLeft, Sparkles } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius } from '../theme/theme';
 import { Button }  from '../components/Button';
 import { Input }   from '../components/Input';
-import { signIn, signUp, signInWithGoogle } from '../services/authService';
+import { signIn, signUp, signInWithGoogle, resetPassword } from '../services/authService';
 import { setupDemoUser } from '../services/demoService';
 
-interface Props { onBack: () => void; onSuccess: () => void; onForgot: () => void; }
+interface Props { onBack: () => void; onSuccess: () => void; onForgot?: () => void; }
 
-export const LoginScreen: React.FC<Props> = ({ onBack, onSuccess, onForgot }) => {
+export const LoginScreen: React.FC<Props> = ({ onBack, onSuccess }) => {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [error, setError]       = useState('');
+  const [info, setInfo]         = useState('');
 
   const handleLogin = async () => {
     setError('');
+    setInfo('');
     if (!email || !password) { setError('Merci de remplir tous les champs.'); return; }
     setLoading(true);
     try {
@@ -28,14 +31,48 @@ export const LoginScreen: React.FC<Props> = ({ onBack, onSuccess, onForgot }) =>
     } catch (err: any) {
       const code = err?.code ?? '';
       if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        setError('E-mail ou mot de passe incorrect.');
+        setError('E-mail ou mot de passe incorrect. Utilise « Mot de passe oublié » pour le réinitialiser.');
+      } else if (code === 'auth/invalid-email') {
+        setError('Adresse e-mail invalide.');
       } else if (code === 'auth/too-many-requests') {
         setError('Trop de tentatives. Réessaie dans quelques minutes.');
+      } else if (code === 'auth/network-request-failed') {
+        setError('Problème réseau. Vérifie ta connexion.');
       } else {
         setError('Une erreur est survenue. Réessaie.');
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setError('');
+    setInfo('');
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError('Entre ton adresse e-mail ci-dessus, puis clique sur « Mot de passe oublié ».');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await resetPassword(trimmed);
+      setInfo(`E-mail de réinitialisation envoyé à ${trimmed}. Vérifie ta boîte de réception (et les spams).`);
+    } catch (err: any) {
+      const code = err?.code ?? '';
+      if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+        // Ne pas révéler si le compte existe — message neutre + utile
+        setInfo(`Si un compte existe pour ${trimmed}, un e-mail de réinitialisation vient d'être envoyé.`);
+      } else if (code === 'auth/invalid-email') {
+        setError('Adresse e-mail invalide.');
+      } else if (code === 'auth/too-many-requests') {
+        setError('Trop de demandes. Réessaie dans quelques minutes.');
+      } else {
+        setError('Impossible d\'envoyer l\'e-mail. Réessaie ou contacte le support.');
+        console.error('resetPassword:', err);
+      }
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -81,7 +118,7 @@ export const LoginScreen: React.FC<Props> = ({ onBack, onSuccess, onForgot }) =>
 
           {/* Header */}
           <View style={s.header}>
-            <Text style={s.title}>Bienvenue{'\n'}de <Text style={s.titleItalic}>retour.</Text></Text>
+            <Text style={s.title}>Heureux de te{'\n'}<Text style={s.titleItalic}>revoir.</Text></Text>
             <Text style={s.sub}>Connecte-toi pour retrouver ton programme.</Text>
           </View>
 
@@ -101,14 +138,24 @@ export const LoginScreen: React.FC<Props> = ({ onBack, onSuccess, onForgot }) =>
               placeholder="••••••••"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={true}
+              textContentType="password"
               iconLeft={<Lock size={18} color={colors.ink[400]} strokeWidth={1.5} />}
             />
 
             {error ? <Text style={s.errorMsg}>{error}</Text> : null}
+            {info ? <Text style={s.infoMsg}>{info}</Text> : null}
 
-            <Pressable onPress={onForgot} style={s.forgotWrap}>
-              <Text style={s.forgot}>Mot de passe oublié ?</Text>
+            <Pressable
+              onPress={handleForgotPassword}
+              style={s.forgotWrap}
+              disabled={resetLoading}
+              accessibilityRole="button"
+              accessibilityLabel="Réinitialiser le mot de passe"
+            >
+              <Text style={s.forgot}>
+                {resetLoading ? 'Envoi en cours…' : 'Mot de passe oublié ?'}
+              </Text>
             </Pressable>
           </View>
 
@@ -151,17 +198,25 @@ export const LoginScreen: React.FC<Props> = ({ onBack, onSuccess, onForgot }) =>
             }}
           />
 
-          <View style={{ height: spacing[3] }} />
+          {/* Mode Démo — uniquement en développement */}
+          {__DEV__ && (
+            <Button
+              variant="secondary"
+              size="lg"
+              label="⚡ Accès Immédiat (Mode Démo)"
+              fullWidth
+              loading={loading}
+              onPress={handleDemoLogin}
+            />
+          )}
 
-          {/* Demo Mode Sign-In */}
-          <Button
-            variant="secondary"
-            size="lg"
-            label="⚡ Lancer le Mode Démo"
-            fullWidth
-            loading={loading}
-            onPress={handleDemoLogin}
-          />
+          <View style={{ marginTop: spacing[6], alignItems: 'center' }}>
+            <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button">
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600] }}>
+                Pas encore de compte ? <Text style={{ fontFamily: fontFamily.hanken.bold, color: colors.sage[600] }}>Commencer le diagnostic</Text>
+              </Text>
+            </Pressable>
+          </View>
 
         </ScrollView>
       </KeyboardAvoidingView>
@@ -182,6 +237,7 @@ const s = StyleSheet.create({
 
   form:    { gap:spacing[4], marginBottom:spacing[6] },
   errorMsg:{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.status.danger },
+  infoMsg: { fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.sage[700], lineHeight:20 },
   forgotWrap: { alignSelf:'flex-end' },
   forgot:  { fontFamily:fontFamily.hanken.medium, fontSize:fontSize.sm, color:colors.sage[600] },
 

@@ -6,10 +6,11 @@ import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Platform, Text }   from 'react-native';
+import { Platform, Text, Linking }   from 'react-native';
 import { BlurView }         from 'expo-blur';
-import { Home, UtensilsCrossed, Dumbbell, User, Leaf } from 'lucide-react-native';
+import { Home, UtensilsCrossed, Dumbbell, User } from 'lucide-react-native';
 import { colors, fontFamily }    from '../theme/theme';
+import { BottomNav }             from '../components/BottomNav';
 
 // Screens
 import { SplashScreen }           from '../screens/SplashScreen';
@@ -30,7 +31,6 @@ import { OnboardingSlidesScreen }        from '../screens/OnboardingSlidesScreen
 import { ProgramGenerationScreen }       from '../screens/ProgramGenerationScreen';
 import { ProgramReadyScreen }            from '../screens/ProgramReadyScreen';
 import { ProgramTeaserScreen }           from '../screens/ProgramTeaserScreen';
-import { EquilibreScreen }              from '../screens/EquilibreScreen';
 import { RecipeBookScreen }             from '../screens/RecipeBookScreen';
 import { RecipeDetailScreen }           from '../screens/RecipeDetailScreen';
 import { ProgramAdjustmentScreen }       from '../screens/ProgramAdjustmentScreen';
@@ -38,10 +38,14 @@ import { AICoachScreen }                  from '../screens/AICoachScreen';
 
 import { UserProfile } from '../data';
 import { DailyProgressProvider } from '../context/DailyProgressContext';
+import { signIn, signUp } from '../services/authService';
+import { setupDemoUser } from '../services/demoService';
 import { CalorieProvider }      from '../context/CalorieContext';
 import { onAuthChange } from '../services/authService';
+import { auth } from '../services/firebase';
 import { saveUserProfile, getUserData, listenToUserData, setUserPlan, saveUserProfileAndProgram } from '../services/dbService';
 import { generateProgram, saveProgram, GeneratedProgram } from '../services/programService';
+import { generateFromProfile, saveMealPlan } from '../services/mealPlanService';
 import { useProgramStore } from '../store/useProgramStore';
 import { SubscriptionScreen } from '../screens/SubscriptionScreen';
 
@@ -51,7 +55,7 @@ type HomeStack   = { HomeMain:undefined; AICoach:undefined };
 type MealsStack  = { MealsMain:undefined; RecipeBook:undefined; RecipeDetail:{ recipeId:string } };
 type WorkoutsStack = { WorkoutsMain:undefined; ActiveWorkout:undefined; ProgramAdjustment:undefined };
 type ProfileStack  = { ProfileMain:undefined; Goals:{ isNewUser?: boolean }; History:{ isNewUser?: boolean }; Notifications:undefined; Rituals:undefined; EditProfile:undefined };
-type TabList     = { Accueil:undefined; Repas:undefined; Séances:undefined; Équilibre:undefined; Profil:undefined };
+type TabList     = { Accueil:undefined; Repas:undefined; Séances:undefined; Profil:undefined };
 
 const Auth        = createNativeStackNavigator<AuthStack>();
 const HomeSt      = createNativeStackNavigator<HomeStack>();
@@ -123,56 +127,18 @@ function ProfileStackScreen() {
   );
 }
 
-/* ─── Tab icon ────────────────────────────────────────────────────────────── */
-function TabIcon({ name, focused }: { name: keyof TabList; focused: boolean }) {
-  const color = focused ? colors.sage[600] : colors.ink[500];
-  const sw    = focused ? 2.4 : 1.8;
-  const sz    = 24;
-  const icons: Record<keyof TabList, React.ReactNode> = {
-    Accueil:   <Home            size={sz} color={color} strokeWidth={sw}/>,
-    Repas:     <UtensilsCrossed size={sz} color={color} strokeWidth={sw}/>,
-    Séances:   <Dumbbell        size={sz} color={color} strokeWidth={sw}/>,
-    Équilibre: <Leaf            size={sz} color={color} strokeWidth={sw}/>,
-    Profil:    <User            size={sz} color={color} strokeWidth={sw}/>,
-  };
-  return (
-    <View style={{ alignItems:'center', justifyContent:'center', gap:3 }}>
-      {icons[name]}
-      {focused && <View style={{ width:4, height:4, borderRadius:2, backgroundColor:colors.sage[600] }} />}
-    </View>
-  );
-}
-
 /* ─── Main tab navigator ─────────────────────────────────────────────────── */
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      tabBar={(props) => <BottomNav {...props} />}
+      screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          position:'absolute', borderTopWidth:0.5, borderTopColor:colors.ink[200],
-          height:Platform.OS==='ios'?82:64, paddingBottom:Platform.OS==='ios'?24:8,
-          paddingTop:8, backgroundColor:'transparent', elevation:0,
-        },
-        tabBarBackground: () =>
-          Platform.OS === 'ios'
-            ? <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill}/>
-            : <View style={[StyleSheet.absoluteFill, { backgroundColor:'rgba(251,248,243,0.96)' }]}/>,
-        tabBarIcon: ({ focused }) => <TabIcon name={route.name as keyof TabList} focused={focused}/>,
-        tabBarLabel: ({ focused, children }) => (
-          <Text style={{
-            fontFamily: focused ? fontFamily.hanken.semiBold : fontFamily.hanken.regular,
-            fontSize:10, color: focused ? colors.sage[600] : colors.ink[500], letterSpacing:0.3,
-          }}>
-            {children}
-          </Text>
-        ),
-      })}
+      }}
     >
       <Tab.Screen name="Accueil"   component={HomeStackScreen}    />
       <Tab.Screen name="Repas"     component={MealsStackScreen}   />
       <Tab.Screen name="Séances"   component={WorkoutsStackScreen}/>
-      <Tab.Screen name="Équilibre" component={EquilibreScreen}    />
       <Tab.Screen name="Profil"    component={ProfileStackScreen} />
     </Tab.Navigator>
   );
@@ -209,6 +175,50 @@ export const RootNavigator: React.FC = () => {
   const storeProgram = useProgramStore(s => s.program);
   const showPaywall = useProgramStore(s => s.showPaywall);
 
+  // Écoute les redirections Deep Links de paiement (ex: pureascension://?payment=success)
+  React.useEffect(() => {
+    const handleDeepLink = async (event: { url: string }) => {
+      if (!event.url) return;
+      console.log('Deep link reçu dans RootNavigator:', event.url);
+      if (event.url.includes('payment=success')) {
+        const uid = firebaseUid || auth.currentUser?.uid;
+        if (uid) {
+          try {
+            await setUserPlan(uid, 'premium');
+            setPlanLevel('premium');
+            setStripeStatus('active');
+            useProgramStore.getState().setPremium(true);
+            useProgramStore.getState().setShowPaywall(false);
+          } catch (err) {
+            console.error('Erreur mise à jour plan après paiement:', err);
+          }
+        }
+      }
+    };
+
+    Linking.getInitialURL().then(url => {
+      if (url) handleDeepLink({ url });
+    });
+
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    return () => subscription.remove();
+  }, [firebaseUid]);
+
+  // Écoute la redirection Web (?payment=success)
+  React.useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.search.includes('payment=success')) {
+      const uid = firebaseUid || auth.currentUser?.uid;
+      if (uid) {
+        setUserPlan(uid, 'premium').then(() => {
+          setPlanLevel('premium');
+          setStripeStatus('active');
+          useProgramStore.getState().setPremium(true);
+          useProgramStore.getState().setShowPaywall(false);
+        }).catch(console.error);
+      }
+    }
+  }, [firebaseUid]);
+
   // Écoute Firebase Auth — restaure la session au reload
   // et écoute en temps réel les changements du profil utilisateur sur Firestore
   React.useEffect(() => {
@@ -220,7 +230,17 @@ export const RootNavigator: React.FC = () => {
         setUserEmail(user.email ?? '');
         useProgramStore.getState().setUserData(userName || user.displayName || '', user.email ?? '');
 
-        unsubDb = listenToUserData(user.uid, (data) => {
+        unsubDb = listenToUserData(user.uid, (data, isError) => {
+          const currentStore = useProgramStore.getState();
+
+          if (isError) {
+            // Mode hors-ligne / erreur réseau : Préserver le profil et programme locaux de Zustand s'ils existent !
+            if (currentStore.profile && currentStore.program) {
+              setHasProfile(true);
+            }
+            return;
+          }
+
           if (data) {
             const status = data.stripe_subscription_status ?? 'inactive';
             const level = data.planLevel ?? 'none';
@@ -232,25 +252,39 @@ export const RootNavigator: React.FC = () => {
 
             let nameToSet = userName;
             if (data.profile) {
-              setProfile(data.profile as UserProfile);
-              useProgramStore.getState().setProfile(data.profile as UserProfile);
-              const fn = (data.profile as UserProfile).firstName;
+              // Fusionner le profil distant avec les modifications locales pour préserver les sélections
+              const mergedProfile = currentStore.profile
+                ? { ...data.profile, ...currentStore.profile }
+                : data.profile;
+              setProfile(mergedProfile as UserProfile);
+              useProgramStore.getState().setProfile(mergedProfile as UserProfile);
+              const fn = (mergedProfile as UserProfile).firstName;
               if (fn) {
                 setUserName(fn);
                 nameToSet = fn;
               }
             }
             useProgramStore.getState().setUserData(nameToSet || user.displayName || '', user.email ?? '');
+
             if (data.program) {
-              useProgramStore.getState().setProgram(data.program as GeneratedProgram);
+              const mergedProgram = currentStore.program || data.program;
+              useProgramStore.getState().setProgram(mergedProgram as GeneratedProgram);
             }
-            setHasProfile(!!(data.profile && data.program));
+
+            const hasValidLocal = !!(currentStore.profile && currentStore.program);
+            const hasValidRemote = !!(data.profile && data.program);
+            setHasProfile(hasValidLocal || hasValidRemote);
           } else {
-            setStripeStatus('inactive');
-            setPlanLevel('none');
-            useProgramStore.getState().setPremium(false);
-            setHasProfile(false);
-            setScreen('slides'); // Commence le parcours onboarding pour les nouveaux utilisateurs
+            // Si la DB ne contient rien, vérifier s'il existe une version locale dans AsyncStorage
+            if (currentStore.profile && currentStore.program) {
+              setHasProfile(true);
+            } else {
+              setStripeStatus('inactive');
+              setPlanLevel('none');
+              useProgramStore.getState().setPremium(false);
+              setHasProfile(false);
+              setScreen('slides');
+            }
           }
         });
 
@@ -276,6 +310,40 @@ export const RootNavigator: React.FC = () => {
       unsub();
       if (unsubDb) unsubDb();
     };
+  }, []);
+
+  // ── Écouteur d'actions de connexion depuis la Landing Page Web ──
+  React.useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const handleWebLogin = async (e: any) => {
+      const { email, password, demo } = e.detail || {};
+      try {
+        if (demo) {
+          const demoEmail = 'demo@pureascension.com';
+          const demoPass  = 'puredemo';
+          let user;
+          try {
+            user = await signIn(demoEmail, demoPass);
+          } catch {
+            user = await signUp(demoEmail, demoPass, 'Benoît Bêta');
+          }
+          if (user) {
+            await setupDemoUser(user.uid);
+            setAuthed(true);
+            setHasProfile(true);
+          }
+        } else if (email && password) {
+          const user = await signIn(email.trim(), password);
+          if (user) {
+            setAuthed(true);
+          }
+        }
+      } catch (err) {
+        console.error('Erreur lors de la connexion web :', err);
+      }
+    };
+    window.addEventListener('LOGIN_ACTION', handleWebLogin);
+    return () => window.removeEventListener('LOGIN_ACTION', handleWebLogin);
   }, []);
 
   // Affiche rien pendant que Firebase vérifie la session / le profil
@@ -308,6 +376,7 @@ export const RootNavigator: React.FC = () => {
 
     return (
       <OnboardingDiagnosticScreen
+        initialName={userName}
         onBack={() => setScreen('slides')}
         onComplete={async (p) => {
           setProfile(p);
@@ -316,6 +385,12 @@ export const RootNavigator: React.FC = () => {
           useProgramStore.getState().setUserData(p.firstName || '', userEmail || auth.currentUser?.email || '');
           const prog = generateProgram(p);
           useProgramStore.getState().setProgram(prog);
+          try {
+            const mealPlan = generateFromProfile(p, prog.calories, prog.macros);
+            await saveMealPlan(firebaseUid || auth.currentUser?.uid || null, mealPlan);
+          } catch (e) {
+            console.warn('Génération plan alimentaire:', e);
+          }
           if (firebaseUid) {
             await saveUserProfileAndProgram(firebaseUid, p, prog, p.mainGoal || 'muscle').catch(() => {});
           }
@@ -382,6 +457,7 @@ export const RootNavigator: React.FC = () => {
           onSuccess={(name, email) => {
             setUserName(name);
             setUserEmail(email);
+            setAuthed(true);
           }}
         />
       );
@@ -391,8 +467,13 @@ export const RootNavigator: React.FC = () => {
       return (
         <LoginScreen
           onBack={() => setScreen('splash')}
-          onSuccess={() => {}}
-          onForgot={() => {}}
+          onSuccess={() => {
+            setAuthed(true);
+            const p = useProgramStore.getState().program;
+            if (p) {
+              setHasProfile(true);
+            }
+          }}
         />
       );
 

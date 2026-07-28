@@ -7,64 +7,77 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2023-10-16' as any,
 });
 
-// Initialiser Firebase Admin
-if (!admin.apps.length) {
-  try {
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    
-    let privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').trim();
-    
-    console.log('--- DEBUG FIREBASE KEY ---');
-    console.log('Original Env Key Length:', (process.env.FIREBASE_PRIVATE_KEY || '').length);
-    console.log('Original Env Key Starts With:', (process.env.FIREBASE_PRIVATE_KEY || '').substring(0, 35));
-    
-    // Nettoyage en boucle pour retirer les guillemets et virgules résiduels du copier-coller JSON
-    while (
-      privateKey.startsWith('"') || 
-      privateKey.endsWith('"') || 
-      privateKey.startsWith("'") || 
-      privateKey.endsWith("'") || 
-      privateKey.endsWith(',')
-    ) {
-      if (privateKey.endsWith(',')) {
-        privateKey = privateKey.slice(0, -1).trim();
-      }
-      if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-        privateKey = privateKey.slice(1, -1).trim();
-      }
-      if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
-        privateKey = privateKey.slice(1, -1).trim();
-      }
-      if (privateKey.startsWith('"')) privateKey = privateKey.slice(1).trim();
-      if (privateKey.endsWith('"')) privateKey = privateKey.slice(0, -1).trim();
-      if (privateKey.startsWith("'")) privateKey = privateKey.slice(1).trim();
-      if (privateKey.endsWith("'")) privateKey = privateKey.slice(0, -1).trim();
-    }
-    
-    // Remplacer les sauts de ligne échappés
-    privateKey = privateKey.replace(/\\n/g, '\n');
-    
-    console.log('Cleaned Key Length:', privateKey.length);
-    console.log('Cleaned Key Starts With:', privateKey.substring(0, 35));
-    console.log('Cleaned Key Ends With:', privateKey.substring(privateKey.length - 35));
-    console.log('--------------------------');
+// Import direct du fichier de service account pour garantir le fonctionnement sans dépendre des limites AWS Lambda
+import serviceAccount from './serviceAccountKey.json';
 
-    if (projectId && clientEmail && privateKey) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
-      });
-      console.log('✓ Firebase Admin initialisé avec succès.');
-    } else {
-      console.warn('⚠️ Firebase Admin non initialisé : variables d\'environnement manquantes.');
-    }
-  } catch (error) {
-    console.error('Erreur d\'initialisation Firebase Admin :', error);
+// Fonction d'initialisation de Firebase Admin
+function getFirestoreDb(): admin.firestore.Firestore {
+  if (!admin.apps.length) {
+    let projectId = process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id;
+    let clientEmail = process.env.FIREBASE_CLIENT_EMAIL || serviceAccount.client_email;
+    let privateKey = (process.env.FIREBASE_PRIVATE_KEY || serviceAccount.private_key || '').trim();
+
+    // Nettoyage au cas où la clé viendrait d'une variable Netlify mal formatée
+    privateKey = privateKey.replace(/\\n/g, '\n');
+
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+    });
+    console.log('✓ Firebase Admin initialisé avec succès (via ServiceAccount).');
   }
+
+  return admin.firestore();
+}
+
+/**
+ * Recherche l'utilisateur dans Firestore par stripeSubscriptionId ou stripeCustomerId
+ */
+async function findUserRef(
+  db: admin.firestore.Firestore,
+  subscriptionId?: string | null,
+  customerId?: string | null
+): Promise<admin.firestore.DocumentReference | null> {
+  if (subscriptionId) {
+    // 1. Recherche par stripeSubscriptionId
+    let userSnap = await db.collection('users')
+      .where('stripeSubscriptionId', '==', subscriptionId)
+      .limit(1)
+      .get();
+
+    if (!userSnap.empty) return userSnap.docs[0].ref;
+
+    // 2. Recherche fallback par stripe_subscription_id (snake_case)
+    userSnap = await db.collection('users')
+      .where('stripe_subscription_id', '==', subscriptionId)
+      .limit(1)
+      .get();
+
+    if (!userSnap.empty) return userSnap.docs[0].ref;
+  }
+
+  if (customerId) {
+    // 3. Recherche fallback par stripeCustomerId
+    let userSnap = await db.collection('users')
+      .where('stripeCustomerId', '==', customerId)
+      .limit(1)
+      .get();
+
+    if (!userSnap.empty) return userSnap.docs[0].ref;
+
+    // 4. Recherche fallback par stripe_customer_id
+    userSnap = await db.collection('users')
+      .where('stripe_customer_id', '==', customerId)
+      .limit(1)
+      .get();
+
+    if (!userSnap.empty) return userSnap.docs[0].ref;
+  }
+
+  return null;
 }
 
 export const handler: Handler = async (event) => {
@@ -75,8 +88,21 @@ export const handler: Handler = async (event) => {
     };
   }
 
-  const sig = event.headers['stripe-signature'] || '';
+  const sig =
+    event.headers['stripe-signature'] ||
+    event.headers['Stripe-Signature'] ||
+    event.headers['STRIPE-SIGNATURE'] ||
+    '';
+
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+
+  if (!webhookSecret) {
+    console.error('❌ STRIPE_WEBHOOK_SECRET n\'est pas configuré dans les variables d\'environnement.');
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Configuration serveur incomplète: STRIPE_WEBHOOK_SECRET manquant.' }),
+    };
+  }
 
   let stripeEvent: Stripe.Event;
 
@@ -86,7 +112,7 @@ export const handler: Handler = async (event) => {
       ? Buffer.from(event.body || '', 'base64').toString('utf8')
       : event.body || '';
 
-    // Vérifier la validité de l'événement Stripe
+    // 1. Vérifier la validité de la signature de l'événement Stripe Live
     stripeEvent = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch (err: any) {
     console.error(`❌ Erreur de validation de signature Stripe : ${err.message}`);
@@ -99,101 +125,153 @@ export const handler: Handler = async (event) => {
   console.log(`Receiving Stripe webhook event: ${stripeEvent.type}`);
 
   try {
-    const db = admin.firestore();
+    const db = getFirestoreDb();
 
-    // 1. Session de paiement complétée (Abonnement initial réussi)
+    // 2. Cartographie des événements Stripe gérés & Mise à jour Firestore
+
+    // --- Événement 1: checkout.session.completed (Abonnement initial réussi) ---
     if (stripeEvent.type === 'checkout.session.completed') {
       const session = stripeEvent.data.object as Stripe.Checkout.Session;
       const uid = session.client_reference_id;
-      const subscriptionId = session.subscription as string;
+      const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id || '';
+      const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || '';
 
       if (!uid) {
         console.warn('⚠️ Aucun client_reference_id (uid) trouvé dans la session de checkout.');
         return { statusCode: 200, body: 'Ignored: No client_reference_id' };
       }
 
-      // Extraire le planLevel directement depuis les métadonnées de la session de checkout (évite l'appel réseau listLineItems)
-      const planLevel = session.metadata?.planLevel || 'free';
-      const isPremium = planLevel === 'premium';
+      const plan = session.metadata?.plan || session.metadata?.planLevel || 'free';
+      const isPremium = plan === 'premium';
 
-      console.log(`Activation de l'abonnement pour l'utilisateur ${uid} - Plan: ${planLevel} (Subscription: ${subscriptionId})`);
+      console.log(`[checkout.session.completed] Activation de l'abonnement pour UID: ${uid} - Plan: ${plan} (Customer: ${customerId}, Sub: ${subscriptionId})`);
 
-      // Mettre à jour l'utilisateur dans Firestore
       await db.collection('users').doc(uid).set({
-        stripe_subscription_status: 'active',
-        stripe_subscription_id: subscriptionId,
-        planLevel,
+        plan,
+        planLevel: plan,
         isPremium,
+        stripeCustomerId: customerId,
+        stripe_customer_id: customerId,
+        stripeSubscriptionId: subscriptionId,
+        stripe_subscription_id: subscriptionId,
+        stripeSubscriptionStatus: 'active',
+        stripe_subscription_status: 'active',
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
 
-      console.log(`✓ Firestore mis à jour pour l'utilisateur ${uid}`);
+      console.log(`✓ Firestore mis à jour avec succès pour l'utilisateur ${uid}`);
     }
 
-    // 2. Abonnement mis à jour (changement de plan, renouvellement, etc.)
-    if (stripeEvent.type === 'customer.subscription.updated') {
+    // --- Événement 2: customer.subscription.updated (Modification d'abonnement / Statut) ---
+    else if (stripeEvent.type === 'customer.subscription.updated') {
       const subscription = stripeEvent.data.object as Stripe.Subscription;
       const subscriptionId = subscription.id;
-      const status = subscription.status; // active, trialing, past_due, canceled, unpaid
+      const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id || '';
+      const status = subscription.status; // active, trialing, past_due, canceled, unpaid, incomplete
 
-      // Trouver l'utilisateur par son stripe_subscription_id dans Firestore
-      const userSnap = await db.collection('users')
-        .where('stripe_subscription_id', '==', subscriptionId)
-        .limit(1)
-        .get();
+      const userRef = await findUserRef(db, subscriptionId, customerId);
 
-      if (userSnap.empty) {
-        console.warn(`⚠️ Aucun utilisateur trouvé avec l'abonnement ${subscriptionId}`);
-        return { statusCode: 200, body: 'Ignored: Subscription owner not found' };
+      if (!userRef) {
+        console.warn(`⚠️ Aucun utilisateur trouvé pour la souscription ${subscriptionId} / client ${customerId}`);
+        return { statusCode: 200, body: 'Ignored: User not found for subscription update' };
       }
 
-      const userDoc = userSnap.docs[0];
-      const uid = userDoc.id;
-
-      const priceId = subscription.items.data[0]?.price?.id;
-      let planLevel = 'free';
+      const priceId = subscription.items?.data[0]?.price?.id;
+      let plan = 'free';
       let isPremium = false;
 
       if (status === 'active' || status === 'trialing') {
-        if (priceId === process.env.STRIPE_PRICE_STANDARD) {
-          planLevel = 'standard';
-        } else if (priceId === process.env.STRIPE_PRICE_PREMIUM) {
-          planLevel = 'premium';
+        if (priceId === process.env.STRIPE_PRICE_PREMIUM) {
+          plan = 'premium';
           isPremium = true;
+        } else if (priceId === process.env.STRIPE_PRICE_STANDARD) {
+          plan = 'standard';
+          isPremium = false;
+        } else {
+          // Si le prix n'est pas explicitement identifié, vérifier les données existantes de l'utilisateur
+          const docSnap = await userRef.get();
+          const currentPlan = docSnap.exists ? (docSnap.data()?.plan || docSnap.data()?.planLevel || 'standard') : 'standard';
+          plan = currentPlan;
+          isPremium = plan === 'premium';
         }
       }
 
-      console.log(`Mise à jour de l'abonnement pour l'utilisateur ${uid} - Nouveau statut Stripe: ${status} - Plan: ${planLevel}`);
+      console.log(`[customer.subscription.updated] Mise à jour UID: ${userRef.id} - Statut: ${status} - Plan: ${plan}`);
 
-      await db.collection('users').doc(uid).set({
-        stripe_subscription_status: status,
-        planLevel,
+      await userRef.set({
+        plan,
+        planLevel: plan,
         isPremium,
+        stripeCustomerId: customerId,
+        stripe_customer_id: customerId,
+        stripeSubscriptionId: subscriptionId,
+        stripe_subscription_id: subscriptionId,
+        stripeSubscriptionStatus: status,
+        stripe_subscription_status: status,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
     }
 
-    // 3. Abonnement supprimé / expiré
-    if (stripeEvent.type === 'customer.subscription.deleted') {
+    // --- Événement 3: customer.subscription.deleted (Résiliation / Expiration) ---
+    else if (stripeEvent.type === 'customer.subscription.deleted') {
       const subscription = stripeEvent.data.object as Stripe.Subscription;
       const subscriptionId = subscription.id;
+      const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id || '';
 
-      // Trouver l'utilisateur par son stripe_subscription_id
-      const userSnap = await db.collection('users')
-        .where('stripe_subscription_id', '==', subscriptionId)
-        .limit(1)
-        .get();
+      const userRef = await findUserRef(db, subscriptionId, customerId);
 
-      if (!userSnap.empty) {
-        const userDoc = userSnap.docs[0];
-        const uid = userDoc.id;
+      if (userRef) {
+        console.log(`[customer.subscription.deleted] Résiliation de l'abonnement pour UID: ${userRef.id}`);
 
-        console.log(`Résiliation de l'abonnement pour l'utilisateur ${uid}`);
-
-        await db.collection('users').doc(uid).set({
-          stripe_subscription_status: 'inactive',
+        await userRef.set({
+          plan: 'free',
           planLevel: 'free',
           isPremium: false,
+          stripeSubscriptionStatus: 'canceled',
+          stripe_subscription_status: 'canceled',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      } else {
+        console.warn(`⚠️ Résiliation reçue mais aucun utilisateur associé à ${subscriptionId}`);
+      }
+    }
+
+    // --- Événement 4: invoice.payment_succeeded (Paiement de facture réussi - Renouvellement) ---
+    else if (stripeEvent.type === 'invoice.payment_succeeded') {
+      const invoice = stripeEvent.data.object as Stripe.Invoice;
+      const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id || null;
+      const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id || null;
+
+      const userRef = await findUserRef(db, subscriptionId, customerId);
+
+      if (userRef) {
+        console.log(`[invoice.payment_succeeded] Paiement réussi pour UID: ${userRef.id}`);
+
+        await userRef.set({
+          stripeSubscriptionStatus: 'active',
+          stripe_subscription_status: 'active',
+          lastPaymentStatus: 'succeeded',
+          lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+    }
+
+    // --- Événement 5: invoice.payment_failed (Échec de paiement de facture) ---
+    else if (stripeEvent.type === 'invoice.payment_failed') {
+      const invoice = stripeEvent.data.object as Stripe.Invoice;
+      const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id || null;
+      const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id || null;
+
+      const userRef = await findUserRef(db, subscriptionId, customerId);
+
+      if (userRef) {
+        console.warn(`[invoice.payment_failed] Échec de paiement pour UID: ${userRef.id}`);
+
+        await userRef.set({
+          stripeSubscriptionStatus: 'past_due',
+          stripe_subscription_status: 'past_due',
+          lastPaymentStatus: 'failed',
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
       }
@@ -211,3 +289,4 @@ export const handler: Handler = async (event) => {
     };
   }
 };
+

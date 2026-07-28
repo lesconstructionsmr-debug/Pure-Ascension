@@ -1,67 +1,72 @@
 import { Handler } from '@netlify/functions';
 import * as admin from 'firebase-admin';
 
-// Initialiser Firebase Admin
-if (!admin.apps.length) {
+// Initialiser Firebase Admin avec le fichier serviceAccountKey.json pour éviter les erreurs d'env vars 4KB
+function getFirestoreDb(): admin.firestore.Firestore | null {
+  if (admin.apps.length) {
+    return admin.firestore();
+  }
+
   try {
+    const serviceAccount = require('./serviceAccountKey.json');
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    console.log('Firebase Admin initialisé avec succès dans strava-callback via serviceAccountKey.json.');
+    return admin.firestore();
+  } catch (err: any) {
+    console.error('Erreur chargement serviceAccountKey dans strava-callback :', err.message);
+
     const projectId = process.env.FIREBASE_PROJECT_ID;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     let privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').trim();
 
-    while (
-      privateKey.startsWith('"') || 
-      privateKey.endsWith('"') || 
-      privateKey.startsWith("'") || 
-      privateKey.endsWith("'") || 
-      privateKey.endsWith(',')
-    ) {
-      if (privateKey.endsWith(',')) {
-        privateKey = privateKey.slice(0, -1).trim();
-      }
-      if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-        privateKey = privateKey.slice(1, -1).trim();
-      }
-      if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
-        privateKey = privateKey.slice(1, -1).trim();
-      }
-    }
-    
-    privateKey = privateKey.replace(/\\n/g, '\n');
-
     if (projectId && clientEmail && privateKey) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
-      });
-      console.log('Firebase Admin initialisé avec succès dans strava-callback.');
-    } else {
-      console.warn('Configuration Firebase Admin incomplète pour strava-callback.');
+      try {
+        privateKey = privateKey.replace(/\\n/g, '\n');
+        admin.initializeApp({
+          credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+        });
+        return admin.firestore();
+      } catch (e: any) {
+        console.error('Erreur fallback env vars strava-callback :', e.message);
+      }
     }
-  } catch (error) {
-    console.error('Erreur d\'initialisation Firebase Admin dans strava-callback :', error);
   }
+
+  return null;
 }
 
-const db = admin.apps.length ? admin.firestore() : null;
-
 export const handler: Handler = async (event) => {
-  const code = event.queryStringParameters?.code;
-  const uid = event.queryStringParameters?.state; // Notre UID Firebase transmis en state
+  let baseUrl = 'https://pure-ascension.netlify.app';
+  try {
+    const referer = event.headers.referer || event.headers.Referer;
+    if (referer) {
+      const parsed = new URL(referer);
+      baseUrl = `${parsed.protocol}//${parsed.host}`;
+    }
+  } catch (e) {
+    console.warn('Referer invalide dans strava-callback, utilisation du fallback https://pure-ascension.netlify.app');
+  }
 
-  // Redirection de base à partir du Referer ou utiliser un fallback
-  const referer = event.headers.referer || 'https://pure-ascension.netlify.app/';
-  const url = new URL(referer);
-  const baseUrl = `${url.protocol}//${url.host}`;
+  const code = event.queryStringParameters?.code;
+  const rawState = event.queryStringParameters?.state || ''; // State transmis : uid ou uid:native
+  const [uid, appType] = rawState.split(':');
+  const isNative = appType === 'native';
+
+  const getRedirectUrl = (status: 'success' | 'error', msg?: string) => {
+    if (isNative) {
+      return `pureascension://?strava=${status}${msg ? `&msg=${msg}` : ''}`;
+    }
+    return `${baseUrl}/?strava=${status}${msg ? `&msg=${msg}` : ''}`;
+  };
 
   if (!code || !uid) {
     console.error('Code Strava ou UID manquant.', { code, uid });
     return {
       statusCode: 302,
       headers: {
-        Location: `${baseUrl}/?strava=error&msg=missing_params`,
+        Location: getRedirectUrl('error', 'missing_params'),
       },
       body: '',
     };
@@ -91,7 +96,7 @@ export const handler: Handler = async (event) => {
       return {
         statusCode: 302,
         headers: {
-          Location: `${baseUrl}/?strava=error&msg=exchange_failed`,
+          Location: getRedirectUrl('error', 'exchange_failed'),
         },
         body: '',
       };
@@ -100,23 +105,24 @@ export const handler: Handler = async (event) => {
     const data = await response.json();
     const { access_token, refresh_token, expires_at, athlete } = data;
 
+    const db = getFirestoreDb();
     if (db) {
       // Sauvegarder les jetons d'accès Strava dans Firestore
-      await db.collection('users').doc(uid).update({
+      await db.collection('users').doc(uid).set({
         stravaConnected: true,
         stravaAccessToken: access_token,
         stravaRefreshToken: refresh_token,
         stravaTokenExpiresAt: expires_at,
         stravaAthleteId: athlete?.id || null,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      }, { merge: true });
       console.log(`Tokens Strava sauvegardés avec succès pour l'utilisateur ${uid}.`);
     } else {
       console.error('Firestore inaccessible pour enregistrer les tokens Strava.');
       return {
         statusCode: 302,
         headers: {
-          Location: `${baseUrl}/?strava=error&msg=database_inaccessible`,
+          Location: getRedirectUrl('error', 'database_inaccessible'),
         },
         body: '',
       };
@@ -125,7 +131,7 @@ export const handler: Handler = async (event) => {
     return {
       statusCode: 302,
       headers: {
-        Location: `${baseUrl}/?strava=success`,
+        Location: getRedirectUrl('success'),
       },
       body: '',
     };
@@ -134,7 +140,7 @@ export const handler: Handler = async (event) => {
     return {
       statusCode: 302,
       headers: {
-        Location: `${baseUrl}/?strava=error&msg=internal_error`,
+        Location: getRedirectUrl('error', 'internal_error'),
       },
       body: '',
     };

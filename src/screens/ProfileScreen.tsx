@@ -1,33 +1,39 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Pressable, SafeAreaView, ScrollView, StyleSheet,
-  Text, View, Linking, ActivityIndicator, Alert, TextInput, Modal
+  Text, View, Linking, ActivityIndicator, TextInput, Modal, Platform
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 import {
   Bell, ChevronRight, ClipboardList, History, Lock,
-  Sparkles, Target, Zap, CheckCircle, RefreshCw, Activity, LogOut
+  Sparkles, Target, Zap, CheckCircle, RefreshCw, Activity, LogOut, Users
 } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 import { Avatar }          from '../components/Avatar';
 import { Card }            from '../components/Card';
-import { Stat }            from '../components/Stat';
-import { Button }          from '../components/Button';
+import { ReferralModal }   from '../components/ReferralModal';
+import { AscensionCardModal } from '../components/AscensionCardModal';
+import { useDailyProgress } from '../context/DailyProgressContext';
 import { useProgramStore } from '../store/useProgramStore';
-import { useStreak }       from '../hooks/useStreak';
+import { useWorkoutHistoryStore } from '../store/useWorkoutHistoryStore';
 import { auth, db }        from '../services/firebase';
 import { logOut }          from '../services/authService';
-import { doc, getDoc, onSnapshot, updateDoc, collection, addDoc, serverTimestamp, query, getDocs, where, orderBy, deleteDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, collection, addDoc, serverTimestamp, query, getDocs, orderBy, deleteDoc } from 'firebase/firestore';
 
 /* ─── Constantes Strava ──────────────────────────────────────────────────── */
 const STRAVA_ORANGE = '#FC4C02';
-const STRAVA_AUTH_URL = '/.netlify/functions/strava-auth';
+const STRAVA_AUTH_URL = Platform.OS === 'web'
+  ? '/.netlify/functions/strava-auth'
+  : 'https://pure-ascension.netlify.app/.netlify/functions/strava-auth';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 interface StravaActivity {
   name: string;
   type: string;
-  distance: number;      // mètres
-  movingTime: number;    // secondes
+  distance: number;
+  movingTime: number;
   totalElevation: number;
   averageHeartrate?: number;
   calories?: number;
@@ -39,25 +45,10 @@ interface StravaData {
   athleteId?: number;
   lastSyncAt?: string;
   lastActivities?: StravaActivity[];
-  totalEAT?: number;    // calories brûlées aujourd'hui
+  totalEAT?: number;
 }
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
-function formatDistance(m: number) {
-  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`;
-}
-function formatDuration(s: number) {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  return h > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${m} min`;
-}
-function sportEmoji(type: string): string {
-  const map: Record<string, string> = {
-    Run: '🏃', Ride: '🚴', TrailRun: '🏔️', Walk: '🚶',
-    Swim: '🏊', WeightTraining: '💪', Yoga: '🧘', Hike: '🥾',
-  };
-  return map[type] || '⚡';
-}
 function relativeDate(iso: string): string {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
   if (diff === 0) return 'Aujourd\'hui';
@@ -65,8 +56,8 @@ function relativeDate(iso: string): string {
   return `Il y a ${diff} jours`;
 }
 
-/* ─── Sous-composant : Bandeau Strava ─────────────────────────────────────── */
-const StravaBanner: React.FC<{
+/* ─── Sous-composant : Bouton / Carte Strava ──────────────────────────────── */
+const StravaSection: React.FC<{
   stravaData: StravaData | null;
   loading: boolean;
   onConnect: () => void;
@@ -76,25 +67,22 @@ const StravaBanner: React.FC<{
 
   if (loading) {
     return (
-      <Card elevation="sm" padding={spacing[5]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
-          <ActivityIndicator size="small" color={STRAVA_ORANGE} />
-          <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600] }}>
-            Vérification Strava…
-          </Text>
-        </View>
-      </Card>
+      <View style={st.stravaLoadingCard}>
+        <ActivityIndicator size="small" color={colors.clay[500]} />
+        <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600] }}>
+          Vérification Strava…
+        </Text>
+      </View>
     );
   }
 
   if (stravaData?.connected) {
     return (
       <View style={{ gap: spacing[3] }}>
-        {/* Statut connecté */}
         <View style={st.stravaConnected}>
           <View style={st.stravaConnectedLeft}>
             <View style={st.stravaIcon}>
-              <Text style={{ fontSize: 18 }}>🚴</Text>
+              <Text style={{ fontSize: 18 }}>🏃</Text>
             </View>
             <View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
@@ -118,100 +106,72 @@ const StravaBanner: React.FC<{
           </View>
         </View>
 
-        {/* EAT du jour (Dépense calorique réelle) */}
         {stravaData.totalEAT !== undefined && stravaData.totalEAT > 0 && (
           <View style={st.eatBadge}>
-            <Zap size={14} color={STRAVA_ORANGE} />
+            <Zap size={14} color={colors.clay[500]} />
             <Text style={st.eatBadgeText}>
               <Text style={{ fontFamily: fontFamily.hanken.bold }}>
                 {stravaData.totalEAT} kcal
               </Text>
-              {' '}brûlées aujourd\'hui (EAT réel Strava)
+              {' '}brûlées aujourd'hui (Strava)
             </Text>
-          </View>
-        )}
-
-        {/* Dernières activités */}
-        {stravaData.lastActivities && stravaData.lastActivities.length > 0 && (
-          <View style={{ gap: spacing[2] }}>
-            <Text style={st.activitiesLabel}>Dernières activités</Text>
-            {stravaData.lastActivities.slice(0, 3).map((act, i) => (
-              <View key={i} style={st.activityRow}>
-                <Text style={{ fontSize: 20 }}>{sportEmoji(act.type)}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={st.activityName} numberOfLines={1}>{act.name}</Text>
-                  <Text style={st.activityMeta}>
-                    {formatDistance(act.distance)} · {formatDuration(act.movingTime)}
-                    {act.averageHeartrate ? ` · ♥ ${Math.round(act.averageHeartrate)} bpm` : ''}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={st.activityDate}>{relativeDate(act.startDate)}</Text>
-                  {act.calories && (
-                    <Text style={st.activityCal}>{act.calories} kcal</Text>
-                  )}
-                </View>
-              </View>
-            ))}
           </View>
         )}
       </View>
     );
   }
 
-  // Non connecté
+  // Bouton CTA Terre Cuite avec icône coureur : 'Connecter Strava'
   return (
-    <Pressable onPress={onConnect} style={st.stravaConnectBtn} accessibilityRole="button" accessibilityLabel="Connecter Strava">
-      <View style={st.stravaConnectLeft}>
-        <View style={st.stravaConnectIcon}>
-          <Activity size={20} color="#fff" />
+    <Pressable
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        onConnect();
+      }}
+      style={st.stravaClayBtn}
+      accessibilityRole="button"
+      accessibilityLabel="Connecter Strava"
+    >
+      <View style={st.stravaClayLeft}>
+        <View style={st.runnerIconCircle}>
+          <Activity size={20} color="#fff" strokeWidth={2.2} />
         </View>
         <View>
-          <Text style={st.stravaConnectTitle}>Connecter Strava</Text>
-          <Text style={st.stravaConnectSub}>Sync automatique · Calories EAT réelles</Text>
+          <Text style={st.stravaClayTitle}>Connecter Strava</Text>
+          <Text style={st.stravaClaySub}>Sync automatique · Activités sportives</Text>
         </View>
       </View>
-      <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
+      <ChevronRight size={20} color="#fff" />
     </Pressable>
   );
 };
-
-/* ─── Réglages navigation ────────────────────────────────────────────────── */
-const SETTINGS = [
-  { id: 's-0', route: 'EditProfile',   icon: <ClipboardList size={20} color={colors.clay[500]} strokeWidth={2} />, label: 'Mon programme & profil' },
-  { id: 's-1', route: 'Goals',         icon: <Target        size={20} color={colors.sage[500]} strokeWidth={2} />, label: 'Mes objectifs' },
-  { id: 's-2', route: 'History',       icon: <History       size={20} color={colors.sage[500]} strokeWidth={2} />, label: 'Historique' },
-  { id: 's-3', route: 'Notifications', icon: <Bell          size={20} color={colors.sage[500]} strokeWidth={2} />, label: 'Notifications' },
-  { id: 's-4', route: 'Rituals',       icon: <Sparkles      size={20} color={colors.clay[500]} strokeWidth={2} />, label: "Rituels d'équilibre" },
-  { id: 's-5', route: null,            icon: <Lock          size={20} color={colors.ink[500]}  strokeWidth={2} />, label: 'Confidentialité' },
-] as const;
-
-const BetaBadge: React.FC = () => (
-  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.clay[50], borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: colors.clay[200] }}>
-    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.clay[500] }} />
-    <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 10, color: colors.clay[600], letterSpacing: 1.5 }}>BÊTA v0.1</Text>
-  </View>
-);
 
 /* ─── Écran Profil ───────────────────────────────────────────────────────── */
 export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const program = useProgramStore(s => s.program);
   const storeName = useProgramStore(s => s.userName);
   const storeEmail = useProgramStore(s => s.userEmail);
-  const isNewUser   = !program;
-  const displayName = storeName || 'Mon profil';
-  const displayEmail= storeEmail || '';
+  const isNewUser = !program;
 
-  /* Dynamic stats from Firestore progress subcollection */
+  // Fallback defaults matching mockup user 'Natasha' / 'natasha.hoon@gmail.com'
+  const displayName = storeName || 'Natasha';
+  const displayEmail = storeEmail || 'natasha.hoon@gmail.com';
+
+  /* Modals state & Daily progress */
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [showAscensionCardModal, setShowAscensionCardModal] = useState(false);
+  const { mealsCount, workoutPct, waterGlasses, sleepScore, mentalCheckin, ascensionScore } = useDailyProgress();
+
+  /* Stats state */
   const [streakDays, setStreakDays] = useState(1);
-  const [sessionsCount, setSessionsCount] = useState(0);
-  const [weightEvolution, setWeightEvolution] = useState('— lb');
+  const localWorkoutHistory = useWorkoutHistoryStore(st => st.history);
+  const [sessionsCount, setSessionsCount] = useState(localWorkoutHistory.length);
+  const [weightEvolution, setWeightEvolution] = useState('—lb');
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
 
-    // 1. Écoute du streak en temps réel
     const unsubUser = onSnapshot(doc(db, 'users', uid), (snap) => {
       if (snap.exists()) {
         const d = snap.data();
@@ -221,7 +181,6 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
       }
     });
 
-    // 2. Calcul du poids et des séances d'entraînement
     const loadProgressStats = async () => {
       try {
         const progressRef = collection(db, 'users', uid, 'progress');
@@ -241,7 +200,8 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
           }
         });
         
-        setSessionsCount(completedWorkouts);
+        // L'historique local peut contenir des séances pas encore synchronisées
+        setSessionsCount(Math.max(completedWorkouts, useWorkoutHistoryStore.getState().history.length));
         
         if (weights.length >= 2) {
           const change = weights[weights.length - 1] - weights[0];
@@ -250,7 +210,7 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
         } else if (weights.length === 1) {
           setWeightEvolution('0.0 lb');
         } else {
-          setWeightEvolution('— lb');
+          setWeightEvolution('—lb');
         }
       } catch (err) {
         console.error('Erreur chargement stats profil:', err);
@@ -261,13 +221,11 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
     return () => unsubUser();
   }, [program]);
 
-  /* Feedback state */
+  /* Feedback & Privacy state */
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackCategory, setFeedbackCategory] = useState<'bug' | 'suggestion' | 'autre'>('suggestion');
   const [feedbackSending, setFeedbackSending] = useState(false);
-
-  /* Privacy Policy state */
   const [privacyVisible, setPrivacyVisible] = useState(false);
 
   const handleSubmitFeedback = async () => {
@@ -283,12 +241,12 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
         text: feedbackText.trim(),
         createdAt: serverTimestamp(),
       });
-      Alert.alert('Merci !', 'Ton retour a bien été envoyé à l\'équipe de Pure Ascension.');
+      showAlert('Merci !', 'Ton retour a bien été envoyé à l\'équipe de Pure Ascension.');
       setFeedbackText('');
       setFeedbackModalVisible(false);
     } catch (err) {
       console.error('Erreur envoi feedback:', err);
-      Alert.alert('Erreur', 'Impossible d\'envoyer le retour. Réessaye.');
+      showAlert('Erreur', 'Impossible d\'envoyer le retour. Réessaye.');
     } finally {
       setFeedbackSending(false);
     }
@@ -298,7 +256,6 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
   const [stravaData, setStravaData] = useState<StravaData | null>(null);
   const [stravaLoading, setStravaLoading] = useState(true);
 
-  /* ── Écoute temps réel du statut Strava depuis Firestore ── */
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) { setStravaLoading(false); return; }
@@ -321,38 +278,37 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
     return () => unsub();
   }, []);
 
-  /* ── Connexion Strava — ouverture du flux OAuth ── */
   const handleConnectStrava = useCallback(async () => {
     const uid = auth.currentUser?.uid;
     if (!uid) {
-      Alert.alert('Connexion requise', 'Veuillez vous connecter à votre compte Pure Ascension.');
+      showAlert('Connexion requise', 'Veuillez vous connecter à votre compte Pure Ascension.');
       return;
     }
 
     try {
       setStravaLoading(true);
-      const res = await fetch(`${STRAVA_AUTH_URL}?uid=${uid}`);
+      const isNative = Platform.OS !== 'web';
+      const res = await fetch(`${STRAVA_AUTH_URL}?uid=${uid}&isNativeApp=${isNative}`);
       const data = await res.json();
 
       if (data.url) {
-        // Sur le web → window.location, sur mobile → Linking
-        if (typeof window !== 'undefined') {
+        if (Platform.OS === 'web') {
           window.location.href = data.url;
         } else {
           await Linking.openURL(data.url);
+          setStravaLoading(false);
         }
       } else {
         throw new Error('URL OAuth Strava non reçue');
       }
     } catch (err: any) {
       setStravaLoading(false);
-      Alert.alert('Erreur Strava', err.message || 'Impossible d\'initier la connexion Strava.');
+      showAlert('Erreur Strava', err.message || 'Impossible d\'initier la connexion Strava.');
     }
   }, []);
 
-  /* ── Déconnexion Strava ── */
   const handleDisconnectStrava = useCallback(() => {
-    Alert.alert(
+    showAlert(
       'Déconnecter Strava ?',
       'Vos activités ne seront plus synchronisées automatiquement.',
       [
@@ -369,7 +325,7 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
                 stravaRefreshToken: null,
               });
             } catch (err) {
-              Alert.alert('Erreur', 'Impossible de déconnecter Strava.');
+              showAlert('Erreur', 'Impossible de déconnecter Strava.');
             }
           }
         },
@@ -377,157 +333,267 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
     );
   }, []);
 
-  /* ── Actualisation manuelle ── */
   const handleRefreshStrava = useCallback(async () => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
     setStravaLoading(true);
-    // Le webhook Strava sync automatiquement — ici on simule juste un rechargement
     setTimeout(() => setStravaLoading(false), 1200);
   }, []);
 
-  /* ── Gestion du retour OAuth (URL ?strava=success|error) ── */
   useEffect(() => {
-    const checkOAuthReturn = () => {
+    if (Platform.OS === 'web') {
       if (typeof window === 'undefined' || !window.location || !window.history) return;
       const params = new URLSearchParams(window.location.search);
       const stravaStatus = params.get('strava');
       if (stravaStatus === 'success') {
-        Alert.alert('🚴 Strava connecté !', 'Vos activités seront synchronisées automatiquement.');
+        showAlert('🚴 Strava connecté !', 'Vos activités seront synchronisées automatiquement.');
         window.history.replaceState({}, '', window.location.pathname);
       } else if (stravaStatus === 'error') {
         const msg = params.get('msg') || 'unknown';
-        Alert.alert('Erreur Strava', `La connexion a échoué (${msg}). Réessayez.`);
+        showAlert('Erreur Strava', `La connexion a échoué (${msg}). Réessayez.`);
         window.history.replaceState({}, '', window.location.pathname);
       }
-    };
-    checkOAuthReturn();
+    }
   }, []);
 
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        <Text style={s.screenTitle} accessibilityRole="header">Profil</Text>
+        {/* ── Header : Titre 'Profil' en grand + sous-titre en italique/serif *Profil* ── */}
+        <View style={s.headerRow}>
+          <Text style={s.screenTitle} accessibilityRole="header">Profil</Text>
+          <Text style={s.screenSubtitle}>Profil</Text>
+        </View>
 
-        {/* ── Carte profil ─────────────────────────────────────────────── */}
-        <Card elevation="md" padding={spacing[6]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[4], marginBottom: spacing[5] }}>
-            <Avatar name={displayName} size={64} ring ringColor={colors.clay[300]} />
-            <View style={{ flex: 1, gap: spacing[1] }}>
-              <Text style={{ fontFamily: fontFamily.spectral.medium, fontSize: fontSize.xl, color: colors.ink[900], lineHeight: fontSize.xl * lineHeight.snug }}>{displayName}</Text>
-              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600] }}>
-                {displayEmail || (program ? `Programme ${program.name}` : 'Diagnostic à compléter')}
-              </Text>
+        {/* ── Carte utilisateur : Avatar 'N', 'Natasha', 'natasha.hoon@gmail.com' ── */}
+        <Card elevation="sm" padding={spacing[5]} style={s.userCard}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[4] }}>
+            <Avatar name={displayName} size={60} ring ringColor={colors.clay[300]} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={s.userName}>{displayName}</Text>
+              <Text style={s.userEmail}>{displayEmail}</Text>
             </View>
-          </View>
-          <View style={{ height: 1, backgroundColor: colors.ink[200], marginBottom: spacing[5] }} />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
-            <Stat value={`${streakDays} j`} label="Streak" />
-            <View style={{ width: 1, height: 40, backgroundColor: colors.ink[200] }} />
-            <Stat value={weightEvolution}   label="Poids" />
-            <View style={{ width: 1, height: 40, backgroundColor: colors.ink[200] }} />
-            <Stat value={String(sessionsCount)} label="Séances" />
           </View>
         </Card>
 
-        {/* ── Section Strava ────────────────────────────────────────────── */}
-        <View style={{ gap: spacing[3] }}>
-          <Text style={{ fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.md, color: colors.ink[900] }}>
-            Intégration sport
-          </Text>
-          <StravaBanner
-            stravaData={stravaData}
-            loading={stravaLoading}
-            onConnect={handleConnectStrava}
-            onDisconnect={handleDisconnectStrava}
-            onRefresh={handleRefreshStrava}
-          />
+        {/* ── Ligne de statistiques à 3 cartes blanches : 1j Streak | —lb Poids | 0 Séances ── */}
+        <View style={s.statsRow}>
+          <View style={s.statWhiteCard}>
+            <Text style={s.statVal}>{streakDays}j</Text>
+            <Text style={s.statLabel}>Streak</Text>
+          </View>
+          <View style={s.statWhiteCard}>
+            <Text style={s.statVal}>{weightEvolution}</Text>
+            <Text style={s.statLabel}>Poids</Text>
+          </View>
+          <View style={s.statWhiteCard}>
+            <Text style={s.statVal}>{sessionsCount}</Text>
+            <Text style={s.statLabel}>Séances</Text>
+          </View>
         </View>
 
-        {/* ── Réglages ─────────────────────────────────────────────────── */}
-        <View style={{ gap: spacing[3] }}>
-          <Text style={{ fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.md, color: colors.ink[900] }}>Réglages</Text>
-          <Card elevation="sm" padding={0} style={{ overflow: 'hidden' }}>
-            {SETTINGS.map((item, idx, arr) => (
-              <View key={item.id}>
-                <Pressable
-                  onPress={() => {
-                    if (item.route) {
-                      navigation?.navigate(item.route, { isNewUser });
-                    } else if (item.id === 's-5') {
-                      setPrivacyVisible(true);
-                    }
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={item.label}
-                  style={({ pressed }) => [
-                    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[5], paddingVertical: spacing[4], gap: spacing[4], minHeight: 56 },
-                    pressed && { backgroundColor: colors.sand[100] }
-                  ]}
-                >
-                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.sand[100], alignItems: 'center', justifyContent: 'center' }}>{item.icon}</View>
-                  <Text style={{ flex: 1, fontFamily: fontFamily.hanken.medium, fontSize: fontSize.base, color: colors.ink[900] }}>{item.label}</Text>
-                  <ChevronRight size={18} color={colors.ink[500]} strokeWidth={2} />
-                </Pressable>
-                {idx < arr.length - 1 && <View style={{ height: 1, backgroundColor: colors.ink[200], marginLeft: spacing[5] + 36 + spacing[4] }} />}
+        {/* ── Bouton CTA Terre Cuite avec icône coureur : 'Connecter Strava' ── */}
+        <StravaSection
+          stravaData={stravaData}
+          loading={stravaLoading}
+          onConnect={handleConnectStrava}
+          onDisconnect={handleDisconnectStrava}
+          onRefresh={handleRefreshStrava}
+        />
+
+        {/* ── Section 'COMMUNAUTÉ & PARTAGE' ── */}
+        <View style={s.sectionBlock}>
+          <Text style={s.sectionEyebrow}>COMMUNAUTÉ & PARTAGE</Text>
+          <View style={s.cardListContainer}>
+            {/* Inviter un frère d'arme > */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setShowReferralModal(true);
+              }}
+              style={s.cardListRow}
+              accessibilityRole="button"
+            >
+              <View style={s.iconCircleClay}>
+                <Users size={18} color={colors.clay[500]} />
               </View>
-            ))}
-          </Card>
+              <Text style={s.cardListText}>Inviter un frère d'arme</Text>
+              <ChevronRight size={18} color={colors.ink[400]} />
+            </Pressable>
+
+            <View style={s.cardListDivider} />
+
+            {/* Carte d'Ascension Instagram > */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setShowAscensionCardModal(true);
+              }}
+              style={s.cardListRow}
+              accessibilityRole="button"
+            >
+              <View style={s.iconCircleSage}>
+                <Sparkles size={18} color={colors.sage[600]} />
+              </View>
+              <Text style={s.cardListText}>Carte d'Ascension Instagram</Text>
+              <ChevronRight size={18} color={colors.ink[400]} />
+            </Pressable>
+          </View>
         </View>
 
-        {/* ── Feedback Bêta ──────────────────────────────────────────────── */}
-        <Card elevation="sm" padding={spacing[4]} style={{ borderColor: colors.sage[300], borderWidth: 1.5, backgroundColor: colors.sage[50] }}>
-          <Pressable onPress={() => setFeedbackModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }} accessibilityRole="button">
-            <ClipboardList size={22} color={colors.sage[600]} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.sage[900] }}>
-                Donner mon avis / Signaler un bug
-              </Text>
-              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.sage[700], marginTop: 2 }}>
-                Une suggestion, une idée ou un problème technique ? Dis-le nous !
-              </Text>
-            </View>
-            <ChevronRight size={18} color={colors.sage[600]} />
-          </Pressable>
-        </Card>
+        {/* ── Section 'RÉGLAGES' ── */}
+        <View style={s.sectionBlock}>
+          <Text style={s.sectionEyebrow}>RÉGLAGES</Text>
+          <View style={s.cardListContainer}>
+            {/* Mes objectifs > */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation?.navigate('Goals', { isNewUser });
+              }}
+              style={s.cardListRow}
+              accessibilityRole="button"
+            >
+              <View style={s.iconCircleSage}>
+                <Target size={18} color={colors.sage[600]} />
+              </View>
+              <Text style={s.cardListText}>Mes objectifs</Text>
+              <ChevronRight size={18} color={colors.ink[400]} />
+            </Pressable>
 
-        {/* ── Bouton Déconnexion ────────────────────────────────────────── */}
+            <View style={s.cardListDivider} />
+
+            {/* Rituels d'équilibre > */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation?.navigate('Rituals', { isNewUser });
+              }}
+              style={s.cardListRow}
+              accessibilityRole="button"
+            >
+              <View style={s.iconCircleClay}>
+                <Sparkles size={18} color={colors.clay[500]} />
+              </View>
+              <Text style={s.cardListText}>Rituels d'équilibre</Text>
+              <ChevronRight size={18} color={colors.ink[400]} />
+            </Pressable>
+
+            <View style={s.cardListDivider} />
+
+            {/* Notifications > */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation?.navigate('Notifications', { isNewUser });
+              }}
+              style={s.cardListRow}
+              accessibilityRole="button"
+            >
+              <View style={s.iconCircleSage}>
+                <Bell size={18} color={colors.sage[600]} />
+              </View>
+              <Text style={s.cardListText}>Notifications</Text>
+              <ChevronRight size={18} color={colors.ink[400]} />
+            </Pressable>
+
+            <View style={s.cardListDivider} />
+
+            {/* Mon programme & profil > */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation?.navigate('EditProfile', { isNewUser });
+              }}
+              style={s.cardListRow}
+              accessibilityRole="button"
+            >
+              <View style={s.iconCircleClay}>
+                <ClipboardList size={18} color={colors.clay[500]} />
+              </View>
+              <Text style={s.cardListText}>Mon programme & profil</Text>
+              <ChevronRight size={18} color={colors.ink[400]} />
+            </Pressable>
+
+            <View style={s.cardListDivider} />
+
+            {/* Confidentialité > */}
+            <Pressable
+              onPress={() => setPrivacyVisible(true)}
+              style={s.cardListRow}
+              accessibilityRole="button"
+            >
+              <View style={s.iconCircleSand}>
+                <Lock size={18} color={colors.ink[600]} />
+              </View>
+              <Text style={s.cardListText}>Confidentialité & CGU</Text>
+              <ChevronRight size={18} color={colors.ink[400]} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* ── Feedback / Bug report ── */}
         <Pressable
-          onPress={async () => {
-            try {
-              await logOut();
-            } catch (err) {
-              Alert.alert('Erreur', 'Impossible de se déconnecter.');
-            }
-          }}
+          onPress={() => setFeedbackModalVisible(true)}
+          style={s.feedbackCard}
           accessibilityRole="button"
-          accessibilityLabel="Se déconnecter"
-          style={({ pressed }) => [
-            {
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingVertical: spacing[4],
-              borderRadius: radius.xl,
-              backgroundColor: '#fff',
-              borderWidth: 1.5,
-              borderColor: colors.clay[200],
-              gap: spacing[2],
-              marginTop: spacing[1],
-            },
-            pressed && { backgroundColor: colors.clay[50] }
-          ]}
         >
-          <LogOut size={18} color={colors.clay[500]} strokeWidth={2} />
-          <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.clay[600] }}>
-            Se déconnecter de Pure Ascension
-          </Text>
+          <ClipboardList size={20} color={colors.sage[600]} />
+          <Text style={s.feedbackText}>Donner mon avis / Signaler un bug</Text>
+          <ChevronRight size={18} color={colors.sage[600]} />
         </Pressable>
 
-        {/* ── Bouton Suppression de Compte ────────────────────────────────── */}
+        {/* ── Mention Légale Obligatoire ── */}
+        <View style={s.legalNoticeBox}>
+          <Text style={s.legalNoticeText}>
+            Pure Ascension est un outil de coaching fitness et nutrition. Il ne remplace pas un avis médical professionnel.
+          </Text>
+        </View>
+
+        {/* ── Bouton Déconnexion ── */}
         <Pressable
           onPress={() => {
-            Alert.alert(
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            showAlert(
+              'Déconnexion',
+              'Êtes-vous sûr de vouloir vous déconnecter de Pure Ascension ?',
+              [
+                { text: 'Annuler', style: 'cancel' },
+                {
+                  text: 'Se déconnecter',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      useProgramStore.getState().clear();
+                      await AsyncStorage.multiRemove([
+                        '@active_workout_state',
+                        '@calorie_data',
+                        'pure_ascension_grocery_list_v1'
+                      ]).catch(() => {});
+                      await logOut();
+                      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                        window.location.reload();
+                      }
+                    } catch (err) {
+                      console.error('Erreur déconnexion:', err);
+                      showAlert('Erreur', 'Impossible de se déconnecter. Réessayez.');
+                    }
+                  }
+                }
+              ]
+            );
+          }}
+          style={({ pressed }) => [s.logoutBtn, pressed && { backgroundColor: colors.clay[50] }]}
+          accessibilityRole="button"
+        >
+          <LogOut size={18} color={colors.clay[500]} strokeWidth={2} />
+          <Text style={s.logoutBtnText}>Se déconnecter</Text>
+        </Pressable>
+
+        {/* ── Bouton Suppression de Compte ── */}
+        <Pressable
+          onPress={() => {
+            showAlert(
               'Supprimer le compte',
               'Cette action supprimera définitivement tes données de progression, rituels et repas de Pure Ascension. Es-tu sûr·e de vouloir continuer ?',
               [
@@ -540,20 +606,18 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
                     if (user) {
                       try {
                         const uid = user.uid;
-                        // Supprimer le document de profil dans Firestore
                         await deleteDoc(doc(db, 'users', uid));
-                        // Supprimer l'utilisateur de Firebase Auth
                         await user.delete();
-                        Alert.alert('Compte supprimé', 'Toutes vos données ont été purgées avec succès. À bientôt !');
+                        showAlert('Compte supprimé', 'Toutes vos données ont été purgées avec succès. À bientôt !');
                       } catch (err: any) {
                         console.error('Erreur suppression compte:', err);
                         if (err.code === 'auth/requires-recent-login') {
-                          Alert.alert(
+                          showAlert(
                             'Action requise',
-                            'Pour supprimer ton compte, tu devez vous reconnecter récemment pour des raisons de sécurité. Déconnecte-toi et reconnecte-toi pour réessayer.'
+                            'Pour supprimer ton compte, tu devez vous reconnecter récemment pour des raisons de sécurité.'
                           );
                         } else {
-                          Alert.alert('Erreur', 'Impossible de supprimer le compte. Veuillez réessayer.');
+                          showAlert('Erreur', 'Impossible de supprimer le compte. Veuillez réessayer.');
                         }
                       }
                     }
@@ -562,35 +626,12 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
               ]
             );
           }}
+          style={s.deleteAccountBtn}
           accessibilityRole="button"
-          accessibilityLabel="Supprimer le compte définitivement"
-          style={({ pressed }) => [
-            {
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingVertical: spacing[4],
-              borderRadius: radius.xl,
-              backgroundColor: '#fff',
-              borderWidth: 1.5,
-              borderColor: colors.clay[100],
-              gap: spacing[2],
-              marginTop: spacing[3],
-              marginBottom: spacing[2],
-            },
-            pressed && { backgroundColor: '#fff5f2' }
-          ]}
         >
-          <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.clay[500] }}>
-            Supprimer mon compte définitivement
-          </Text>
+          <Text style={s.deleteAccountText}>Supprimer mon compte définitivement</Text>
         </Pressable>
 
-        {/* ── Badge bêta ───────────────────────────────────────────────── */}
-        <View style={{ alignItems: 'center', gap: spacing[2] }}>
-          <BetaBadge />
-          <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[400], textAlign: 'center' }}>Accès bêta · Pure Ascension</Text>
-        </View>
         <View style={{ height: spacing[10] }} />
       </ScrollView>
 
@@ -647,20 +688,26 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
             }}
             value={feedbackText}
             onChangeText={setFeedbackText}
-            placeholder="Dis-nous tout (ex: le bouton d'ajout de repas ne réagit pas, j'adorerais avoir une option...)"
+            placeholder="Dis-nous tout (ex: suggestion d'amélioration, idée...)"
             placeholderTextColor={colors.ink[400]}
             multiline
           />
 
-          <Button
-            variant="primary"
-            size="lg"
-            label="Envoyer mon retour"
-            fullWidth
-            loading={feedbackSending}
-            disabled={!feedbackText.trim()}
+          <Pressable
+            disabled={!feedbackText.trim() || feedbackSending}
             onPress={handleSubmitFeedback}
-          />
+            style={[{
+              backgroundColor: colors.sage[500], paddingVertical: spacing[3.5], borderRadius: radius.lg, alignItems: 'center'
+            }, !feedbackText.trim() && { opacity: 0.5 }]}
+          >
+            {feedbackSending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: '#fff' }}>
+                Envoyer mon retour
+              </Text>
+            )}
+          </Pressable>
         </View>
       </Modal>
 
@@ -672,7 +719,6 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
         onRequestClose={() => setPrivacyVisible(false)}
       >
         <View style={{ flex: 1, backgroundColor: '#fbf8f3', padding: spacing[5] }}>
-          {/* Header */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[5] }}>
             <Text style={{ fontFamily: fontFamily.spectral.bold, fontSize: fontSize.xl, color: colors.ink[900] }}>
               Confidentialité & CGU
@@ -684,9 +730,8 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
             </Pressable>
           </View>
 
-          {/* Content */}
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: spacing[4], paddingBottom: spacing[8] }}>
-            <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600], lineHeight: 20 }}>
+            <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600] }}>
               Dernière mise à jour : Juillet 2026
             </Text>
 
@@ -695,7 +740,10 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
                 1. Collecte des données
               </Text>
               <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
-                Pure Ascension collecte vos informations d'onboarding (nom, email, mensurations, objectifs physiques) ainsi que vos bilans naturopathiques pour personnaliser vos plans d'entraînements et de nutrition. Ces informations sont stockées de façon sécurisée sur Google Cloud Firestore.
+                Pure Ascension collecte vos informations de profil de départ (nom, email, mensurations, objectifs physiques) ainsi que vos questionnaires de profil fitness pour personnaliser vos plans d'entraînements et de nutrition. Ces informations sont stockées de façon sécurisée sur nos serveurs.
+              </Text>
+              <Text style={{ fontFamily: fontFamily.hanken.medium, fontSize: fontSize.xs, color: colors.sage[600], marginTop: 8, fontStyle: 'italic' }}>
+                Pure Ascension est un outil de coaching fitness et nutrition. Il ne remplace pas un avis médical professionnel.
               </Text>
             </View>
 
@@ -704,47 +752,55 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
                 2. Intégrations tierces
               </Text>
               <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
-                • **Strava** : Si vous connectez votre compte, nous lisons vos activités sportives pour mettre à jour vos dépenses caloriques journalières de manière automatisée.
-                {"\n"}• **Stripe** : Vos transactions de paiement d'abonnement sont traitées de manière 100% sécurisée par Stripe. Aucune donnée de carte bancaire ne transite sur nos serveurs.
+                • Strava : Synchronisation des activités d'entraînement.
+                {"\n"}• Stripe : Facturation dynamique et sécurisée.
               </Text>
             </View>
 
             <View style={{ gap: spacing[1] }}>
               <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
-                3. Utilisation de l'IA (Gemini)
+                3. Responsabilité & Santé
               </Text>
               <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
-                Les questions posées à l'IA Coach de Pure Ascension sont traitées via l'API sécurisée de Google Gemini. Vos données d'entraînement et objectifs y sont attachés sous forme de contexte strict pour formuler des réponses adaptées. Vos données ne sont pas utilisées pour entraîner le modèle public.
-              </Text>
-            </View>
-
-            <View style={{ gap: spacing[1] }}>
-              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
-                4. Sécurité & Droits
-              </Text>
-              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
-                Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression totale de vos données. Vous pouvez à tout moment demander la purge complète de vos informations depuis notre service support ou en supprimant votre compte.
-              </Text>
-            </View>
-
-            <View style={{ gap: spacing[1] }}>
-              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
-                5. Responsabilité & Santé
-              </Text>
-              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: 20 }}>
-                Les conseils d'entraînement et d'alimentation prodigués par l'application sont à titre indicatif et ne remplacent en aucun cas un avis médical professionnel. Consultez votre médecin traitant avant de débuter tout nouveau programme sportif intense ou d'effectuer des changements nutritionnels notables.
+                Les conseils d'entraînement et d'alimentation prodigués par l'application sont à titre indicatif et ne remplacent en aucun cas un avis médical professionnel.
               </Text>
             </View>
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Referral Modal */}
+      <ReferralModal
+        visible={showReferralModal}
+        onClose={() => setShowReferralModal(false)}
+      />
+
+      {/* Ascension Card Modal */}
+      <AscensionCardModal
+        visible={showAscensionCardModal}
+        onClose={() => setShowAscensionCardModal(false)}
+        data={{
+          userName: displayName !== 'Mon profil' ? displayName : 'Guerrier',
+          ascensionScore,
+          streakDays,
+          workoutCompleted: workoutPct === 100,
+          mealsCount,
+          waterGlasses,
+          sleepScore,
+          mentalCheckin,
+        }}
+      />
     </SafeAreaView>
   );
 };
 
-/* ─── Styles ─────────────────────────────────────────────────────────────── */
+/* ─── Styles Strava ──────────────────────────────────────────────────────── */
 const st = StyleSheet.create({
-  // Strava connecté
+  stravaLoadingCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[4],
+    borderWidth: 1, borderColor: colors.ink[200], ...shadows.sm,
+  },
   stravaConnected: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: '#fff', borderRadius: radius.xl,
@@ -752,59 +808,120 @@ const st = StyleSheet.create({
     ...shadows.sm,
   },
   stravaConnectedLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  stravaIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
+  stravaIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.clay[50], alignItems: 'center', justifyContent: 'center' },
   stravaConnectedTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] },
-  stravaConnectedSub:   { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[500], marginTop: 2 },
+  stravaConnectedSub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[500], marginTop: 2 },
   stravaIconBtn: {
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: colors.ink[100], alignItems: 'center', justifyContent: 'center',
   },
-
-  // EAT badge
   eatBadge: {
     flexDirection: 'row', alignItems: 'center', gap: spacing[2],
-    backgroundColor: '#fff7ed', borderRadius: radius.lg,
+    backgroundColor: colors.clay[50], borderRadius: radius.lg,
     paddingHorizontal: spacing[4], paddingVertical: spacing[2],
-    borderWidth: 1, borderColor: '#fed7aa',
+    borderWidth: 1, borderColor: colors.clay[200],
   },
-  eatBadgeText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: '#9a3412' },
+  eatBadgeText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.clay[700] },
 
-  // Activités
-  activitiesLabel: {
-    fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.xs,
-    color: colors.ink[500], textTransform: 'uppercase', letterSpacing: 0.8,
+  /* Bouton CTA Terre Cuite avec icône coureur */
+  stravaClayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.clay[500],
+    borderRadius: radius.xl,
+    padding: spacing[4],
+    ...shadows.md,
   },
-  activityRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
-    backgroundColor: '#fff', borderRadius: radius.lg,
-    padding: spacing[3], borderWidth: 1, borderColor: colors.ink[150] ?? colors.ink[200],
-    ...shadows.sm,
+  stravaClayLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  runnerIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  activityName: { fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.sm, color: colors.ink[900] },
-  activityMeta: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[500], marginTop: 2 },
-  activityDate: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[500] },
-  activityCal:  { fontFamily: fontFamily.hanken.bold,    fontSize: fontSize.xs, color: STRAVA_ORANGE, marginTop: 2 },
-
-  // Bouton connexion
-  stravaConnectBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: STRAVA_ORANGE, borderRadius: radius.xl,
-    padding: spacing[4], ...shadows.md,
-  },
-  stravaConnectLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  stravaConnectIcon: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center',
-  },
-  stravaConnectTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: '#fff' },
-  stravaConnectSub:   { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
+  stravaClayTitle: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: '#fff' },
+  stravaClaySub: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 });
 
+/* ─── Styles Général Écran ────────────────────────────────────────────────── */
 const s = StyleSheet.create({
-  safe:        { flex: 1, backgroundColor: colors.sand[50] },
-  scroll:      { flex: 1 },
-  content:     { paddingHorizontal: spacing[5], paddingTop: spacing[6], gap: spacing[5] },
+  safe: { flex: 1, backgroundColor: colors.sand[50] },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: spacing[5], paddingTop: spacing[6], gap: spacing[5] },
+
+  headerRow: { gap: 2 },
   screenTitle: { fontFamily: fontFamily.spectral.medium, fontSize: fontSize['3xl'], color: colors.ink[900] },
+  screenSubtitle: { fontFamily: fontFamily.spectral.regularItalic, fontSize: fontSize.base, color: colors.sage[600] },
+
+  userCard: { borderRadius: radius.xl, borderWidth: 1, borderColor: colors.ink[200] },
+  userName: { fontFamily: fontFamily.spectral.bold, fontSize: fontSize.xl, color: colors.ink[900] },
+  userEmail: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600] },
+
+  /* Ligne de statistiques à 3 cartes blanches */
+  statsRow: { flexDirection: 'row', gap: spacing[3] },
+  statWhiteCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: radius.xl,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[2],
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.ink[200],
+    gap: 4,
+    ...shadows.sm,
+  },
+  statVal: { fontFamily: fontFamily.spectral.bold, fontSize: fontSize.xl, color: colors.ink[900] },
+  statLabel: { fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.xs, color: colors.ink[500] },
+
+  /* Sections */
+  sectionBlock: { gap: spacing[2] },
+  sectionEyebrow: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: colors.ink[500], letterSpacing: 1.2 },
+
+  cardListContainer: {
+    backgroundColor: '#fff',
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.ink[200],
+    overflow: 'hidden',
+    ...shadows.sm,
+  },
+  cardListRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing[4],
+    gap: spacing[3],
+  },
+  cardListText: { flex: 1, fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] },
+  cardListDivider: { height: 1, backgroundColor: colors.ink[100], marginLeft: spacing[4] + 36 + spacing[3] },
+
+  iconCircleClay: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.clay[50], alignItems: 'center', justifyContent: 'center' },
+  iconCircleSage: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.sage[50], alignItems: 'center', justifyContent: 'center' },
+  iconCircleSand: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.sand[100], alignItems: 'center', justifyContent: 'center' },
+
+  feedbackCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    backgroundColor: colors.sage[50], borderRadius: radius.xl, padding: spacing[4],
+    borderWidth: 1.5, borderColor: colors.sage[200], ...shadows.sm,
+  },
+  feedbackText: { flex: 1, fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.sage[900] },
+
+  legalNoticeBox: { padding: spacing[3], backgroundColor: colors.sand[100], borderRadius: radius.md, borderWidth: 1, borderColor: colors.sand[200] },
+  legalNoticeText: { fontFamily: fontFamily.hanken.regular, fontSize: 10, color: colors.ink[500], textAlign: 'center', lineHeight: 14 },
+
+  logoutBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: spacing[3.5], borderRadius: radius.xl, backgroundColor: '#fff',
+    borderWidth: 1.5, borderColor: colors.clay[200], gap: spacing[2],
+  },
+  logoutBtnText: { fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.clay[600] },
+
+  deleteAccountBtn: { alignItems: 'center', paddingVertical: spacing[2] },
+  deleteAccountText: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[400], textDecorationLine: 'underline' },
 });
 
 export default ProfileScreen;

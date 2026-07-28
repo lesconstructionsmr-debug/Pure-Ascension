@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   SafeAreaView, View, Text, TextInput, Pressable,
   ScrollView, StyleSheet, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Animated
+  KeyboardAvoidingView, Platform, Animated, Keyboard
 } from 'react-native';
 import { ArrowLeft, Send, Bot, User, Zap, Lock } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, spacing, radius, shadows } from '../theme/theme';
@@ -26,63 +26,56 @@ const PLAN_LABELS: Record<string, string> = { free: 'Gratuit', standard: 'Standa
 /* ─── Questions intelligentes pré-générées selon le profil (0 token) ───────── */
 function getSmartQuestions(profile: any): { question: string; answer: string }[] {
   const sport = profile?.cardioSport || 'general';
-  const symptoms = profile?.digestiveSymptoms || [];
-  const goal = profile?.mainGoal || 'tone';
+  const goal = String(profile?.mainGoal || '').toLowerCase();
 
   const base: { question: string; answer: string }[] = [
     {
       question: '💧 Combien d\'eau boire par jour ?',
-      answer: '**Hydratation journalière (protocole V9)**\n\nLa cible est de **3 litres d\'eau minimum** par jour, répartis comme suit :\n\n• 🌅 **Matin au réveil** : 500 ml d\'eau tiède avec le jus d\'un demi-citron (alcalinisant, drainage hépatique)\n• 🕐 **Entre les repas** : 250 ml toutes les heures — jamais pendant le repas pour ne pas diluer les sucs digestifs\n• 🏋️ **Autour de l\'effort** : +500 ml à +1L selon la durée et la transpiration\n• 🌙 **Le soir** : stopper l\'eau 1h avant le coucher pour préserver la qualité du sommeil profond\n\nL\'eau filtrée ou de source est préférable au robinet (chlore inhibe la flore intestinale).'
+      answer: '**Hydratation Pure Ascension**\n\nCible simple : **environ 3 litres d\'eau / jour**, adaptés à ta taille et à ton entraînement.\n\n• Au réveil : 300–500 ml\n• Entre les repas : petites gorgées régulières\n• Autour de l\'effort : +500 ml à +1 L selon la durée et la chaleur\n• Le soir : réduire 1 h avant le coucher si tu te réveilles la nuit\n\nPriorise l\'eau plate. Les boissons sucrées ne comptent pas dans ta cible.',
     },
     {
-      question: '🧬 C\'est quoi le Reset Métabolique 14 jours ?',
-      answer: '**Reset Métabolique 14 jours (V9 Master)**\n\nLe Reset est la **fondation de tout programme Pure Ascension**. Pendant 14 jours :\n\n❌ **Éliminer complètement :**\n• Produits laitiers (inflammatoires, perturbent l\'axe intestin-cerveau)\n• Gluten (active la zonuline → Leaky Gut)\n• Sucres raffinés (résistance à l\'insuline)\n• Alcool (surcharge hépatique)\n\n✅ **Prioriser :**\n• Protéines animales de qualité (poulet, saumon, œufs)\n• Légumes colorés (antioxydants, fibres solubles)\n• Graisses saines (avocat, huile d\'olive, noix)\n\n**Résultats attendus à J14** : Digestion améliorée, énergie stable, réduction des ballonnements, perte de 2-4 kg d\'inflammation.'
+      question: '🍽️ Comment construire une assiette équilibrée ?',
+      answer: '**Assiette Pure Ascension (règle simple)**\n\n• **½ assiette** : légumes (fibres, satiété, micronutriments)\n• **¼ assiette** : protéines (poulet, poisson, œufs, tofu, yaourt grec)\n• **¼ assiette** : glucides complexes (riz, quinoa, patate douce, avoine)\n• **1 filet** : graisses de qualité (huile d\'olive, avocat, oléagineux)\n\nScanne ton repas avec l\'IA pour estimer calories & macros, puis ajuste selon ton objectif.',
     },
     {
-      question: '⏱️ C\'est quoi le Tempo 2010 ?',
-      answer: '**Tempo 2010 — La clé du gain musculaire (V9)**\n\nLe Tempo 2010 définit la **vitesse de chaque phase** d\'un mouvement :\n\n• **2** = 2 secondes en phase **excentrique** (descente, allongement musculaire)\n• **0** = 0 seconde de pause **en bas** (pas d\'arrêt)\n• **1** = 1 seconde en phase **concentrique** (montée, contraction)\n• **0** = 0 seconde de pause **en haut**\n\n**Pourquoi ça marche ?**\nLa phase excentrique lente crée des micro-déchirures musculaires contrôlées — c\'est là que se produit l\'hypertrophie réelle. Un Tempo rapide divise votre gain musculaire par 2.\n\n**Exemple** : Squat → descente 2s, remontée 1s. Curl biceps → descente 2s, remontée 1s.'
+      question: '⏱️ C\'est quoi le Tempo 3-1-1-0 ?',
+      answer: '**Tempo — contrôle du mouvement**\n\nUn tempo à 4 chiffres guide la vitesse de chaque phase :\n\n• **3** = 3 s en descente (excentrique)\n• **1** = 1 s de pause en bas\n• **1** = 1 s en montée (concentrique)\n• **0** = 0 s de pause en haut\n\nPourquoi c\'est utile : plus de contrôle, meilleure qualité d\'exécution, et un stimulus plus clair pour le développement musculaire.\n\nExemple squat : descends en 3 s, pause 1 s, remonte en 1 s.',
     },
   ];
 
-  // Questions spécifiques course / marathon
   if (sport === 'course' || sport === 'trail') {
     base.unshift(
       {
         question: '🏃 Que manger avant une sortie longue ?',
-        answer: '**Nutrition pré-sortie longue (>75 min)**\n\n🕒 **3h avant la course :**\nRepas riche en glucides complexes — riz blanc, patate douce, flocons d\'avoine avec fruits. Éviter fibres, graisses, lactose (risque ischémie intestinale pendant l\'effort).\n\n⚡ **30-45 min avant :**\n1 banane mûre + 300ml eau avec une pincée de sel de mer (sodium). Option : 1 c. à café de miel.\n\n🏃 **Pendant l\'effort (au-delà de 75 min) :**\n60 à 90g de glucides par heure — gels, dattes, banane, compote. **Electrolytes toutes les 20 min** (sodium + magnésium).\n\n🔁 **Après la course :**\nFenêtre anabolique de 45 min : 30g protéines + 60g glucides rapides. Exemple : smoothie whey + banane + avoine.'
+        answer: '**Nutrition pré-sortie longue (>75 min)**\n\n🕒 **3 h avant :** glucides complexes (riz, patate douce, avoine) + un peu de protéines. Évite les repas très gras.\n\n⚡ **30–45 min avant :** banane + eau légèrement salée, ou un peu de miel.\n\n🏃 **Pendant (>75 min) :** 60–90 g de glucides / heure + électrolytes toutes les ~20 min.\n\n🔁 **Après :** protéines + glucides dans l\'heure qui suit (ex. smoothie whey + banane).',
       },
       {
-        question: '🫀 C\'est quoi la Zone 2 et pourquoi c\'est important ?',
-        answer: '**Zone 2 — L\'endurance fondamentale (V9 Endurance)**\n\nLa Zone 2 est l\'allure à laquelle vous pouvez **tenir une conversation sans être essoufflé**.\n\n📊 **Fréquence cardiaque cible :** 60-70% de votre FC Max\n\n**Pourquoi c\'est la base de tout programme marathon ?**\n• Développe les **mitochondries** (vos usines à énergie cellulaire)\n• Brûle **principalement les graisses** comme carburant → épargne le glycogène musculaire\n• Repousse le **seuil lactate** — vous pourrez courir plus vite sans vous acidifier\n• Favorise la **récupération** entre les séances intenses\n\n**La règle d\'or (Modèle polarisé 80/20) :**\n80% de votre volume d\'entraînement doit se faire en Zone 2. Seulement 20% en haute intensité (Z4-Z5).\n\nSi vous sentez que vous courez trop vite en Zone 2... vous courrez trop vite. Ralentissez !'
+        question: '🫀 C\'est quoi la Zone 2 ?',
+        answer: '**Zone 2 — endurance de base**\n\nAllure où tu peux encore parler confortablement.\n\n📊 Cible approx. : **60–70 % de ta FC max**\n\nPourquoi c\'est central : construit l\'endurance, améliore la récupération, et laisse de la place pour les séances intenses.\n\nRègle 80/20 : ~80 % du volume en Zone 2, ~20 % en haute intensité.',
       }
     );
   }
 
-  // Questions spécifiques vélo
   if (sport === 'velo') {
     base.unshift({
-      question: '🚴 Pourquoi ma FC Max vélo est différente ?',
-      answer: '**FC Max Vélo — La spécificité cycliste (V9)**\n\nEn vélo, votre FC Max réelle est **5 à 10 bpm inférieure** à la FC Max course à pied.\n\n**Raison physiologique :** En position assise sur le vélo, moins de masse musculaire est sollicitée que dans la course debout. Le cœur n\'a pas besoin de monter aussi haut pour perfuser les muscles.\n\n**Calcul dans Pure Ascension :**\n```\nFC Max Vélo = 220 - âge - 5\n```\n\nTous vos ratports de zones cardiaques sont automatiquement calculés sur cette base dans votre programme.\n\n**Zones cibles vélo :**\n• Z2 (Endurance) : 60-70% FC Max vélo\n• Z3 (Tempo) : 70-80%\n• Z4 (Seuil) : 80-90%\n• Z5 (VO2max) : 90-100%'
+      question: '🚴 Pourquoi ma FC max vélo est différente ?',
+      answer: '**FC Max Vélo**\n\nEn vélo, la FC max mesurée est souvent **5–10 bpm plus basse** qu\'en course à pied (position assise, masse musculaire sollicitée différente).\n\nDans Pure Ascension :\n```\nFC Max Vélo ≈ 220 − âge − 5\n```\n\nZones :\n• Z2 : 60–70 %\n• Z3 : 70–80 %\n• Z4 : 80–90 %\n• Z5 : 90–100 %',
     });
   }
 
-  // Questions spécifiques digestives
-  if (symptoms.includes('ballonnements') || symptoms.includes('reflux')) {
-    base.push({
-      question: '🫁 Comment gérer mes ballonnements après les repas ?',
-      answer: '**Hypochlorhydrie — Manque d\'acide gastrique (V9)**\n\nLes ballonnements après repas sont souvent le signe d\'un **manque d\'acide chlorhydrique** dans l\'estomac, non d\'un excès (contrairement aux idées reçues).\n\n**Protocole nutritionnel V9 :**\n\n1. **Vinaigre de cidre de pomme (VCP)** : 1 c. à table dilué dans 50ml d\'eau tiède, **10-15 min avant chaque repas principal**. Active la production d\'acide gastrique et réduit les fermentations.\n\n2. **Mastication parasympathique** : 20 à 30 mastications par bouchée. Mange assis, sans écrans, en état de calme. La digestion commence dans la bouche.\n\n3. **Ne pas boire pendant le repas** : L\'eau dilue les sucs digestifs → fermentations → gaz.\n\n4. **Éviter les associations difficiles** : Fruits + protéines = fermentation garantie. Mangez les fruits seuls en dehors des repas.\n\n**Résultats attendus** : Réduction significative des ballonnements en 7-14 jours.'
-    });
-  }
-
-  // Questions selon objectif
   if (goal === 'muscle' || goal === 'force') {
     base.push({
-      question: '💪 Combien de protéines par jour pour prendre du muscle ?',
-      answer: '**Protéines & Hypertrophie (V9 Master)**\n\nLa cible standard pour la prise de masse musculaire est de **1,8 à 2,2g de protéines par kg de poids corporel** par jour.\n\n**Exemple : 75 kg → 135g à 165g de protéines/jour**\n\n**Sources recommandées (biodisponibilité élevée) :**\n• 🥩 Viandes maigres (poulet, dinde, bœuf maigre) : ~25g/100g\n• 🐟 Poissons gras (saumon, maquereau) : ~20-25g + oméga-3 anti-inflammatoires\n• 🥚 Œufs entiers : 6g/œuf — protéine de référence (index 100)\n• 🫘 Légumineuses (lentilles, pois chiches) : 8-10g/100g (cuit) + fibres prébiotiques\n\n**Répartition optimale :**\nDistribuer en 3-4 prises de 30-40g. Au-delà de 40g par repas, l\'absorption est limitée.'
+      question: '💪 Combien de protéines par jour ?',
+      answer: '**Protéines & développement musculaire**\n\nCible pratique : **1,6 à 2,2 g / kg de poids corporel / jour**.\n\nExemple 75 kg → ~120 à 165 g / jour.\n\nBonnes sources : poulet, dinde, bœuf maigre, poisson, œufs, skyr, tofu, légumineuses.\n\nRépartition : 3–4 prises de 30–40 g sur la journée, dont une autour de l\'entraînement.',
+    });
+  } else {
+    base.push({
+      question: '🔥 Comment gérer mon déficit calorique ?',
+      answer: '**Déficit durable (sans casser l\'énergie)**\n\n• Vise un déficit modéré (plutôt qu\'extrême)\n• Garde les protéines élevées pour préserver le muscle\n• Priorise les légumes et les fibres pour la satiété\n• Garde 1–2 séances de force / semaine minimum\n\nUtilise le journal calories + le scanner de repas pour rester dans ta cible sans obsession.',
     });
   }
 
-  return base.slice(0, 6); // Limiter à 6 questions
+  return base.slice(0, 6);
 }
 
 /* ─── Composant principal ──────────────────────────────────────────────────── */
@@ -94,14 +87,13 @@ export const AICoachScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
   const inferredProfile = program ? {
     mainGoal: program.goal,
     cardioSport: program.cardioSport,
-    digestiveSymptoms: program.digestiveProtocol?.map(p => p.condition) ?? [],
   } : null;
 
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      content: '**Bonjour ! Je suis votre Coach IA Pure Ascension 🌿**\n\nFormé sur la base nutritionnelle V9 Master, je peux vous aider avec :\n• Votre programme et zones de FC personnalisées\n• La nutrition sportive et le Reset 14 jours\n• La gestion digestive (Hypochlorhydrie, Leaky Gut)\n• La préparation marathon / trail\n\nPosez-moi votre question ci-dessous !',
+      content: '**Bonjour ! Je suis votre Coach IA Pure Ascension 🌿**\n\nJe peux vous aider avec :\n• Votre programme d\'entraînement (phases P1–P4, tempos, RPE)\n• La nutrition sportive et vos macros\n• Le scanner de repas IA\n• La préparation endurance (course, trail, vélo)\n\nPosez-moi votre question ci-dessous !',
       timestamp: new Date(),
     }
   ]);
@@ -115,9 +107,26 @@ export const AICoachScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
   const [limitReached, setLimitReached] = useState(false);
   const [smartQuestions] = useState(() => getSmartQuestions(inferredProfile));
   const [activeAnswer, setActiveAnswer] = useState<string | null>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const creditBarAnim = useRef(new Animated.Value(0)).current;
+
+  // Écouteur clavier pour ajuster la barre de saisie au-dessus du TabBar
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Charger les crédits du jour depuis Firestore
   useEffect(() => {
@@ -171,7 +180,11 @@ export const AICoachScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
         .map(m => ({ role: m.role, content: m.content }));
       historyToSend.push({ role: 'user', content });
 
-      const response = await fetch('/.netlify/functions/chat-coach', {
+      const chatEndpoint = Platform.OS === 'web'
+        ? '/.netlify/functions/chat-coach'
+        : 'https://pure-ascension.netlify.app/.netlify/functions/chat-coach';
+
+      const response = await fetch(chatEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -246,7 +259,7 @@ export const AICoachScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
           </View>
           <View>
             <Text style={st.headerTitle}>Coach IA Pure Ascension</Text>
-            <Text style={st.headerStatus}>● En ligne · V9 Master</Text>
+            <Text style={st.headerStatus}>● En ligne · Coach fitness</Text>
           </View>
         </View>
         {/* Compteur de crédits */}
@@ -279,7 +292,7 @@ export const AICoachScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           ref={scrollRef}
@@ -351,7 +364,10 @@ export const AICoachScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
         </ScrollView>
 
         {/* ── Barre de saisie ─────────────────────────────────────────── */}
-        <View style={st.inputBar}>
+        <View style={[
+          st.inputBar,
+          !isKeyboardVisible && { paddingBottom: Platform.OS === 'ios' ? 88 : 72 }
+        ]}>
           {limitReached ? (
             <View style={st.limitBanner}>
               <Zap size={16} color={colors.clay[500]} />

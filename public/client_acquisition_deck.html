@@ -1,0 +1,1856 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pure Ascension — Présentation Client Acquisition</title>
+  
+  <!-- Typography Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      /* Color Tokens (Charte Luxe Pure Ascension) */
+      --color-sage: #4E7358;
+      --color-sage-hover: #3D5C45;
+      --color-sage-light: #EAF1EC;
+      --color-sage-subtle: rgba(78, 115, 88, 0.12);
+      
+      --color-clay: #C85D32;
+      --color-clay-hover: #B04F28;
+      --color-clay-light: #FBF0EB;
+      --color-clay-subtle: rgba(200, 93, 50, 0.12);
+
+      --color-sand: #FBF8F3;
+      --color-sand-dark: #F3ECE2;
+      
+      --color-ink: #1A201C;
+      --color-ink-muted: #526056;
+      --color-ink-light: #849488;
+
+      --color-white: #FFFFFF;
+      --color-card-border: rgba(78, 115, 88, 0.14);
+
+      /* Typography Tokens */
+      --font-heading: 'Spectral', Georgia, serif;
+      --font-body: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+
+      /* Transitions & Shadows */
+      --transition-smooth: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      --transition-fast: all 0.2s ease;
+      --shadow-sm: 0 4px 12px rgba(26, 32, 28, 0.04);
+      --shadow-md: 0 12px 32px rgba(26, 32, 28, 0.07);
+      --shadow-lg: 0 24px 48px -12px rgba(26, 32, 28, 0.12);
+      --shadow-glow: 0 0 30px rgba(78, 115, 88, 0.2);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--color-sand);
+      color: var(--color-ink);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Background Ambient Gradients */
+    .bg-ambient {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .bg-blob-1 {
+      position: absolute;
+      top: -10%;
+      right: -5%;
+      width: 55vw;
+      height: 55vw;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(78, 115, 88, 0.08) 0%, rgba(251, 248, 243, 0) 70%);
+      filter: blur(60px);
+    }
+
+    .bg-blob-2 {
+      position: absolute;
+      bottom: -15%;
+      left: -10%;
+      width: 60vw;
+      height: 60vw;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(200, 93, 50, 0.06) 0%, rgba(251, 248, 243, 0) 70%);
+      filter: blur(70px);
+    }
+
+    /* Top Progress Bar & Header */
+    header.deck-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 70px;
+      padding: 0 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+      background: rgba(251, 248, 243, 0.85);
+      border-bottom: 1px solid rgba(78, 115, 88, 0.08);
+    }
+
+    .progress-bar-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--color-sand-dark);
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 10%;
+      background: linear-gradient(90deg, var(--color-sage), var(--color-clay));
+      transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+      color: var(--color-ink);
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--color-sage), var(--color-sage-hover));
+      color: var(--color-white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1rem;
+      box-shadow: 0 4px 10px rgba(78, 115, 88, 0.3);
+    }
+
+    .header-tagline {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--color-ink-muted);
+      background: var(--color-sage-light);
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--color-sage-subtle);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .btn-header-cta {
+      background: var(--color-clay);
+      color: var(--color-white);
+      border: none;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: var(--transition-smooth);
+      box-shadow: 0 4px 12px rgba(200, 93, 50, 0.25);
+    }
+
+    .btn-header-cta:hover {
+      background: var(--color-clay-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(200, 93, 50, 0.35);
+    }
+
+    /* Deck Viewport & Slides Container */
+    .deck-viewport {
+      position: relative;
+      width: 100vw;
+      height: calc(100vh - 70px - 80px);
+      margin-top: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      padding: 20px 40px;
+    }
+
+    .slide {
+      position: absolute;
+      width: 100%;
+      max-width: 1200px;
+      height: 100%;
+      max-height: 760px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(24px) scale(0.98);
+      transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.5s;
+      pointer-events: none;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    /* Slide Components Typography */
+    .slide-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      align-self: flex-start;
+      padding: 6px 16px;
+      background: var(--color-white);
+      border: 1px solid var(--color-card-border);
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-sage);
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .slide-title {
+      font-family: var(--font-heading);
+      font-size: clamp(2.2rem, 4vw, 3.4rem);
+      font-weight: 700;
+      line-height: 1.15;
+      color: var(--color-ink);
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+
+    .slide-subtitle {
+      font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+      color: var(--color-ink-muted);
+      line-height: 1.6;
+      max-width: 780px;
+      margin-bottom: 32px;
+      font-weight: 400;
+    }
+
+    /* Slide Grid Layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    /* Luxury Cards */
+    .card {
+      background: var(--color-white);
+      border: 1px solid var(--color-card-border);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: var(--shadow-md);
+      transition: var(--transition-smooth);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: rgba(78, 115, 88, 0.3);
+    }
+
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: var(--color-sage-light);
+      color: var(--color-sage);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .card-icon.clay {
+      background: var(--color-clay-light);
+      color: var(--color-clay);
+    }
+
+    .card-title {
+      font-family: var(--font-heading);
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: var(--color-ink);
+      margin-bottom: 12px;
+    }
+
+    .card-desc {
+      font-size: 0.95rem;
+      color: var(--color-ink-muted);
+      line-height: 1.6;
+    }
+
+    /* Specific Slide Enhancements */
+
+    /* Slide 1: Hero */
+    .hero-slide {
+      text-align: center;
+      align-items: center;
+    }
+
+    .hero-slide .slide-badge {
+      align-self: center;
+    }
+
+    .hero-slide .slide-subtitle {
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+
+    .btn-hero-primary {
+      background: var(--color-clay);
+      color: var(--color-white);
+      padding: 16px 36px;
+      border-radius: 40px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      transition: var(--transition-smooth);
+      box-shadow: 0 10px 25px rgba(200, 93, 50, 0.3);
+      text-decoration: none;
+    }
+
+    .btn-hero-primary:hover {
+      background: var(--color-clay-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 14px 30px rgba(200, 93, 50, 0.4);
+    }
+
+    .btn-hero-secondary {
+      background: var(--color-white);
+      color: var(--color-ink);
+      padding: 16px 32px;
+      border-radius: 40px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      border: 1px solid var(--color-card-border);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      transition: var(--transition-smooth);
+      box-shadow: var(--shadow-sm);
+      text-decoration: none;
+    }
+
+    .btn-hero-secondary:hover {
+      background: var(--color-sand-dark);
+      transform: translateY(-2px);
+    }
+
+    .hero-stats-row {
+      display: flex;
+      gap: 48px;
+      justify-content: center;
+      margin-top: 40px;
+      padding-top: 32px;
+      border-top: 1px solid var(--color-card-border);
+    }
+
+    .hero-stat-item {
+      text-align: center;
+    }
+
+    .hero-stat-num {
+      font-family: var(--font-heading);
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--color-sage);
+    }
+
+    .hero-stat-label {
+      font-size: 0.85rem;
+      color: var(--color-ink-muted);
+      font-weight: 500;
+    }
+
+    /* Slide 2: Pain points */
+    .pain-card {
+      border-left: 4px solid var(--color-clay);
+    }
+
+    .quote-box {
+      margin-top: 28px;
+      padding: 20px 28px;
+      background: rgba(200, 93, 50, 0.05);
+      border-radius: 16px;
+      border: 1px dashed rgba(200, 93, 50, 0.3);
+      font-family: var(--font-heading);
+      font-style: italic;
+      color: var(--color-ink);
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Slide 3: Method */
+    .pillar-card {
+      position: relative;
+    }
+
+    .pillar-number {
+      position: absolute;
+      top: 24px;
+      right: 28px;
+      font-family: var(--font-heading);
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--color-sage-light);
+    }
+
+    /* Slide 4: 4 Phases Workout */
+    .phase-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .phase-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .phase-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: var(--color-sage-light);
+      color: var(--color-sage);
+      letter-spacing: 0.05em;
+    }
+
+    .phase-list {
+      list-style: none;
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .phase-list li {
+      font-size: 0.875rem;
+      color: var(--color-ink-muted);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .phase-list li i {
+      color: var(--color-sage);
+      width: 16px;
+      height: 16px;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    /* Slide 5 & 6 & 7: Feature Demos & Mockups */
+    .feature-preview-box {
+      background: linear-gradient(145deg, #ffffff, var(--color-sand-dark));
+      border: 1px solid var(--color-card-border);
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .vision-mockup {
+      background: var(--color-ink);
+      border-radius: 20px;
+      padding: 24px;
+      color: var(--color-white);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+
+    .vision-scan-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, var(--color-clay), transparent);
+      box-shadow: 0 0 15px var(--color-clay);
+      animation: scanAnim 3s infinite linear;
+    }
+
+    @keyframes scanAnim {
+      0% { top: 0; }
+      50% { top: 100%; }
+      100% { top: 0; }
+    }
+
+    .macro-badge-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .macro-pill {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .macro-pill-val {
+      font-weight: 700;
+      color: var(--color-white);
+      font-size: 0.95rem;
+    }
+
+    .macro-pill-lbl {
+      color: var(--color-ink-light);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+    }
+
+    /* AI Coach Chat Mockup */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .chat-bubble {
+      padding: 14px 18px;
+      border-radius: 16px;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      max-width: 88%;
+    }
+
+    .chat-bubble.ai {
+      background: var(--color-sage-light);
+      color: var(--color-ink);
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+      border: 1px solid var(--color-sage-subtle);
+    }
+
+    .chat-bubble.user {
+      background: var(--color-sage);
+      color: var(--color-white);
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+
+    /* Grocery & Recipes */
+    .recipe-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--color-white);
+      padding: 16px 20px;
+      border-radius: 16px;
+      border: 1px solid var(--color-card-border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .recipe-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: var(--color-clay-light);
+      color: var(--color-clay);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* Slide 8: Testimonials */
+    .testimonial-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .testimonial-stars {
+      color: #E6A100;
+      display: flex;
+      gap: 4px;
+      margin-bottom: 14px;
+    }
+
+    .testimonial-quote {
+      font-size: 0.95rem;
+      color: var(--color-ink);
+      line-height: 1.6;
+      font-style: italic;
+      margin-bottom: 20px;
+    }
+
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-top: 14px;
+      border-top: 1px solid var(--color-card-border);
+    }
+
+    .avatar-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--color-sage);
+      color: var(--color-white);
+      font-weight: 700;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .author-name {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--color-ink);
+    }
+
+    .author-role {
+      font-size: 0.75rem;
+      color: var(--color-ink-muted);
+    }
+
+    /* Slide 9: Formules d'Accès (Pricing / Access Plans - Strictly No Prices) */
+    .pricing-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+      position: relative;
+    }
+
+    .pricing-card.featured {
+      border: 2px solid var(--color-sage);
+      box-shadow: var(--shadow-lg), var(--shadow-glow);
+    }
+
+    .popular-badge {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: var(--color-sage);
+      color: var(--color-white);
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+
+    .pricing-header {
+      margin-bottom: 20px;
+    }
+
+    .pricing-title {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--color-ink);
+      margin-bottom: 8px;
+    }
+
+    .pricing-tagline {
+      font-size: 0.85rem;
+      color: var(--color-ink-muted);
+    }
+
+    .pricing-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 20px 0 28px 0;
+    }
+
+    .pricing-features li {
+      font-size: 0.875rem;
+      color: var(--color-ink-muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pricing-features li i {
+      color: var(--color-sage);
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .btn-plan {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      text-align: center;
+    }
+
+    .btn-plan.outline {
+      background: transparent;
+      color: var(--color-ink);
+      border: 1px solid var(--color-card-border);
+    }
+
+    .btn-plan.outline:hover {
+      background: var(--color-sand-dark);
+    }
+
+    .btn-plan.filled {
+      background: var(--color-sage);
+      color: var(--color-white);
+      box-shadow: 0 4px 12px rgba(78, 115, 88, 0.25);
+    }
+
+    .btn-plan.filled:hover {
+      background: var(--color-sage-hover);
+    }
+
+    .btn-plan.clay {
+      background: var(--color-clay);
+      color: var(--color-white);
+      box-shadow: 0 4px 12px rgba(200, 93, 50, 0.25);
+    }
+
+    .btn-plan.clay:hover {
+      background: var(--color-clay-hover);
+    }
+
+    /* Slide 10: Call To Action Final */
+    .cta-card {
+      background: linear-gradient(135deg, var(--color-ink), #2A362E);
+      color: var(--color-white);
+      border-radius: 28px;
+      padding: 48px;
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-card .slide-title {
+      color: var(--color-white);
+    }
+
+    .cta-card .slide-subtitle {
+      color: var(--color-ink-light);
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .cta-reassurance {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      margin-top: 24px;
+      font-size: 0.85rem;
+      color: var(--color-ink-light);
+    }
+
+    .cta-reassurance span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cta-reassurance i {
+      color: var(--color-clay);
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Floating Navigation Controls Footer */
+    footer.deck-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 80px;
+      padding: 0 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+      background: rgba(251, 248, 243, 0.85);
+      border-top: 1px solid rgba(78, 115, 88, 0.08);
+    }
+
+    .nav-keyboard-hint {
+      font-size: 0.8rem;
+      color: var(--color-ink-light);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .key-badge {
+      background: var(--color-white);
+      border: 1px solid var(--color-card-border);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 0.75rem;
+      color: var(--color-ink);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .dots-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--color-card-border);
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+
+    .dot:hover {
+      background: var(--color-sage-hover);
+    }
+
+    .dot.active {
+      width: 28px;
+      border-radius: 10px;
+      background: var(--color-sage);
+    }
+
+    .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .slide-counter {
+      font-family: var(--font-heading);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--color-ink);
+      min-width: 70px;
+      text-align: center;
+    }
+
+    .btn-nav-round {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--color-white);
+      border: 1px solid var(--color-card-border);
+      color: var(--color-ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-nav-round:hover:not(:disabled) {
+      background: var(--color-sage);
+      color: var(--color-white);
+      border-color: var(--color-sage);
+      transform: translateY(-2px);
+    }
+
+    .btn-nav-round:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Modal Bilan Vitalité */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(26, 32, 28, 0.6);
+      backdrop-filter: blur(8px);
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: var(--transition-smooth);
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-box {
+      background: var(--color-white);
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      transform: translateY(20px);
+      transition: var(--transition-smooth);
+    }
+
+    .modal-overlay.active .modal-box {
+      transform: translateY(0);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: var(--color-sand-dark);
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+    }
+
+    .form-group label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--color-ink);
+    }
+
+    .form-group input, .form-group select {
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--color-card-border);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      outline: none;
+      transition: var(--transition-fast);
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--color-sage);
+      box-shadow: 0 0 0 3px var(--color-sage-subtle);
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 992px) {
+      header.deck-header { padding: 0 20px; }
+      footer.deck-footer { padding: 0 20px; }
+      .deck-viewport { padding: 10px 20px; }
+      .grid-3, .grid-4 { grid-template-columns: 1fr; gap: 16px; }
+      .grid-2 { grid-template-columns: 1fr; gap: 20px; }
+      .nav-keyboard-hint { display: none; }
+      .slide-title { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Light Effects -->
+  <div class="bg-ambient">
+    <div class="bg-blob-1"></div>
+    <div class="bg-blob-2"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="deck-header">
+    <div class="progress-bar-container">
+      <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+    
+    <a href="#" class="brand-logo">
+      <div class="brand-mark">P</div>
+      <span>PURE ASCENSION</span>
+    </a>
+
+    <div class="header-tagline">
+      Client Acquisition Deck • Vitalité & Métabolisme
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-header-cta" onclick="openModal()">
+        <i data-lucide="sparkles"></i>
+        <span>Bilan de Vitalité</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Deck Main Viewport -->
+  <main class="deck-viewport">
+
+    <!-- SLIDE 1: Hero & Promesse -->
+    <section class="slide hero-slide active" id="slide-1">
+      <div class="slide-badge">
+        <i data-lucide="shield-check"></i>
+        Écosystème Haute Performance
+      </div>
+      <h1 class="slide-title">
+        Déclenche ton Ascension Physique & Vitalité
+      </h1>
+      <p class="slide-subtitle">
+        L'expérience sur-mesure combinant science biomécanique, nutrition métabolique intelligente et accompagnement par IA disponible 24/7.
+      </p>
+      
+      <div class="hero-actions">
+        <button class="btn-hero-primary" onclick="openModal()">
+          <span>Démarrer Mon Bilan</span>
+          <i data-lucide="arrow-right"></i>
+        </button>
+        <button class="btn-hero-secondary" onclick="goToSlide(2)">
+          <span>Explorer la Méthode</span>
+        </button>
+      </div>
+
+      <div class="hero-stats-row">
+        <div class="hero-stat-item">
+          <div class="hero-stat-num">4 Phases</div>
+          <div class="hero-stat-label">Méthode Biomécanique</div>
+        </div>
+        <div class="hero-stat-item">
+          <div class="hero-stat-num">1 Seconde</div>
+          <div class="hero-stat-label">Scanner Repas IA</div>
+        </div>
+        <div class="hero-stat-item">
+          <div class="hero-stat-num">24h / 7j</div>
+          <div class="hero-stat-label">Guidance Sur-Mesure</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: Tes Blocages Actuels -->
+    <section class="slide" id="slide-2">
+      <div class="slide-badge">
+        <i data-lucide="alert-circle"></i>
+        Le Constat
+      </div>
+      <h2 class="slide-title">Pourquoi stagnons-nous malgré la bonne volonté ?</h2>
+      <p class="slide-subtitle">
+        La plupart des approches échouent car elles appliquent des solutions génériques à un organisme unique.
+      </p>
+
+      <div class="grid-3">
+        <div class="card pain-card">
+          <div class="card-icon clay">
+            <i data-lucide="battery-low"></i>
+          </div>
+          <h3 class="card-title">Fatigue & Énergie Fluctuante</h3>
+          <p class="card-desc">
+            Baisse d'énergie l'après-midi, brouillard mental et sommeil non réparateur qui entravent vos performances quotidiennes.
+          </p>
+        </div>
+
+        <div class="card pain-card">
+          <div class="card-icon clay">
+            <i data-lucide="trending-down"></i>
+          </div>
+          <h3 class="card-title">Stagnation Physique</h3>
+          <p class="card-desc">
+            Sensations d'effort sans résultats visibles sur la silhouette, programmes d'entraînement répétitifs et stagnation sur les charges.
+          </p>
+        </div>
+
+        <div class="card pain-card">
+          <div class="card-icon clay">
+            <i data-lucide="clock"></i>
+          </div>
+          <h3 class="card-title">Manque de Temps & Complexité</h3>
+          <p class="card-desc">
+            Emplois du temps surchargés et régimes ultra-restrictifs impossibles à maintenir avec une vie sociale ou professionnelle active.
+          </p>
+        </div>
+      </div>
+
+      <div class="quote-box">
+        <i data-lucide="quote" style="color: var(--color-clay); width: 28px; height: 28px; flex-shrink: 0;"></i>
+        <span>"La volonté seule ne suffit pas lorsque le système n'est pas optimisé pour votre biologie personnelle."</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: La Méthode Pure Ascension -->
+    <section class="slide" id="slide-3">
+      <div class="slide-badge">
+        <i data-lucide="layers"></i>
+        Notre Approche Globale
+      </div>
+      <h2 class="slide-title">La Méthode Pure Ascension</h2>
+      <p class="slide-subtitle">
+        Une synergie scientifique articulée autour de 3 piliers indissociables pour transformer votre vitalité.
+      </p>
+
+      <div class="grid-3">
+        <div class="card pillar-card">
+          <div class="pillar-number">01</div>
+          <div class="card-icon">
+            <i data-lucide="activity"></i>
+          </div>
+          <h3 class="card-title">Entraînement Biomécanique</h3>
+          <p class="card-desc">
+            Des protocoles d'exercices structurés pour maximiser le recrutement musculaire, préserver les articulations et stimuler l'anabolisme.
+          </p>
+        </div>
+
+        <div class="card pillar-card">
+          <div class="pillar-number">02</div>
+          <div class="card-icon">
+            <i data-lucide="utensils"></i>
+          </div>
+          <h3 class="card-title">Nutrition Métabolique</h3>
+          <p class="card-desc">
+            Un rééquilibrage nutritionnel personnalisé axé sur la densité nutritionnelle, la satiété et la régulation de l'insuline sans privation.
+          </p>
+        </div>
+
+        <div class="card pillar-card">
+          <div class="pillar-number">03</div>
+          <div class="card-icon">
+            <i data-lucide="heart-pulse"></i>
+          </div>
+          <h3 class="card-title">Bilan & Hygiène de Vie</h3>
+          <p class="card-desc">
+            Optimisation du sommeil, gestion du stress et récupération active pour maintenir un état métabolique optimal au quotidien.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: L'Entraînement 4 Phases -->
+    <section class="slide" id="slide-4">
+      <div class="slide-badge">
+        <i data-lucide="dumbbell"></i>
+        Structure de Séance
+      </div>
+      <h2 class="slide-title">L'Entraînement en 4 Phases</h2>
+      <p class="slide-subtitle">
+        Chaque session est construite selon une architecture biomécanique rigoureuse pour garantir efficacité et sécurité.
+      </p>
+
+      <div class="grid-4">
+        <div class="card phase-card">
+          <div class="phase-header">
+            <span class="phase-tag">PHASE 1</span>
+            <i data-lucide="zap" style="color: var(--color-sage);"></i>
+          </div>
+          <h3 class="card-title" style="font-size: 1.15rem;">Activation & Mobilité</h3>
+          <ul class="phase-list">
+            <li><i data-lucide="check-circle-2"></i> Échauffement articulaire dynamique</li>
+            <li><i data-lucide="check-circle-2"></i> Activation du système nerveux</li>
+            <li><i data-lucide="check-circle-2"></i> Préparation des motifs de tirage/poussée</li>
+          </ul>
+        </div>
+
+        <div class="card phase-card">
+          <div class="phase-header">
+            <span class="phase-tag" style="background: var(--color-clay-light); color: var(--color-clay);">PHASE 2</span>
+            <i data-lucide="flame" style="color: var(--color-clay);"></i>
+          </div>
+          <h3 class="card-title" style="font-size: 1.15rem;">Force Polyarticulaire</h3>
+          <ul class="phase-list">
+            <li><i data-lucide="check-circle-2"></i> Tension mécanique élevée</li>
+            <li><i data-lucide="check-circle-2"></i> Mouvements fondateurs fondamentaux</li>
+            <li><i data-lucide="check-circle-2"></i> Surcharge progressive contrôlée</li>
+          </ul>
+        </div>
+
+        <div class="card phase-card">
+          <div class="phase-header">
+            <span class="phase-tag">PHASE 3</span>
+            <i data-lucide="target" style="color: var(--color-sage);"></i>
+          </div>
+          <h3 class="card-title" style="font-size: 1.15rem;">Isolation & Volume</h3>
+          <ul class="phase-list">
+            <li><i data-lucide="check-circle-2"></i> Stress métabolique ciblé</li>
+            <li><i data-lucide="check-circle-2"></i> Correction des déséquilibres</li>
+            <li><i data-lucide="check-circle-2"></i> Finition esthétique & galbe</li>
+          </ul>
+        </div>
+
+        <div class="card phase-card">
+          <div class="phase-header">
+            <span class="phase-tag">PHASE 4</span>
+            <i data-lucide="refresh-cw" style="color: var(--color-sage);"></i>
+          </div>
+          <h3 class="card-title" style="font-size: 1.15rem;">Récupération & Calme</h3>
+          <ul class="phase-list">
+            <li><i data-lucide="check-circle-2"></i> Retour au calme parasympathique</li>
+            <li><i data-lucide="check-circle-2"></i> Décompression vertébrale</li>
+            <li><i data-lucide="check-circle-2"></i> Bilan haptique de séance</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: La Nutrition Sans Stress -->
+    <section class="slide" id="slide-5">
+      <div class="grid-2">
+        <div>
+          <div class="slide-badge">
+            <i data-lucide="camera"></i>
+            Innovation Vision IA
+          </div>
+          <h2 class="slide-title">La Nutrition Sans Stress</h2>
+          <p class="slide-subtitle">
+            Oubliez la pesée fastidieuse et les applications de comptage compliquées. Un simple cliché suffit.
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 24px;">
+            <div style="display: flex; gap: 14px; align-items: flex-start;">
+              <div class="card-icon" style="margin:0; width:40px; height:40px; flex-shrink:0;">
+                <i data-lucide="scan"></i>
+              </div>
+              <div>
+                <h4 style="font-weight: 700; font-size: 1rem;">Scanner Vision Instantané</h4>
+                <p style="font-size: 0.9rem; color: var(--color-ink-muted);">Analyse visuelle de votre assiette en 1 seconde chrono.</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 14px; align-items: flex-start;">
+              <div class="card-icon" style="margin:0; width:40px; height:40px; flex-shrink:0;">
+                <i data-lucide="pie-chart"></i>
+              </div>
+              <div>
+                <h4 style="font-weight: 700; font-size: 1rem;">Macro-Nutriments Pré-calculés</h4>
+                <p style="font-size: 0.9rem; color: var(--color-ink-muted);">Estimation précise des protéines, glucides, lipides et fibres.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature-preview-box">
+          <div class="vision-mockup">
+            <div class="vision-scan-overlay"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <span style="font-size: 0.8rem; letter-spacing: 0.05em; color: var(--color-sage-light); font-weight: 600;">VISION IA ANALYZER</span>
+              <span style="background: rgba(78,115,88,0.3); color: #8DE0A6; font-size: 0.7rem; padding: 2px 8px; border-radius: 8px;">DÉTECTÉ 99.4%</span>
+            </div>
+            
+            <div style="font-family: var(--font-heading); font-size: 1.2rem; font-weight: 600; margin-bottom: 4px;">
+              Pavé de Saumon Sauvage & Quinoa Végétal
+            </div>
+            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-bottom: 16px;">
+              Accompagné d'asperges grillées à l'huile d'olive extra-vierge
+            </div>
+
+            <div class="macro-badge-row">
+              <div class="macro-pill">
+                <span class="macro-pill-val">38g</span>
+                <span class="macro-pill-lbl">Protéines</span>
+              </div>
+              <div class="macro-pill">
+                <span class="macro-pill-val">32g</span>
+                <span class="macro-pill-lbl">Glucides</span>
+              </div>
+              <div class="macro-pill">
+                <span class="macro-pill-val">18g</span>
+                <span class="macro-pill-lbl">Lipides</span>
+              </div>
+              <div class="macro-pill" style="border-color: rgba(200,93,50,0.4);">
+                <span class="macro-pill-val" style="color: var(--color-clay);">Optimal</span>
+                <span class="macro-pill-lbl">Statut</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: Ton Coach IA 24/7 -->
+    <section class="slide" id="slide-6">
+      <div class="grid-2">
+        <div class="feature-preview-box">
+          <div class="chat-container">
+            <div class="chat-bubble user">
+              J'ai une légère douleur à l'épaule droite aujourd'hui. Par quoi puis-je remplacer le Développé Militaire dans ma séance Phase 2 ?
+            </div>
+            <div class="chat-bubble ai">
+              <div style="display: flex; align-items: center; gap: 6px; font-weight: 700; margin-bottom: 4px; font-size: 0.8rem; color: var(--color-sage);">
+                <i data-lucide="bot" style="width: 14px; height: 14px;"></i> COACH IA PURE ASCENSION
+              </div>
+              Adaptation immédiate : Remplaçons par de l'Élévation Latérale à la Poulie en contrôle (buste légèrement penché). Cela réduit la contrainte sur le tendon du supra-épineux tout en conservant une excellente tension sur le deltoïde latéral.
+            </div>
+            <div class="chat-bubble user">
+              Parfait ! Et pour la collation après la séance ?
+            </div>
+            <div class="chat-bubble ai">
+              Optez pour votre Shaker Protéiné Herbal + une poignée d'amandes bio pour réhydrater vos fibres et stabiliser la glycémie.
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="slide-badge">
+            <i data-lucide="bot"></i>
+            Accompagnement Proactif
+          </div>
+          <h2 class="slide-title">Ton Coach IA 24/7</h2>
+          <p class="slide-subtitle">
+            Une intelligence décisionnelle dans votre poche pour répondre à toutes vos interrogations en temps réel.
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 24px;">
+            <div class="card" style="padding: 20px;">
+              <h4 style="font-weight: 700; font-size: 1rem; color: var(--color-sage); margin-bottom: 4px;">Réponse Biomécanique Instantanée</h4>
+              <p style="font-size: 0.875rem; color: var(--color-ink-muted);">Adaptation des mouvements selon votre état physique du jour.</p>
+            </div>
+            <div class="card" style="padding: 20px;">
+              <h4 style="font-weight: 700; font-size: 1rem; color: var(--color-sage); margin-bottom: 4px;">Disponibilité Sans Interruption</h4>
+              <p style="font-size: 0.875rem; color: var(--color-ink-muted);">Conseils nutritionnels et encouragements 24h/24, 7j/7.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: Liste de Courses & Recettes Métaboliques -->
+    <section class="slide" id="slide-7">
+      <div class="slide-badge">
+        <i data-lucide="shopping-cart"></i>
+        Écosystème Nutritionnel
+      </div>
+      <h2 class="slide-title">Courses Intelligentes & Recettes Métaboliques</h2>
+      <p class="slide-subtitle">
+        Simplifiez vos courses hebdomadaires et savourez des repas gourmands conçus pour votre vitalité.
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-icon">
+            <i data-lucide="list-checks"></i>
+          </div>
+          <h3 class="card-title">Générateur de Liste Automatique</h3>
+          <p class="card-desc" style="margin-bottom: 16px;">
+            Votre liste de courses s'actualise dynamiquement selon votre plan hebdomadaire et vos préférences alimentaires.
+          </p>
+          <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; color: var(--color-ink-muted);">
+            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-sage); width: 16px;"></i> Tri par rayon en supermarché (Zéro perte de temps)</li>
+            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-sage); width: 16px;"></i> Quantités exactes (Zéro gaspillage alimentaire)</li>
+            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-sage); width: 16px;"></i> Ingrédients bruts à haute valeur biologique</li>
+          </ul>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="recipe-card">
+            <div class="recipe-icon"><i data-lucide="drumstick"></i></div>
+            <div>
+              <h4 style="font-weight: 700; font-size: 1rem;">Bowl Poulet Mariné Curcuma & Avocat</h4>
+              <p style="font-size: 0.8rem; color: var(--color-ink-muted);">Riche en oméga-3, anti-inflammatoire • Prêt en 12 min</p>
+            </div>
+          </div>
+
+          <div class="recipe-card">
+            <div class="recipe-icon"><i data-lucide="fish"></i></div>
+            <div>
+              <h4 style="font-weight: 700; font-size: 1rem;">Tartare de Thon Rouge & Grains de Grenade</h4>
+              <p style="font-size: 0.8rem; color: var(--color-ink-muted);">Haute teneur en protéines et antioxydants • Prêt en 8 min</p>
+            </div>
+          </div>
+
+          <div class="recipe-card">
+            <div class="recipe-icon"><i data-lucide="apple"></i></div>
+            <div>
+              <h4 style="font-weight: 700; font-size: 1rem;">Smoothie Métabolique Baies & Maca</h4>
+              <p style="font-size: 0.8rem; color: var(--color-ink-muted);">Soutien mitochondrial & boost d'énergie immédiat</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: Témoignages & Transformations -->
+    <section class="slide" id="slide-8">
+      <div class="slide-badge">
+        <i data-lucide="star"></i>
+        Preuve Sociale
+      </div>
+      <h2 class="slide-title">Transformations & Avis Membres</h2>
+      <p class="slide-subtitle">
+        Des résultats mesurables obtenus par des hommes et femmes d'action.
+      </p>
+
+      <div class="grid-3">
+        <div class="card testimonial-card">
+          <div>
+            <div class="testimonial-stars">
+              <i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i>
+            </div>
+            <p class="testimonial-quote">
+              "En 8 semaines, j'ai gagné 4 kg de masse sèche tout en retrouvant une énergie constante. Le Scanner IA m'a libéré l'esprit des régimes restrictifs."
+            </p>
+          </div>
+          <div class="testimonial-author">
+            <div class="avatar-circle">MD</div>
+            <div>
+              <div class="author-name">Marc D.</div>
+              <div class="author-role">Cadre Dirigeant • 38 ans</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card testimonial-card">
+          <div>
+            <div class="testimonial-stars">
+              <i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i>
+            </div>
+            <p class="testimonial-quote">
+              "Finie la fatigue de 15h. Le programme 4 Phases s'adapte parfaitement à mes déplacements professionnels. Une véritable révélation."
+            </p>
+          </div>
+          <div class="testimonial-author">
+            <div class="avatar-circle" style="background: var(--color-clay);">SL</div>
+            <div>
+              <div class="author-name">Sophie L.</div>
+              <div class="author-role">Entrepreneure • 34 ans</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card testimonial-card">
+          <div>
+            <div class="testimonial-stars">
+              <i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i>
+            </div>
+            <p class="testimonial-quote">
+              "Plus de douleurs lombaires sur les squats grâce à l'analyse biomécanique. Mon métabolisme s'est nettement accéléré."
+            </p>
+          </div>
+          <div class="testimonial-author">
+            <div class="avatar-circle">JR</div>
+            <div>
+              <div class="author-name">Julien R.</div>
+              <div class="author-role">Architecte • 42 ans</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 9: Tes Formules d'Accès (Strictly NO Fixed Prices) -->
+    <section class="slide" id="slide-9">
+      <div class="slide-badge">
+        <i data-lucide="award"></i>
+        Accompagnement Sur-Mesure
+      </div>
+      <h2 class="slide-title">Tes Formules d'Accès</h2>
+      <p class="slide-subtitle">
+        Sélectionnez le niveau d'accompagnement adapté à vos ambitions physiques et métaboliques.
+      </p>
+
+      <div class="grid-3">
+        <!-- Accès Libre -->
+        <div class="card pricing-card">
+          <div class="pricing-header">
+            <h3 class="pricing-title">Accès Libre</h3>
+            <p class="pricing-tagline">Découverte de l'écosystème Pure Ascension</p>
+          </div>
+          <ul class="pricing-features">
+            <li><i data-lucide="check"></i> Application Mobile Pure Ascension</li>
+            <li><i data-lucide="check"></i> Suivi des métriques de base</li>
+            <li><i data-lucide="check"></i> Scanner Repas IA (limité)</li>
+            <li><i data-lucide="check"></i> Communauté de membres d'action</li>
+          </ul>
+          <button class="btn-plan outline" onclick="openModal()">Rejoindre l'Accès Libre</button>
+        </div>
+
+        <!-- Formule Standard -->
+        <div class="card pricing-card featured">
+          <div class="popular-badge">Plus Populaire</div>
+          <div class="pricing-header">
+            <h3 class="pricing-title">Formule Standard</h3>
+            <p class="pricing-tagline">Transformation guidée & autonomie optimisée</p>
+          </div>
+          <ul class="pricing-features">
+            <li><i data-lucide="check"></i> Application intégrale sans restriction</li>
+            <li><i data-lucide="check"></i> Scanner Repas IA Vision illimité</li>
+            <li><i data-lucide="check"></i> Coach IA 24/7 sur-mesure</li>
+            <li><i data-lucide="check"></i> Routines 4 Phases personnalisées</li>
+            <li><i data-lucide="check"></i> Liste de courses intelligente</li>
+          </ul>
+          <button class="btn-plan filled" onclick="openModal()">Choisir la Formule Standard</button>
+        </div>
+
+        <!-- Formule Premium -->
+        <div class="card pricing-card">
+          <div class="pricing-header">
+            <h3 class="pricing-title">Formule Premium</h3>
+            <p class="pricing-tagline">L'expérience VIP haute performance à 360°</p>
+          </div>
+          <ul class="pricing-features">
+            <li><i data-lucide="check"></i> Tout l'écosystème Formule Standard</li>
+            <li><i data-lucide="check"></i> Bilan de Vitalité approfondi</li>
+            <li><i data-lucide="check"></i> Suivi métabolique continu sur-mesure</li>
+            <li><i data-lucide="check"></i> Ajustements hebdomadaires prioritaires</li>
+            <li><i data-lucide="check"></i> Support VIP dédié direct</li>
+          </ul>
+          <button class="btn-plan clay" onclick="openModal()">Postuler à la Formule Premium</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 10: Appel à l'Action Final -->
+    <section class="slide" id="slide-10">
+      <div class="cta-card">
+        <div class="slide-badge" style="background: rgba(255,255,255,0.1); color: #8DE0A6; border-color: rgba(255,255,255,0.2); margin: 0 auto 20px auto;">
+          <i data-lucide="rocket"></i>
+          Passez à l'Action
+        </div>
+        <h2 class="slide-title">Démarrer ton Bilan de Vitalité dès aujourd'hui</h2>
+        <p class="slide-subtitle">
+          Franchissez la première étape vers une santé physique optimale, une énergie débordante et un métabolisme maîtrisé.
+        </p>
+
+        <div style="display: flex; gap: 16px; justify-content: center; margin-top: 32px; flex-wrap: wrap;">
+          <button class="btn-hero-primary" style="padding: 18px 40px; font-size: 1.1rem;" onclick="openModal()">
+            <span>Réserver Mon Bilan de Vitalité</span>
+            <i data-lucide="arrow-right"></i>
+          </button>
+        </div>
+
+        <div class="cta-reassurance">
+          <span><i data-lucide="shield"></i> 100% Confidentialité Garantie</span>
+          <span><i data-lucide="clock"></i> Réservation en 60 secondes</span>
+          <span><i data-lucide="zap"></i> Anonyme & Sans Engagement</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Navigation Footer Controls -->
+  <footer class="deck-footer">
+    <div class="nav-keyboard-hint">
+      <span>Naviguez avec</span>
+      <span class="key-badge">←</span>
+      <span class="key-badge">→</span>
+      <span>ou</span>
+      <span class="key-badge">Espace</span>
+    </div>
+
+    <div class="dots-indicator" id="dotsContainer">
+      <!-- Dots populated by JavaScript -->
+    </div>
+
+    <div class="controls-right">
+      <div class="slide-counter" id="slideCounter">01 / 10</div>
+
+      <button class="btn-nav-round" id="btnPrev" onclick="prevSlide()" title="Slide précédente">
+        <i data-lucide="chevron-left"></i>
+      </button>
+      
+      <button class="btn-nav-round" id="btnNext" onclick="nextSlide()" title="Slide suivante">
+        <i data-lucide="chevron-right"></i>
+      </button>
+
+      <button class="btn-nav-round" onclick="toggleFullscreen()" title="Plein écran">
+        <i data-lucide="maximize-2"></i>
+      </button>
+    </div>
+  </footer>
+
+  <!-- Modal Bilan Vitalité -->
+  <div class="modal-overlay" id="vitalityModal">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal()">
+        <i data-lucide="x"></i>
+      </button>
+      <h3 style="font-family: var(--font-heading); font-size: 1.6rem; color: var(--color-ink);">Bilan de Vitalité Pure Ascension</h3>
+      <p style="font-size: 0.875rem; color: var(--color-ink-muted); margin-top: 6px;">
+        Complétez vos informations pour recevoir votre analyse métabolique personnalisée.
+      </p>
+
+      <form class="modal-form" onsubmit="handleFormSubmit(event)">
+        <div class="form-group">
+          <label>Prénom & Nom</label>
+          <input type="text" placeholder="Ex: Alexandre Martin" required>
+        </div>
+        <div class="form-group">
+          <label>Adresse E-mail</label>
+          <input type="email" placeholder="alexandre@exemple.com" required>
+        </div>
+        <div class="form-group">
+          <label>Objectif Principal</label>
+          <select required>
+            <option value="">Sélectionnez votre objectif</option>
+            <option value="energie">Optimisation de l'Énergie & Vitalité</option>
+            <option value="physique">Recomposition Physique & Masse Sèche</option>
+            <option value="metabolisme">Relance Métabolique & Digestion</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-plan clay" style="margin-top: 8px; padding: 14px;">
+          Valider Mon Bilan de Vitalité
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // State management
+    let currentSlideIndex = 1;
+    const totalSlides = 10;
+
+    // DOM Elements
+    const slides = document.querySelectorAll('.slide');
+    const progressBar = document.getElementById('progressBar');
+    const slideCounter = document.getElementById('slideCounter');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const dotsContainer = document.getElementById('dotsContainer');
+    const vitalityModal = document.getElementById('vitalityModal');
+
+    // Create Navigation Dots
+    function initDots() {
+      dotsContainer.innerHTML = '';
+      for (let i = 1; i <= totalSlides; i++) {
+        const dot = document.createElement('div');
+        dot.className = `dot ${i === 1 ? 'active' : ''}`;
+        dot.onclick = () => goToSlide(i);
+        dotsContainer.appendChild(dot);
+      }
+    }
+
+    // Update Slide View
+    function updateSlideView() {
+      slides.forEach((slide, idx) => {
+        if (idx + 1 === currentSlideIndex) {
+          slide.classList.add('active');
+        } else {
+          slide.classList.remove('active');
+        }
+      });
+
+      // Update Progress Bar
+      const percentage = (currentSlideIndex / totalSlides) * 100;
+      progressBar.style.width = `${percentage}%`;
+
+      // Update Counter
+      const formattedCurrent = currentSlideIndex.toString().padStart(2, '0');
+      const formattedTotal = totalSlides.toString().padStart(2, '0');
+      slideCounter.innerText = `${formattedCurrent} / ${formattedTotal}`;
+
+      // Update Buttons
+      btnPrev.disabled = currentSlideIndex === 1;
+      btnNext.disabled = currentSlideIndex === totalSlides;
+
+      // Update Dots
+      const dots = document.querySelectorAll('.dot');
+      dots.forEach((dot, idx) => {
+        if (idx + 1 === currentSlideIndex) {
+          dot.classList.add('active');
+        } else {
+          dot.classList.remove('active');
+        }
+      });
+    }
+
+    function goToSlide(index) {
+      if (index >= 1 && index <= totalSlides) {
+        currentSlideIndex = index;
+        updateSlideView();
+      }
+    }
+
+    function nextSlide() {
+      if (currentSlideIndex < totalSlides) {
+        currentSlideIndex++;
+        updateSlideView();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlideIndex > 1) {
+        currentSlideIndex--;
+        updateSlideView();
+      }
+    }
+
+    // Fullscreen Toggle
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error(`Erreur plein écran: ${err.message}`);
+        });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    // Modal Control
+    function openModal() {
+      vitalityModal.classList.add('active');
+    }
+
+    function closeModal() {
+      vitalityModal.classList.remove('active');
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      alert("Merci ! Votre demande de Bilan de Vitalité a bien été enregistrée. Un conseiller Pure Ascension prendra contact avec vous.");
+      closeModal();
+    }
+
+    // Keyboard Navigation Events
+    document.addEventListener('keydown', (e) => {
+      if (vitalityModal.classList.contains('active')) {
+        if (e.key === 'Escape') closeModal();
+        return;
+      }
+
+      if (e.key === 'ArrowRight' || e.key === 'Space' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        goToSlide(1);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        goToSlide(totalSlides);
+      } else if (e.key.toLowerCase() === 'f') {
+        toggleFullscreen();
+      }
+    });
+
+    // Touch Swipe Support
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    document.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, false);
+
+    document.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    }, false);
+
+    function handleSwipe() {
+      const swipeThreshold = 50;
+      if (touchEndX < touchStartX - swipeThreshold) {
+        nextSlide();
+      }
+      if (touchEndX > touchStartX + swipeThreshold) {
+        prevSlide();
+      }
+    }
+
+    // Initialize Lucide Icons & Deck
+    window.addEventListener('DOMContentLoaded', () => {
+      initDots();
+      updateSlideView();
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>

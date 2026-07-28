@@ -6,15 +6,16 @@
 import React, { useState } from 'react';
 import {
   Pressable, SafeAreaView, ScrollView,
-  StyleSheet, Text, View, ActivityIndicator, Platform
+  StyleSheet, Text, View, ActivityIndicator, Platform, Linking
 } from 'react-native';
 import {
   Check, X, ChevronLeft, Sparkles, Lock,
   UtensilsCrossed, Dumbbell, BarChart2,
-  Bell, MessageCircle, Infinity, BookOpen, RefreshCw
+  Bell, MessageCircle, Infinity, BookOpen, RefreshCw, LogOut
 } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 import { Button } from '../components/Button';
+import { logOut } from '../services/authService';
 
 /* ─── Props ──────────────────────────────────────────────────────────────── */
 interface Props {
@@ -50,8 +51,12 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
     setError('');
 
     try {
-      // Appel à la Netlify Function pour créer la session Stripe Checkout
-      const response = await fetch('/.netlify/functions/create-checkout-session', {
+      // URL absolue pour garantir le fonctionnement sur Mobile (iOS/Android native) et Web
+      const checkoutEndpoint = Platform.OS === 'web'
+        ? '/.netlify/functions/create-checkout-session'
+        : 'https://pure-ascension.netlify.app/.netlify/functions/create-checkout-session';
+
+      const response = await fetch(checkoutEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -60,6 +65,7 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
           uid,
           email,
           plan: selected,
+          isNativeApp: Platform.OS !== 'web',
         }),
       });
 
@@ -69,12 +75,11 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
         throw new Error(data.error || 'Impossible d\'initier le paiement Stripe.');
       }
 
-      // Rediriger vers Stripe Checkout (plateforme web)
+      // Rediriger vers Stripe Checkout (Web ou App Mobile native)
       if (Platform.OS === 'web') {
         window.location.href = data.url;
       } else {
-        // Fallback pour mobile natif si un jour supporté (ex: Linking)
-        setError('Le paiement mobile n\'est pas supporté dans cette version.');
+        await Linking.openURL(data.url);
         setLoading(false);
       }
     } catch (err: any) {
@@ -128,14 +133,14 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
           >
             <View style={st.planCardHeader}>
               <View>
-                <Text style={st.planName}>Plan Gratuit</Text>
+                <Text style={st.planName}>Accès Libre</Text>
                 <Text style={st.planPriceSub}>Pour tester l'application</Text>
               </View>
-              <Text style={st.planPrice}>0 $</Text>
+              <Text style={st.planPrice}>Gratuit</Text>
             </View>
           </Pressable>
 
-          {/* Standard plan (12$) */}
+          {/* Standard plan */}
           <Pressable
             style={[st.planCard, selected === 'standard' && st.planCardSelected]}
             onPress={() => setSelected('standard')}
@@ -144,17 +149,16 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
           >
             <View style={st.planCardHeader}>
               <View>
-                <Text style={st.planName}>Standard</Text>
+                <Text style={st.planName}>Formule Standard</Text>
                 <Text style={st.planPriceSub}>Entraînement & nutrition de base</Text>
               </View>
               <View style={st.priceRow}>
-                <Text style={st.planPrice}>12 $</Text>
-                <Text style={st.priceUnit}>/mois</Text>
+                <Text style={st.planPrice}>Standard</Text>
               </View>
             </View>
           </Pressable>
 
-          {/* Premium plan (19.99$) */}
+          {/* Premium plan */}
           <Pressable
             style={[
               st.planCard, 
@@ -171,12 +175,11 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
             </View>
             <View style={st.planCardHeader}>
               <View>
-                <Text style={[st.planName, { color: '#fff' }]}>Premium</Text>
+                <Text style={[st.planName, { color: '#fff' }]}>Formule Premium</Text>
                 <Text style={[st.planPriceSub, { color: colors.sage[200] }]}>Ajustement IA continu & Recettes</Text>
               </View>
               <View style={st.priceRow}>
-                <Text style={[st.planPrice, { color: '#fff' }]}>19,99 $</Text>
-                <Text style={[st.priceUnit, { color: colors.sage[300] }]}>/mois</Text>
+                <Text style={[st.planPrice, { color: '#fff' }]}>Premium</Text>
               </View>
             </View>
           </Pressable>
@@ -251,6 +254,19 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
               Abonnement mensuel sans engagement. Annulation en 2 clics.
             </Text>
           )}
+        </View>
+
+        {/* Actions de secours */}
+        <View style={st.fallbackActions}>
+          <Pressable onPress={() => { setLoading(true); setTimeout(() => setLoading(false), 2000); }} style={st.fallbackBtn}>
+            <RefreshCw size={14} color={colors.ink[500]} />
+            <Text style={st.fallbackText}>J'ai déjà payé</Text>
+          </Pressable>
+          <View style={st.fallbackDivider} />
+          <Pressable onPress={async () => { try { await logOut(); } catch(e){} }} style={st.fallbackBtn}>
+            <LogOut size={14} color={colors.ink[500]} />
+            <Text style={st.fallbackText}>Me déconnecter / Quitter</Text>
+          </Pressable>
         </View>
 
         {/* Lock reassurance */}
@@ -373,6 +389,12 @@ const st = StyleSheet.create({
   // Reassurance
   reassuranceRow: { flexDirection:'row', alignItems:'center', gap:spacing[2], justifyContent:'center', marginTop:spacing[4] },
   reassuranceText:{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.ink[500] },
+
+  // Fallback
+  fallbackActions: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing[2], alignItems: 'center' },
+  fallbackBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], padding: spacing[2] },
+  fallbackText: { fontFamily: fontFamily.hanken.medium, fontSize: fontSize.sm, color: colors.ink[500] },
+  fallbackDivider: { width: 1, height: 16, backgroundColor: colors.ink[300], marginHorizontal: spacing[2] },
 });
 
 export default SubscriptionScreen;

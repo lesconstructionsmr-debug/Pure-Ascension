@@ -45,5 +45,14 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow read: if false; // Les utilisateurs ne peuvent pas lire les retours des autres
     }
+
+    // Règles pour les parrainages (referrals)
+    match /referrals/{referralId} {
+      allow read: if request.auth != null 
+        && (resource.data.referrerId == request.auth.uid 
+            || resource.data.refereeId == request.auth.uid);
+      allow create: if false; // Seul le backend admin peut créer
+      allow update, delete: if false;
+    }
   }
 }
