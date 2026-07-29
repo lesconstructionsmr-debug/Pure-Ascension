@@ -38,19 +38,8 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // Sélectionner le bon prix Stripe
-    let priceId = '';
-    if (plan === 'standard') {
-      priceId = process.env.STRIPE_PRICE_STANDARD || '';
-    } else if (plan === 'premium') {
-      priceId = process.env.STRIPE_PRICE_PREMIUM || '';
-    } else {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'Plan invalide. Choisissez "standard" ou "premium".' }),
-      };
-    }
+    // Sélectionner le bon prix Stripe (Formule Ascension unique à $19.99/mois)
+    const priceId = process.env.STRIPE_PRICE_PREMIUM || '';
 
     if (!priceId) {
       return {

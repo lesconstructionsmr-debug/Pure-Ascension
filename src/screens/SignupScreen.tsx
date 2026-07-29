@@ -12,7 +12,7 @@ import { signUp } from '../services/authService';
 interface Props {
   onBack: () => void;
   onSuccess: (name: string, email: string) => void;
-  /** Prénom déjà collecté au diagnostic → signup minimal (email + mot de passe) */
+  /** Prénom déjà collecté au quiz → signup minimal (email + mot de passe) */
   initialName?: string;
 }
 

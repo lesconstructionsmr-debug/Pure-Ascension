@@ -168,7 +168,7 @@ const st = StyleSheet.create({
     fontFamily: fontFamily.hanken.regular,
     fontSize: fontSize.sm,
     color: colors.sage[800],
-    lineHeight: lineHeight.relaxed,
+    lineHeight: 20,
   },
   sectionCard: {
     backgroundColor: '#fff',
@@ -199,12 +199,13 @@ const st = StyleSheet.create({
     fontFamily: fontFamily.hanken.bold,
     fontSize: fontSize.sm,
     color: colors.ink[800],
+    lineHeight: 18,
   },
   answer: {
     fontFamily: fontFamily.hanken.regular,
     fontSize: fontSize.xs,
     color: colors.ink[600],
-    lineHeight: lineHeight.relaxed,
+    lineHeight: 18,
   },
   bold: {
     fontFamily: fontFamily.hanken.bold,

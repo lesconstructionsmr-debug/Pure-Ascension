@@ -108,7 +108,7 @@ export const AscensionCard: React.FC<Props> = ({ data }) => {
             <View style={st.pillarContent}>
               <Text style={st.pillarName}>P2 • NUTRITION & EAU</Text>
               <Text style={st.pillarStatus}>
-                {mealsCount}/3 Repas • {waterGlasses}/8 Verres d'eau
+                {mealsCount}/{Math.max(3, mealsCount)} Repas • {waterGlasses}/8 Verres d'eau
               </Text>
             </View>
             {mealsCount >= 3 && <CheckCircle size={15} color={colors.sage[400]} />}
@@ -201,7 +201,7 @@ const st = StyleSheet.create({
     borderRadius: radius.xl,
     paddingHorizontal: spacing[3.5],
     paddingVertical: spacing[3],
-    justify: 'space-between',
+    justifyContent: 'space-between',
     backgroundColor: 'rgba(18, 26, 21, 0.85)',
   },
   brandHeader: {

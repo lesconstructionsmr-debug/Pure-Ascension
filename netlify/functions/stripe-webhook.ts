@@ -7,27 +7,36 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2023-10-16' as any,
 });
 
-// Import direct du fichier de service account pour garantir le fonctionnement sans dépendre des limites AWS Lambda
-import serviceAccount from './serviceAccountKey.json';
-
-// Fonction d'initialisation de Firebase Admin
+// Fonction d'initialisation de Firebase Admin via variables d'environnement
 function getFirestoreDb(): admin.firestore.Firestore {
   if (!admin.apps.length) {
-    let projectId = process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id;
-    let clientEmail = process.env.FIREBASE_CLIENT_EMAIL || serviceAccount.client_email;
-    let privateKey = (process.env.FIREBASE_PRIVATE_KEY || serviceAccount.private_key || '').trim();
+    let serviceAccountObj: Record<string, string> | undefined;
+    try {
+      serviceAccountObj = require('./serviceAccountKey.json');
+    } catch {
+      serviceAccountObj = undefined;
+    }
 
-    // Nettoyage au cas où la clé viendrait d'une variable Netlify mal formatée
+    const projectId = process.env.FIREBASE_PROJECT_ID || serviceAccountObj?.project_id || 'pure-ascension';
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || serviceAccountObj?.client_email || '';
+    let privateKey = (process.env.FIREBASE_PRIVATE_KEY || serviceAccountObj?.private_key || '').trim();
+
     privateKey = privateKey.replace(/\\n/g, '\n');
 
-    admin.initializeApp({
-      credential: admin.credential.cert({
+    if (clientEmail && privateKey) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey,
+        }),
+      });
+    } else {
+      admin.initializeApp({
         projectId,
-        clientEmail,
-        privateKey,
-      }),
-    });
-    console.log('✓ Firebase Admin initialisé avec succès (via ServiceAccount).');
+      });
+    }
+    console.log('✓ Firebase Admin initialisé avec succès.');
   }
 
   return admin.firestore();
@@ -141,15 +150,15 @@ export const handler: Handler = async (event) => {
         return { statusCode: 200, body: 'Ignored: No client_reference_id' };
       }
 
-      const plan = session.metadata?.plan || session.metadata?.planLevel || 'free';
-      const isPremium = plan === 'premium';
+      const plan = session.metadata?.plan || session.metadata?.planLevel || 'ascension';
+      const isPremium = true;
 
       console.log(`[checkout.session.completed] Activation de l'abonnement pour UID: ${uid} - Plan: ${plan} (Customer: ${customerId}, Sub: ${subscriptionId})`);
 
       await db.collection('users').doc(uid).set({
-        plan,
-        planLevel: plan,
-        isPremium,
+        plan: 'ascension',
+        planLevel: 'ascension',
+        isPremium: true,
         stripeCustomerId: customerId,
         stripe_customer_id: customerId,
         stripeSubscriptionId: subscriptionId,
@@ -176,24 +185,12 @@ export const handler: Handler = async (event) => {
         return { statusCode: 200, body: 'Ignored: User not found for subscription update' };
       }
 
-      const priceId = subscription.items?.data[0]?.price?.id;
       let plan = 'free';
       let isPremium = false;
 
       if (status === 'active' || status === 'trialing') {
-        if (priceId === process.env.STRIPE_PRICE_PREMIUM) {
-          plan = 'premium';
-          isPremium = true;
-        } else if (priceId === process.env.STRIPE_PRICE_STANDARD) {
-          plan = 'standard';
-          isPremium = false;
-        } else {
-          // Si le prix n'est pas explicitement identifié, vérifier les données existantes de l'utilisateur
-          const docSnap = await userRef.get();
-          const currentPlan = docSnap.exists ? (docSnap.data()?.plan || docSnap.data()?.planLevel || 'standard') : 'standard';
-          plan = currentPlan;
-          isPremium = plan === 'premium';
-        }
+        plan = 'ascension';
+        isPremium = true;
       }
 
       console.log(`[customer.subscription.updated] Mise à jour UID: ${userRef.id} - Statut: ${status} - Plan: ${plan}`);

@@ -19,7 +19,7 @@ export async function setupDemoUser(uid: string) {
     activityLevel: "actif",
     cardioSport: "course",
     restrictions: ["aucun"],
-    digestiveDiagnosticCompleted: true,
+    digestiveQuizCompleted: true,
     digestiveSymptoms: ["ballonnements", "fatigue"],
     stomachAcid: "hypo",
     motivation: "Retrouver l'énergie de mes 20 ans et courir un semi-marathon.",

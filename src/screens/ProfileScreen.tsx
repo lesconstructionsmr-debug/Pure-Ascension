@@ -7,7 +7,7 @@ import {
 import { showAlert } from '../utils/alert';
 import {
   Bell, ChevronRight, ClipboardList, History, Lock,
-  Sparkles, Target, Zap, CheckCircle, RefreshCw, Activity, LogOut, Users
+  Sparkles, Target, Zap, CheckCircle, RefreshCw, Activity, LogOut, Users, Watch
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
@@ -163,6 +163,10 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
   const { mealsCount, workoutPct, waterGlasses, sleepScore, mentalCheckin, ascensionScore } = useDailyProgress();
 
   /* Stats state */
+  const profile = useProgramStore(st => st.profile);
+  const storeCompletedCount = useProgramStore(st => st.completedWorkoutsCount);
+  const storeStreak = useProgramStore(st => st.streakDays);
+
   const [streakDays, setStreakDays] = useState(1);
   const localWorkoutHistory = useWorkoutHistoryStore(st => st.history);
   const [sessionsCount, setSessionsCount] = useState(localWorkoutHistory.length);
@@ -200,8 +204,7 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
           }
         });
         
-        // L'historique local peut contenir des séances pas encore synchronisées
-        setSessionsCount(Math.max(completedWorkouts, useWorkoutHistoryStore.getState().history.length));
+        setSessionsCount(completedWorkouts);
         
         if (weights.length >= 2) {
           const change = weights[weights.length - 1] - weights[0];
@@ -220,6 +223,35 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
 
     return () => unsubUser();
   }, [program]);
+
+  // Dynamic reactive stats computation
+  const displaySessions = Math.max(sessionsCount, localWorkoutHistory.length, storeCompletedCount);
+
+  const displayStreak = (() => {
+    if (!localWorkoutHistory.length) return Math.max(streakDays, storeStreak, 1);
+    const uniqueDates = Array.from(new Set(localWorkoutHistory.map(w => w.dateKey))).sort().reverse();
+    if (!uniqueDates.length) return Math.max(streakDays, storeStreak, 1);
+
+    let count = 0;
+    const now = new Date();
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(now.getTime() - i * 86400000);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const key = `${year}-${month}-${day}`;
+      if (uniqueDates.includes(key)) {
+        count++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+    return Math.max(count, streakDays, storeStreak, 1);
+  })();
+
+  const displayWeight = profile?.currentWeightKg 
+    ? `${profile.currentWeightKg} lbs` 
+    : weightEvolution !== '—lb' ? weightEvolution : '— lbs';
 
   /* Feedback & Privacy state */
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
@@ -376,19 +408,19 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
           </View>
         </Card>
 
-        {/* ── Ligne de statistiques à 3 cartes blanches : 1j Streak | —lb Poids | 0 Séances ── */}
+        {/* ── Ligne de statistiques à 3 cartes blanches : Streak | Poids | Séances ── */}
         <View style={s.statsRow}>
           <View style={s.statWhiteCard}>
-            <Text style={s.statVal}>{streakDays}j</Text>
+            <Text style={s.statVal}>{displayStreak}j</Text>
             <Text style={s.statLabel}>Streak</Text>
           </View>
           <View style={s.statWhiteCard}>
-            <Text style={s.statVal}>{weightEvolution}</Text>
+            <Text style={s.statVal}>{displayWeight}</Text>
             <Text style={s.statLabel}>Poids</Text>
           </View>
           <View style={s.statWhiteCard}>
-            <Text style={s.statVal}>{sessionsCount}</Text>
-            <Text style={s.statLabel}>Séances</Text>
+            <Text style={s.statVal}>{displaySessions}</Text>
+            <Text style={s.statLabel}>Séance{displaySessions !== 1 ? 's' : ''}</Text>
           </View>
         </View>
 
@@ -494,6 +526,24 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
                 <Bell size={18} color={colors.sage[600]} />
               </View>
               <Text style={s.cardListText}>Notifications</Text>
+              <ChevronRight size={18} color={colors.ink[400]} />
+            </Pressable>
+
+            <View style={s.cardListDivider} />
+
+            {/* Montres & Appareils connectés > */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation?.navigate('Wearables');
+              }}
+              style={s.cardListRow}
+              accessibilityRole="button"
+            >
+              <View style={s.iconCircleClay}>
+                <Watch size={18} color={colors.clay[500]} />
+              </View>
+              <Text style={s.cardListText}>Montres & Appareils connectés</Text>
               <ChevronRight size={18} color={colors.ink[400]} />
             </Pressable>
 

@@ -1,7 +1,7 @@
 /**
  * SlidePreview — mini-aperçus natifs des écrans de l'app, affichés dans les
  * slides d'onboarding à la place d'icônes. Reconstruits pixel-près depuis les
- * vrais écrans (diagnostic / génération / dashboard) : nets à toute résolution,
+ * vrais écrans (quiz / génération / dashboard) : nets à toute résolution,
  * aucun asset image, aucune animation continue.
  */
 import React from 'react';
@@ -9,15 +9,15 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Leaf } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, spacing, radius, shadows } from '../theme/theme';
 
-export type PreviewVariant = 'diagnostic' | 'generation' | 'dashboard';
+export type PreviewVariant = 'quiz' | 'generation' | 'dashboard';
 
 /* Cadre commun : une "capture" d'écran de l'app dans une carte arrondie. */
 const Frame: React.FC<{ children: React.ReactNode; dark?: boolean }> = ({ children, dark }) => (
   <View style={[st.frame, dark && { backgroundColor: colors.sage[800] }]}>{children}</View>
 );
 
-/* ── 1. Diagnostic : barre de progression + question + options ── */
-const DiagnosticPreview = () => (
+/* ── 1. Quiz : barre de progression + question + options ── */
+const QuizPreview = () => (
   <Frame>
     <View style={st.statusBar}>
       <View style={st.dotBack} />
@@ -87,7 +87,7 @@ const DashboardPreview = () => (
 export const SlidePreview: React.FC<{ variant: PreviewVariant }> = ({ variant }) => {
   if (variant === 'generation') return <GenerationPreview />;
   if (variant === 'dashboard')  return <DashboardPreview />;
-  return <DiagnosticPreview />;
+  return <QuizPreview />;
 };
 
 const st = StyleSheet.create({
@@ -97,7 +97,7 @@ const st = StyleSheet.create({
     ...shadows.lg,
   },
 
-  /* Diagnostic */
+  /* Quiz */
   statusBar: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dotBack: { width: 16, height: 16, borderRadius: 8, backgroundColor: colors.ink[100] },
   progressTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.ink[100], overflow: 'hidden' },

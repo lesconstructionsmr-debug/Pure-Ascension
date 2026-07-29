@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View, ActivityIndicator, ViewStyle, PressableProps } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { colors, fontFamily, fontSize, radius, spacing } from '../theme/theme';
 
 export type ButtonVariant = 'primary'|'accent'|'secondary'|'ghost'|'soft';
@@ -22,8 +23,16 @@ export const Button: React.FC<ButtonProps> = ({ variant='primary', size='md', la
   const pi = useCallback(() => { Animated.parallel([Animated.timing(scale,{toValue:0.99,duration:80,useNativeDriver:true}),Animated.timing(ty,{toValue:1,duration:80,useNativeDriver:true})]).start(); },[]);
   const po = useCallback(() => { Animated.parallel([Animated.timing(scale,{toValue:1,duration:180,useNativeDriver:true}),Animated.timing(ty,{toValue:0,duration:180,useNativeDriver:true})]).start(); },[]);
   const isDisabled = disabled || loading;
+
+  const handlePress = useCallback((e: any) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (err) {}
+    onPress?.(e);
+  }, [onPress]);
+
   return (
-    <Pressable onPress={onPress} onPressIn={pi} onPressOut={po} disabled={isDisabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: isDisabled }} {...rest}>
+    <Pressable onPress={handlePress} onPressIn={pi} onPressOut={po} disabled={isDisabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: isDisabled }} {...rest}>
       <Animated.View style={[{ flexDirection:'row', alignItems:'center', justifyContent:'center', borderRadius:radius.pill, minHeight:sMin[size] }, vBg[variant], sPad[size], fullWidth&&{width:'100%'}, isDisabled&&{opacity:0.45}, { transform:[{scale},{translateY:ty}] }, style]}>
         {loading ? <ActivityIndicator size="small" color={variant==='secondary'||variant==='ghost'?colors.sage[500]:colors.white} />
           : <>{iconLeft&&<View style={{marginRight:spacing[2]}}>{iconLeft}</View>}

@@ -15,6 +15,7 @@ import { useActiveWorkoutStore } from '../store/useActiveWorkoutStore';
 import { useWorkoutHistoryStore, workoutDateKey } from '../store/useWorkoutHistoryStore';
 import { getTodaySession, saveProgram } from '../services/programService';
 import { auth } from '../services/firebase';
+import { useDailyProgress } from '../context/DailyProgressContext';
 
 export function getMuscleGroup(name: string): { label: string; icon: string; bg: string; color: string } {
   const n = name.toLowerCase();
@@ -179,6 +180,7 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
   const program          = useProgramStore(s => s.program);
   const isPremium        = useProgramStore(s => s.isPremium);
   const setActiveSession = useProgramStore(s => s.setActiveSession);
+  const { completeWorkout } = useDailyProgress();
   
   const today   = program ? getTodaySession(program) : null;
   const session = today?.session ?? null;
@@ -266,7 +268,21 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
     navigation?.navigate('ActiveWorkout');
   };
 
-  const daysChipsList = ['Lundi', 'Mardi', 'Jeudi'];
+  const handleMarkCompleted = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (activeSession) {
+      completeWorkout({
+        sessionId: activeSession.id,
+        sessionTitle: activeSession.title || 'Circuit training',
+        durationSec: (activeSession.duration || 45) * 60,
+        totalSets: baseExercises.reduce((acc, e) => acc + e.sets, 0),
+      });
+    }
+  };
+
+  const daysChipsList = program?.sessions && program.sessions.length > 0
+    ? program.sessions.map((s, idx) => s.day || `Séance ${idx + 1}`)
+    : ['Lundi', 'Mardi', 'Mercredi', 'Jeudi'];
 
   return (
     <SafeAreaView style={s.safe}>
@@ -350,21 +366,37 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
             </Card>
           </View>
           
-          {/* Bouton CTA principal Terre Cuite en bas */}
-          <Pressable
-            onPress={startSession}
-            style={[s.ctaButtonTerreCuite, sessionCompletedToday && s.ctaButtonDone]}
-            accessibilityRole="button"
-            accessibilityLabel={sessionCompletedToday ? 'Refaire la séance' : 'Continuer la séance'}
-          >
-            <Text style={s.ctaButtonText}>
-              {sessionCompletedToday
-                ? 'Refaire la séance'
-                : done > 0
-                  ? 'Continuer la séance'
-                  : 'Démarrer la séance'}
-            </Text>
-          </Pressable>
+          {/* Boutons CTA principaux Terre Cuite & Validation directe Apple Watch */}
+          <View style={{ gap: spacing[2], marginTop: spacing[3] }}>
+            <Pressable
+              onPress={startSession}
+              style={[s.ctaButtonTerreCuite, sessionCompletedToday && s.ctaButtonDone]}
+              accessibilityRole="button"
+              accessibilityLabel={sessionCompletedToday ? 'Refaire la séance' : 'Continuer la séance'}
+            >
+              <Text style={s.ctaButtonText}>
+                {sessionCompletedToday
+                  ? 'Refaire la séance'
+                  : done > 0
+                    ? 'Continuer la séance'
+                    : 'Démarrer la séance'}
+              </Text>
+            </Pressable>
+
+            {!sessionCompletedToday && (
+              <Pressable
+                onPress={handleMarkCompleted}
+                style={s.ctaButtonSecondary}
+                accessibilityRole="button"
+                accessibilityLabel="Marquer la séance comme complétée (Apple Watch)"
+              >
+                <Check size={16} color={colors.sage[700]} strokeWidth={2.5} />
+                <Text style={s.ctaButtonSecondaryText}>
+                  Marquer comme complétée (Apple Watch)
+                </Text>
+              </Pressable>
+            )}
+          </View>
 
           {/* Bandeau de décharge médicale */}
           <View style={s.medicalDisclaimer}>
@@ -476,7 +508,7 @@ const s = StyleSheet.create({
     borderWidth:1.5,
     borderColor:colors.ink[200],
     alignItems:'center',
-    justify:'center',
+    justifyContent:'center',
     backgroundColor:colors.white,
   },
   exCheckboxDone: {
@@ -519,6 +551,23 @@ const s = StyleSheet.create({
     fontSize: fontSize.base,
     color: '#FFFFFF',
     letterSpacing: 0.2,
+  },
+  ctaButtonSecondary: {
+    backgroundColor: colors.sage[50],
+    borderWidth: 1,
+    borderColor: colors.sage[200],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[5],
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+  },
+  ctaButtonSecondaryText: {
+    fontFamily: fontFamily.hanken.semiBold,
+    fontSize: fontSize.sm,
+    color: colors.sage[800],
   },
 
   completedBanner: {

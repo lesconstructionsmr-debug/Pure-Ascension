@@ -37,6 +37,7 @@ export const handler: Handler = async (event) => {
     }
     const isNativeApp = event.queryStringParameters?.isNativeApp === 'true';
     const stateParam = isNativeApp ? `${uid}:native` : uid;
+    const redirectUri = `${baseUrl}/.netlify/functions/strava-callback`;
 
     // Générer l'URL de redirection vers Strava OAuth
     // Scope 'activity:read_all' requis pour lire l'historique et les détails cardiaques

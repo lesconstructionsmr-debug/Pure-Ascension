@@ -1,7 +1,7 @@
 /**
  * SplashScreen — Étape 0 du tunnel.
  * Logo + tagline + CTA unique. Zéro friction : le client entre
- * directement dans le tunnel de diagnostic, sans signup.
+ * directement dans le tunnel de quiz de profil fitness, sans signup.
  */
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';

@@ -84,7 +84,7 @@ export function normalizeBase64(raw: string | null | undefined): string | null {
   return `data:image/jpeg;base64,${raw}`;
 }
 
-export function parseConfidence(rawConf: unknown): number {
+export function parseConfidence(rawConf: unknown, hasItems: boolean = false): number {
   if (typeof rawConf === 'number') {
     if (rawConf > 1) return Math.min(1, Math.max(0, rawConf / 100));
     return Math.min(1, Math.max(0, rawConf));
@@ -93,7 +93,7 @@ export function parseConfidence(rawConf: unknown): number {
     const num = parseFloat(rawConf);
     if (!isNaN(num)) return num > 1 ? num / 100 : num;
   }
-  return 0.92;
+  return hasItems ? 0.88 : 0.70;
 }
 
 /** @alias parseConfidence */
@@ -238,12 +238,49 @@ export function getNonFoodMessage(data: ScanMealApiResponse): string {
   return 'Aucun aliment détecté sur cette photo. Essaie une autre prise de vue de ton assiette.';
 }
 
+export function calculateDensityScore(kcal: number, proteins: number, fibers: number): string {
+  if (kcal <= 0) return 'B';
+  const proteinRatio = (proteins * 4) / kcal;
+  const fiberDensity = (fibers / kcal) * 1000;
+
+  if (proteinRatio >= 0.28 || fiberDensity >= 14) return 'A+';
+  if (proteinRatio >= 0.20 || fiberDensity >= 9) return 'A';
+  if (proteinRatio >= 0.12 || fiberDensity >= 4) return 'B+';
+  if (proteinRatio >= 0.08) return 'B';
+  return 'C+';
+}
+
 function buildScannedMealResult(
   parsed: Record<string, unknown>,
   source?: ScanSource
 ): ScannedMealResult {
   const itemsArr = parseItems(parsed.items);
-  const confidence = parseConfidence(parsed.confidence);
+  const confidence = parseConfidence(parsed.confidence, itemsArr.length > 0);
+
+  const itemsKcal = itemsArr.reduce((acc, i) => acc + (i.calories || 0), 0);
+  const itemsProteins = itemsArr.reduce((acc, i) => acc + (i.proteins || 0), 0);
+  const itemsCarbs = itemsArr.reduce((acc, i) => acc + (i.carbs || 0), 0);
+  const itemsFats = itemsArr.reduce((acc, i) => acc + (i.fats || 0), 0);
+  const itemsFibers = itemsArr.reduce((acc, i) => acc + (i.fibers || 0), 0);
+
+  const rawKcal = parsed.calories ?? parsed.totalCalories;
+  const kcal = rawKcal != null && rawKcal !== '' ? Math.max(0, Math.round(Number(rawKcal) || 0)) : itemsKcal;
+
+  const rawProt = parsed.proteins ?? parsed.totalProteins;
+  const proteins = rawProt != null && rawProt !== '' ? Math.max(0, Math.round(Number(rawProt) || 0)) : itemsProteins;
+
+  const rawCarbs = parsed.carbs ?? parsed.totalCarbs;
+  const carbs = rawCarbs != null && rawCarbs !== '' ? Math.max(0, Math.round(Number(rawCarbs) || 0)) : itemsCarbs;
+
+  const rawFats = parsed.fats ?? parsed.totalFats;
+  const fats = rawFats != null && rawFats !== '' ? Math.max(0, Math.round(Number(rawFats) || 0)) : itemsFats;
+
+  const fibers = parseFibers(parsed) || itemsFibers;
+
+  const rawDensityScore = parsed.densityScore || parsed.score;
+  const densityScore = typeof rawDensityScore === 'string' && rawDensityScore.length > 0
+    ? rawDensityScore
+    : calculateDensityScore(kcal, proteins, fibers);
 
   return {
     title: String(parsed.name || parsed.mealName || 'Repas IA Pure Ascension'),
@@ -252,12 +289,12 @@ function buildScannedMealResult(
       parsed.fitnessNote || parsed.healthAdvice || parsed.notes ||
       'Composition nutritionnelle équilibrée & énergie P1.'
     ),
-    densityScore: 'A+',
-    kcal: roundMacro(parsed.calories ?? parsed.totalCalories, 520),
-    proteins: roundMacro(parsed.proteins ?? parsed.totalProteins, 38),
-    carbs: roundMacro(parsed.carbs ?? parsed.totalCarbs, 45),
-    fats: roundMacro(parsed.fats ?? parsed.totalFats, 16),
-    fibers: parseFibers(parsed),
+    densityScore,
+    kcal,
+    proteins,
+    carbs,
+    fats,
+    fibers,
     items: itemsArr,
     benefits: itemsArr.length
       ? itemsArr.map(i => `${i.name} (${i.portion})`)

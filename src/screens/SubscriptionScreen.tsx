@@ -1,6 +1,6 @@
 /**
  * SubscriptionScreen
- * Paywall avec plan Gratuit (limité), Standard (12$/mois) et Premium (19.99$/mois).
+ * Paywall avec 2 options : Accès Libre (Gratuit) et Formule Ascension (19.99$/mois).
  * Gère l'initiation de Stripe Checkout via la Netlify Function.
  */
 import React, { useState } from 'react';
@@ -11,7 +11,7 @@ import {
 import {
   Check, X, ChevronLeft, Sparkles, Lock,
   UtensilsCrossed, Dumbbell, BarChart2,
-  Bell, MessageCircle, Infinity, BookOpen, RefreshCw, LogOut
+  MessageCircle, BookOpen, RefreshCw, LogOut
 } from 'lucide-react-native';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 import { Button } from '../components/Button';
@@ -27,17 +27,17 @@ interface Props {
 
 /* ─── Feature comparison rows ────────────────────────────────────────────── */
 const FEATURES = [
-  { icon: Dumbbell,        label: 'Programme d\'entraînement personnalisé', free: true,  standard: true,  premium: true  },
-  { icon: BarChart2,       label: 'Suivi de la progression & historique',   free: true,  standard: true,  premium: true  },
-  { icon: UtensilsCrossed, label: 'Plan repas & macros de base',             free: false, standard: true,  premium: true  },
-  { icon: RefreshCw,       label: 'Ajustement du plan selon la progression',free: false, standard: false, premium: true  }, // Toutes les 3 semaines
-  { icon: BookOpen,        label: 'Livre de recettes exclusif',            free: false, standard: false, premium: true  },
-  { icon: MessageCircle,   label: 'Conseils & coaching avancés par IA',     free: false, standard: false, premium: true  },
+  { icon: Dumbbell,        label: 'Programme d\'entraînement personnalisé', free: true,  ascension: true },
+  { icon: BarChart2,       label: 'Suivi de la progression & historique',   free: true,  ascension: true },
+  { icon: UtensilsCrossed, label: 'Plan repas & journalisation des macros', free: false, ascension: true },
+  { icon: RefreshCw,       label: 'Ajustement continu du plan selon la progression', free: false, ascension: true },
+  { icon: BookOpen,        label: 'Recommandations repas & nutrition sur-mesure', free: false, ascension: true },
+  { icon: MessageCircle,   label: 'Coaching IA 24/7 & conseils illimités', free: false, ascension: true },
 ] as const;
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
 export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree }) => {
-  const [selected, setSelected] = useState<'free' | 'standard' | 'premium'>('premium');
+  const [selected, setSelected] = useState<'free' | 'ascension'>('ascension');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -51,7 +51,6 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
     setError('');
 
     try {
-      // URL absolue pour garantir le fonctionnement sur Mobile (iOS/Android native) et Web
       const checkoutEndpoint = Platform.OS === 'web'
         ? '/.netlify/functions/create-checkout-session'
         : 'https://pure-ascension.netlify.app/.netlify/functions/create-checkout-session';
@@ -64,7 +63,7 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
         body: JSON.stringify({
           uid,
           email,
-          plan: selected,
+          plan: 'ascension',
           isNativeApp: Platform.OS !== 'web',
         }),
       });
@@ -75,7 +74,6 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
         throw new Error(data.error || 'Impossible d\'initier le paiement Stripe.');
       }
 
-      // Rediriger vers Stripe Checkout (Web ou App Mobile native)
       if (Platform.OS === 'web') {
         window.location.href = data.url;
       } else {
@@ -117,11 +115,11 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
           <Text style={st.heroTitle}>
             Propulse ton{' '}
             <Text style={st.heroItalic}>ascension.</Text>
-            {'\n'}Trouve la formule adaptée à tes objectifs.
+            {'\n'}Débloque ton potentiel avec la Formule Ascension.
           </Text>
         </View>
 
-        {/* Plan Cards Stack (Vertical pour lisibilité mobile) */}
+        {/* Plan Cards Stack */}
         <View style={st.plansColumn}>
 
           {/* Free plan */}
@@ -134,40 +132,22 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
             <View style={st.planCardHeader}>
               <View>
                 <Text style={st.planName}>Accès Libre</Text>
-                <Text style={st.planPriceSub}>Pour tester l'application</Text>
+                <Text style={st.planPriceSub}>Pour découvrir l'application</Text>
               </View>
               <Text style={st.planPrice}>Gratuit</Text>
             </View>
           </Pressable>
 
-          {/* Standard plan */}
-          <Pressable
-            style={[st.planCard, selected === 'standard' && st.planCardSelected]}
-            onPress={() => setSelected('standard')}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: selected === 'standard' }}
-          >
-            <View style={st.planCardHeader}>
-              <View>
-                <Text style={st.planName}>Formule Standard</Text>
-                <Text style={st.planPriceSub}>Entraînement & nutrition de base</Text>
-              </View>
-              <View style={st.priceRow}>
-                <Text style={st.planPrice}>Standard</Text>
-              </View>
-            </View>
-          </Pressable>
-
-          {/* Premium plan */}
+          {/* Ascension plan (Formule unique à 19.99$/mois) */}
           <Pressable
             style={[
               st.planCard, 
               st.planCardPremium, 
-              selected === 'premium' && st.planCardSelectedPremium
+              selected === 'ascension' && st.planCardSelectedPremium
             ]}
-            onPress={() => setSelected('premium')}
+            onPress={() => setSelected('ascension')}
             accessibilityRole="radio"
-            accessibilityState={{ selected: selected === 'premium' }}
+            accessibilityState={{ selected: selected === 'ascension' }}
           >
             <View style={st.popularBadge}>
               <Sparkles size={10} color="#fff" strokeWidth={2} />
@@ -175,11 +155,11 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
             </View>
             <View style={st.planCardHeader}>
               <View>
-                <Text style={[st.planName, { color: '#fff' }]}>Formule Premium</Text>
-                <Text style={[st.planPriceSub, { color: colors.sage[200] }]}>Ajustement IA continu & Recettes</Text>
+                <Text style={[st.planName, { color: '#fff' }]}>Formule Ascension</Text>
+                <Text style={[st.planPriceSub, { color: colors.sage[200] }]}>Accès complet : Entraînement, Nutrition & IA 24/7</Text>
               </View>
               <View style={st.priceRow}>
-                <Text style={[st.planPrice, { color: '#fff' }]}>Premium</Text>
+                <Text style={[st.planPrice, { color: '#fff' }]}>Formule Complet</Text>
               </View>
             </View>
           </Pressable>
@@ -193,9 +173,8 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
             {/* Column headers */}
             <View style={st.featureHeaderRow}>
               <View style={{ flex: 1.5 }} />
-              <Text style={st.featureCol}>Gratuit</Text>
-              <Text style={st.featureCol}>Std</Text>
-              <Text style={[st.featureCol, { color: colors.sage[600] }]}>Prem</Text>
+              <Text style={st.featureCol}>Libre</Text>
+              <Text style={[st.featureCol, { color: colors.sage[600], width: 70 }]}>Ascension</Text>
             </View>
 
             {FEATURES.map((feat, i) => (
@@ -209,13 +188,8 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
                     ? <Check size={16} color={colors.sage[500]} strokeWidth={2.5} />
                     : <X     size={14} color={colors.ink[400]}  strokeWidth={2} />}
                 </View>
-                <View style={st.featureCheck}>
-                  {feat.standard
-                    ? <Check size={16} color={colors.sage[500]} strokeWidth={2.5} />
-                    : <X     size={14} color={colors.ink[400]}  strokeWidth={2} />}
-                </View>
-                <View style={st.featureCheck}>
-                  {feat.premium
+                <View style={[st.featureCheck, { width: 70 }]}>
+                  {feat.ascension
                     ? <Check size={16} color={colors.sage[500]} strokeWidth={2.5} />
                     : <X     size={14} color={colors.ink[400]}  strokeWidth={2} />}
                 </View>
@@ -240,12 +214,12 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
             </View>
           ) : (
             <Button
-              variant={selected === 'premium' ? 'accent' : 'primary'}
+              variant={selected === 'ascension' ? 'accent' : 'primary'}
               size="lg"
-              label={selected === 'free' ? 'Continuer avec la version limitée' : 'S\'abonner & démarrer'}
+              label={selected === 'free' ? 'Continuer avec la version limitée' : 'Démarrer la Formule Ascension'}
               fullWidth
               onPress={handleSubscribe}
-              iconRight={selected === 'premium' ? <Sparkles size={18} color="#fff" strokeWidth={2} /> : undefined}
+              iconRight={selected === 'ascension' ? <Sparkles size={18} color="#fff" strokeWidth={2} /> : undefined}
             />
           )}
 
@@ -398,3 +372,4 @@ const st = StyleSheet.create({
 });
 
 export default SubscriptionScreen;
+

@@ -1,6 +1,6 @@
 /**
  * EmptyState — affiché quand aucun plan n'existe pour l'utilisatrice.
- * Jamais de données factices : on force vers le diagnostic.
+ * Jamais de données factices : on force vers le quiz.
  */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -16,8 +16,8 @@ interface Props {
 
 export const EmptyState: React.FC<Props> = ({
   title    = 'Aucun plan trouvé',
-  message  = 'Complète ton diagnostic pour recevoir ton programme personnalisé.',
-  ctaLabel = 'Compléter le diagnostic',
+  message  = 'Complète ton quiz de profil fitness pour recevoir ton programme personnalisé.',
+  ctaLabel = 'Compléter le quiz de profil fitness',
   onCta,
 }) => (
   <View style={s.wrap}>

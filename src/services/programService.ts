@@ -71,7 +71,9 @@ export function getProgramName(p: UserProfile): string {
     tone:   { débutante: 'Corps Léger',     intermédiaire: 'Corps Sculpté',     avancée: 'Corps Athlétique' },
     force:  { débutante: 'Puissance I',     intermédiaire: 'Puissance II',      avancée: 'Puissance Élite'  },
   };
-  return names[p.mainGoal]?.[p.experience] ?? 'Programme Sur-Mesure Pure Ascension';
+  const safeGoal = (p.mainGoal && names[p.mainGoal]) ? p.mainGoal : 'muscle';
+  const safeExp = (p.experience && names[safeGoal][p.experience]) ? p.experience : 'intermédiaire';
+  return names[safeGoal]?.[safeExp] ?? 'Programme Sur-Mesure Pure Ascension';
 }
 
 /* ─── Calories cibles (Mifflin-St Jeor) ─────────────────────────────────── */
@@ -504,7 +506,7 @@ const GOAL_TEMPLATES_4PHASES: Record<UserProfile['mainGoal'], PhaseDef[][]> = {
     ]
   ],
   gras: [
-    // Duplicate structure adapted for fat loss focus
+    // Séance 1 : Haut du corps & Poussée Métabolique
     [
       { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Jumping Jacks & Mobilité hanches', limited: 'Jumping Jacks & Mobilité', home: 'Jumping Jacks & Mobilité' }, reps: '2 min', restSeconds: 30, notes: 'Mise en route cardiovasculaire.' },
       { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Band pull-apart & Squats air', limited: 'Band pull-apart & Squats air', home: 'Squats air & Rotations' }, reps: '15', restSeconds: 30, notes: 'Activation articulaire.' },
@@ -514,9 +516,54 @@ const GOAL_TEMPLATES_4PHASES: Record<UserProfile['mainGoal'], PhaseDef[][]> = {
       { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'F2', name: { full: 'Rowing haltères buste penché', limited: 'Rowing haltères', home: 'Rowing inversé sous table' }, reps: '12', restSeconds: 45, notes: 'Superset F2 — Tirage haut volume.' },
       { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Circuit Burpees & Mountain Climbers', limited: 'Circuit Burpees & Mountain Climbers', home: 'Burpees & Mountain Climbers' }, reps: '4 min (30s/15s)', restSeconds: 40, notes: 'Consommation d\'oxygène post-effort (EPOC).' },
       { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Respiration diaphragmatique', limited: 'Respiration diaphragmatique', home: 'Respiration diaphragmatique' }, reps: '3 min', restSeconds: 0, notes: 'Baisser le cortisol.' }
+    ],
+    // Séance 2 : Bas du corps & Puissance Brûle-Graisses
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Skater Jumps & Mobilité cheville', limited: 'Skater Jumps & Mobilité', home: 'Skater Jumps sans impact' }, reps: '2 min', restSeconds: 30, notes: 'Activation de la chaîne latérale.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Pont fessier unilatéral', limited: 'Pont fessier au sol', home: 'Pont fessier au sol' }, reps: '12/côté', restSeconds: 30, notes: 'Activation grand fessier.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Soulevé de terre roumain haltères', limited: 'Soulevé de terre roumain haltères', home: 'Soulevé de terre KB / Sac' }, reps: '12–15', tempo: '3010', restSeconds: 60, notes: 'Tension ischios & fessiers.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Fentes marchées avec haltères', limited: 'Fentes marchées haltères', home: 'Fentes arrières explosives' }, reps: '10/jambe', restSeconds: 60, notes: 'Volume quadriceps & fessiers.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'F3', name: { full: 'Kettlebell Swings balistiques', limited: 'Swings haltère', home: 'Swings sac ou KB' }, reps: '15–20', restSeconds: 30, notes: 'Superset F3 — Extension dynamique.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'F4', name: { full: 'Mountain Climbers rapide', limited: 'Mountain Climbers', home: 'Mountain Climbers' }, reps: '40 s', restSeconds: 45, notes: 'Superset F4 — Gainage métabolique.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Finisher Squats sautés Tabata', limited: 'Squats sautés / Air Squats Tabata', home: 'Air Squats Tabata' }, reps: '4 min (20s/10s)', restSeconds: 40, notes: 'Épuisement des réserves de glycogène.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Étirements quadriceps & psoas', limited: 'Étirements quadriceps & psoas', home: 'Étirements quadriceps & psoas' }, reps: '3 min', restSeconds: 0, notes: 'Retour à l\'état de repos.' }
+    ],
+    // Séance 3 : Core & Tirage Métabolique
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Rotations thoraciques & Cat-Cow', limited: 'Rotations thoraciques', home: 'Cat-Cow & Rotations' }, reps: '2 min', restSeconds: 30, notes: 'Mobilité de la colonne vertébrale.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Deadbug dynamique', limited: 'Deadbug dynamique', home: 'Deadbug dynamique' }, reps: '10/côté', restSeconds: 30, notes: 'Activation de la sangle abdominale.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Rowing unilatéral haltère lourd', limited: 'Rowing unilatéral haltère', home: 'Rowing inversé sous table' }, reps: '10/bras', tempo: '2010', restSeconds: 60, notes: 'Travail dorsal unilatéral.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Développé couché haltères', limited: 'Développé couché haltères', home: 'Pompes classiques' }, reps: '12', restSeconds: 60, notes: 'Poussée pectoraux & triceps.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'F5', name: { full: 'Gainage planche avec touches d\'épaules', limited: 'Gainage planche touches épaules', home: 'Gainage planche touches épaules' }, reps: '45 s', restSeconds: 30, notes: 'Superset F5 — Anti-rotation.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'F6', name: { full: 'Oiseau avec haltères légers', limited: 'Oiseau haltères', home: 'Tirage serviette / élastique' }, reps: '15', restSeconds: 45, notes: 'Superset F6 — Deltoïde postérieur.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Finisher High Knees & Jumping Jacks', limited: 'High Knees & Jumping Jacks', home: 'High Knees sur place' }, reps: '3 min (30s/15s)', restSeconds: 40, notes: 'Pulsations soutenues.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Décompression vertébrale', limited: 'Décompression vertébrale', home: 'Décompression au sol' }, reps: '3 min', restSeconds: 0, notes: 'Relâchement du dos.' }
+    ],
+    // Séance 4 : Full Body Conditioning
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'World\'s Greatest Stretch', limited: 'World\'s Greatest Stretch', home: 'World\'s Greatest Stretch' }, reps: '2 min', restSeconds: 30, notes: 'Ouverture complète.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Gainage commando (Plank to Push-up)', limited: 'Gainage commando', home: 'Gainage commando' }, reps: '10 reps', restSeconds: 30, notes: 'Stabilité épaules & tronc.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Thrusters haltères', limited: 'Thrusters haltères', home: 'Thrusters avec sacs ou KB' }, reps: '12', tempo: 'Explosif', restSeconds: 75, notes: 'Mouvement polyarticulaire total.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Step-ups sur banc avec haltères', limited: 'Step-ups sur chaise', home: 'Step-ups poids du corps' }, reps: '10/jambe', restSeconds: 60, notes: 'Travail unilatéral bas du corps.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'F7', name: { full: 'Farmer Walk avec haltères', limited: 'Farmer Walk haltères', home: 'Farmer Walk unilatéral KB' }, reps: '3 × 45 s', restSeconds: 30, notes: 'Superset F7 — Gainage & poigne.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'F8', name: { full: 'Planche latérale avec élévation', limited: 'Planche latérale', home: 'Planche latérale sur genoux' }, reps: '30 s/côté', restSeconds: 45, notes: 'Superset F8 — Obliques.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Complex Burpees & KB Swings', limited: 'Complex Burpees & Swings', home: 'Burpees & Squats sautés' }, reps: '3 tours x 10 reps', restSeconds: 40, notes: 'Burn out total.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Respiration guidée & stretching', limited: 'Respiration & stretching', home: 'Respiration & stretching' }, reps: '3 min', restSeconds: 0, notes: 'Récupération post-séance.' }
+    ],
+    // Séance 5 : Circuit Incinérateur & Agilité
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'World\'s Greatest Stretch & Jumping Jacks', limited: 'World\'s Greatest Stretch & Jumping Jacks', home: 'World\'s Greatest Stretch & Jumping Jacks' }, reps: '2 min', restSeconds: 30, notes: 'Activation générale cardiovasculaire.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Bird-Dog & Rotations thoraciques', limited: 'Bird-Dog & Rotations', home: 'Bird-Dog & Rotations' }, reps: '10/côté', restSeconds: 30, notes: 'Stabilité vertébrale & centre.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Dumbbell Snatch alterné', limited: 'Dumbbell Snatch alterné', home: 'Kettlebell Snatch / Clean & Press' }, reps: '12', tempo: 'Explosif', restSeconds: 60, notes: 'Puissance globale & dépense énergétique.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Squats sautés / Air Squats tempo', limited: 'Air Squats tempo', home: 'Air Squats tempo' }, reps: '15', restSeconds: 60, notes: 'Haute fréquence respiratoire.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'F9', name: { full: 'Mountain Climbers rapide', limited: 'Mountain Climbers', home: 'Mountain Climbers' }, reps: '45 s', restSeconds: 30, notes: 'Superset F9 — Gainage métabolique.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'F10', name: { full: 'Rowing inversé TRX / Table', limited: 'Rowing haltères', home: 'Rowing inversé sous table' }, reps: '12', restSeconds: 45, notes: 'Superset F10 — Tirage haut volume.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Tabata Burpees & Jumping Jacks', limited: 'Tabata Burpees', home: 'Tabata Burpees' }, reps: '4 min (20s/10s)', restSeconds: 40, notes: 'Finisher haute intensité.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Respiration diaphragmatique & décompression', limited: 'Respiration & décompression', home: 'Respiration & décompression' }, reps: '3 min', restSeconds: 0, notes: 'Retour au calme.' }
     ]
   ],
   tone: [
+    // Séance 1 : Bas du corps Glutes & Quads
     [
       { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Mobilité hanches & activation fessiers', limited: 'Mobilité hanches & fessiers', home: 'Mobilité hanches & fessiers' }, reps: '2 min', restSeconds: 30, notes: 'Préparation du bassin.' },
       { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Clamshell avec élastique', limited: 'Clamshell élastique', home: 'Clamshell poids du corps' }, reps: '15/côté', restSeconds: 30, notes: 'Activation moyen fessier.' },
@@ -526,9 +573,54 @@ const GOAL_TEMPLATES_4PHASES: Record<UserProfile['mainGoal'], PhaseDef[][]> = {
       { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'G2', name: { full: 'Abduction hanche élastique / poulie', limited: 'Abduction élastique', home: 'Abduction hanche allongée' }, reps: '15/côté', restSeconds: 60, notes: 'Superset G2 — Fessier latéral.' },
       { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Frog Pumps Finisher', limited: 'Frog Pumps Finisher', home: 'Frog Pumps Finisher' }, reps: '50 reps', restSeconds: 40, notes: 'Brûlure fessière ciblée.' },
       { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Étirements fessiers & relaxation', limited: 'Étirements fessiers', home: 'Étirements fessiers' }, reps: '3 min', restSeconds: 0, notes: 'Relâchement musculaire.' }
+    ],
+    // Séance 2 : Haut du corps Sculpte & Posture
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Rotations d\'épaules & Ouverture thoracique', limited: 'Rotations d\'épaules & Ouverture', home: 'Rotations d\'épaules & Ouverture' }, reps: '2 min', restSeconds: 30, notes: 'Ouverture de posture.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'YTWL d\'activation scapulaire', limited: 'YTWL d\'activation scapulaire', home: 'Bird-dog contrôlé' }, reps: '12', restSeconds: 30, notes: 'Renforcement du haut du dos.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Développé couché haltères', limited: 'Développé couché haltères', home: 'Pompes inclines / classiques' }, reps: '10–12', tempo: '3010', restSeconds: 75, notes: 'Galbe poitrine et bras.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Rowing unilatéral haltère', limited: 'Rowing unilatéral haltère', home: 'Rowing inversé sous table' }, reps: '10–12/bras', tempo: '2010', restSeconds: 75, notes: 'Dos dessiné et posture.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'G3', name: { full: 'Élévations latérales haltères', limited: 'Élévations latérales haltères', home: 'Élévations latérales avec bouteilles' }, reps: '15', restSeconds: 45, notes: 'Superset G3 — Galbe des épaules.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'G4', name: { full: 'Extensions triceps au-dessus de la tête', limited: 'Extensions triceps haltère', home: 'Dips sur chaise' }, reps: '12–15', restSeconds: 60, notes: 'Superset G4 — Tonification triceps.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Gainage commando & touches d\'épaules', limited: 'Gainage commando', home: 'Gainage commando' }, reps: '3 × 30 s', restSeconds: 40, notes: 'Finisher sangle abdominale.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Respiration guidée & stretching pecs/dorsaux', limited: 'Respiration & stretching', home: 'Respiration & stretching' }, reps: '3 min', restSeconds: 0, notes: 'Récupération.' }
+    ],
+    // Séance 3 : Full Body Tonique & Galbe
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'World\'s Greatest Stretch', limited: 'World\'s Greatest Stretch', home: 'World\'s Greatest Stretch' }, reps: '2 min', restSeconds: 30, notes: 'Mobilité générale.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Deadbug contrôlé', limited: 'Deadbug contrôlé', home: 'Deadbug contrôlé' }, reps: '10/côté', restSeconds: 30, notes: 'Activation du centre.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Squat gobelet avec pause 2s', limited: 'Squat gobelet haltère', home: 'Squat gobelet KB / Sac' }, reps: '10', tempo: '3210', restSeconds: 75, notes: 'Tension continue sur les cuisses.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Développé militaire debout', limited: 'Développé militaire haltères', home: 'Pompes piquées' }, reps: '10', tempo: '2010', restSeconds: 75, notes: 'Force & galbe haut du corps.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'G5', name: { full: 'Soulevé de terre unilatéral (Single Leg RDL)', limited: 'Single Leg RDL haltère', home: 'Single Leg RDL sans charge' }, reps: '10/jambe', restSeconds: 45, notes: 'Superset G5 — Équilibre & ischios.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'G6', name: { full: 'Rowing barre / haltères buste penché', limited: 'Rowing haltères', home: 'Rowing sac / KB' }, reps: '12', restSeconds: 60, notes: 'Superset G6 — Épaisseur du dos.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Tabata Mountain Climbers & Gainage', limited: 'Tabata Mountain Climbers', home: 'Tabata Mountain Climbers' }, reps: '4 min (20s/10s)', restSeconds: 40, notes: 'Brûleur métabolique.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Étirements complets & respiration', limited: 'Étirements complets', home: 'Étirements complets' }, reps: '3 min', restSeconds: 0, notes: 'Retour au calme.' }
+    ],
+    // Séance 4 : Core Stabilité & Obliques
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Cat-Cow & Rotations thoraciques', limited: 'Cat-Cow & Rotations', home: 'Cat-Cow & Rotations' }, reps: '2 min', restSeconds: 30, notes: 'Mobilité vertébrale.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Deadbug avec contraction 2s', limited: 'Deadbug contrôlé', home: 'Deadbug contrôlé' }, reps: '12/côté', restSeconds: 30, notes: 'Activation du transverse.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Gainage Pallof Press élastique', limited: 'Pallof Press élastique', home: 'Planche latérale avec élévation' }, reps: '12/côté', tempo: 'Contrôlé', restSeconds: 60, notes: 'Gainage anti-rotation & posture.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Fentes arrières avec rotation du buste', limited: 'Fentes arrières avec rotation', home: 'Fentes arrières avec rotation' }, reps: '10/jambe', restSeconds: 60, notes: 'Travail dynamique de stabilité.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'G7', name: { full: 'Gainage commando (Plank to Push-up)', limited: 'Gainage commando', home: 'Gainage commando' }, reps: '10 reps', restSeconds: 30, notes: 'Superset G7 — Renforcement tronc & épaules.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'G8', name: { full: 'Relevé de bassin au sol (Reverse Crunch)', limited: 'Reverse Crunch', home: 'Reverse Crunch' }, reps: '15', restSeconds: 45, notes: 'Superset G8 — Bas des abdominaux.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Planche dynamique Tabata', limited: 'Planche dynamique Tabata', home: 'Planche dynamique Tabata' }, reps: '4 min (20s/10s)', restSeconds: 40, notes: 'Tension maximale abdos.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Étirements sangle abdominale & dorsaux', limited: 'Étirements sangle abdominale', home: 'Étirements sangle abdominale' }, reps: '3 min', restSeconds: 0, notes: 'Relâchement musculaire.' }
+    ],
+    // Séance 5 : Full Body Sculpture & Définition
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'World\'s Greatest Stretch', limited: 'World\'s Greatest Stretch', home: 'World\'s Greatest Stretch' }, reps: '2 min', restSeconds: 30, notes: 'Ouverture articulaire.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Glute Bridge unilatéral', limited: 'Glute Bridge au sol', home: 'Glute Bridge au sol' }, reps: '12/côté', restSeconds: 30, notes: 'Activation fessiers.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Squat bulgare avec haltères', limited: 'Squat bulgare sur chaise', home: 'Squat bulgare au sol' }, reps: '10/jambe', tempo: '3010', restSeconds: 75, notes: 'Galbe unilatéral quadriceps & fessiers.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Développé incliné haltères', limited: 'Développé incliné haltères', home: 'Pompes déclinées / normales' }, reps: '10–12', tempo: '2010', restSeconds: 75, notes: 'Dessin de la ligne scapulaire & poitrine.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'G9', name: { full: 'Oiseau haltères buste penché', limited: 'Oiseau haltères', home: 'Tirage élastique ancrage porte' }, reps: '15', restSeconds: 45, notes: 'Superset G9 — Arrière d\'épaule & posture.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'G10', name: { full: 'Curl biceps & press épaules combiné', limited: 'Curl & press haltères', home: 'Curl & press bouteilles / KB' }, reps: '12', restSeconds: 60, notes: 'Superset G10 — Tonification combinée bras.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Circuit Fentes alternées & Swings', limited: 'Fentes & Swings', home: 'Fentes & Swings' }, reps: '3 min (30s/15s)', restSeconds: 40, notes: 'Brûlure globale.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Respiration & étirements doux', limited: 'Respiration & étirements', home: 'Respiration & étirements' }, reps: '3 min', restSeconds: 0, notes: 'Retour au calme.' }
     ]
   ],
   force: [
+    // Séance 1 : Force Poussée & Tronc
     [
       { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'World\'s Greatest Stretch', limited: 'World\'s Greatest Stretch', home: 'World\'s Greatest Stretch' }, reps: '2 min', restSeconds: 30, notes: 'Mobilité articulaire complète.' },
       { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Gainage planche avec charge', limited: 'Gainage planche', home: 'Gainage planche' }, reps: '40 s', restSeconds: 30, notes: 'Verrouillage de la sangle abdominale.' },
@@ -538,6 +630,50 @@ const GOAL_TEMPLATES_4PHASES: Record<UserProfile['mainGoal'], PhaseDef[][]> = {
       { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'H2', name: { full: 'Gainage Pallof Press', limited: 'Pallof Press avec élastique', home: 'Bird-Dog avec pause 3s' }, reps: '10/côté', restSeconds: 60, notes: 'Superset H2 — Stabilité anti-rotation.' },
       { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Suspension barre lourde (Grip strength)', limited: 'Serrage serviette / Haltères hold', home: 'KB Hold unilatéral 45s' }, reps: '3 × 45 s', restSeconds: 40, notes: 'Renforcement du grip.' },
       { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Décompression vertébrale & respiration', limited: 'Décompression vertébrale', home: 'Décompression vertébrale' }, reps: '3 min', restSeconds: 0, notes: 'Récupération du système nerveux central.' }
+    ],
+    // Séance 2 : Force Tirage & Chaîne Postérieure
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Cat-Cow & Rotations thoraciques', limited: 'Cat-Cow & Rotations', home: 'Cat-Cow & Rotations' }, reps: '2 min', restSeconds: 30, notes: 'Mobilité de la colonne.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Band pull-apart élastique', limited: 'Band pull-apart', home: 'Bird-Dog contrôlé' }, reps: '15', restSeconds: 30, notes: 'Activation dorsale.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Tractions lestées / pronation', limited: 'Tractions assistées élastique', home: 'Rowing inversé sous table' }, reps: '6', tempo: '2010', restSeconds: 120, notes: 'Force de tirage vertical.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Rowing barre lourd buste penché', limited: 'Rowing haltères lourd', home: 'Rowing KB unilatéral lourd' }, reps: '6', tempo: '2010', restSeconds: 120, notes: 'Force de tirage horizontal.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'H3', name: { full: 'Soulevé de terre roumain lourd', limited: 'Soulevé de terre roumain haltères', home: 'Single leg RDL lourd' }, reps: '8', restSeconds: 60, notes: 'Superset H3 — Ischios & lombaires.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'H4', name: { full: 'Face pull poulie lourd', limited: 'Oiseau haltères lourd', home: 'Tirage élastique lourd' }, reps: '12', restSeconds: 60, notes: 'Superset H4 — Arrière d\'épaule & posture.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Farmer Walk lourd avec haltères', limited: 'Farmer Walk lourd', home: 'Suitcase Carry unilatéral KB' }, reps: '3 × 50 m', restSeconds: 40, notes: 'Force de préhension et gainage.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Étirements chaîne postérieure & suspension', limited: 'Étirements & suspension', home: 'Étirements au sol' }, reps: '3 min', restSeconds: 0, notes: 'Relâchement vertébral.' }
+    ],
+    // Séance 3 : Force Bas du corps & Stabilité
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Mobilité 90/90 & chevilles', limited: 'Mobilité 90/90', home: 'Mobilité 90/90' }, reps: '2 min', restSeconds: 30, notes: 'Amplitude articulaire.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Pont fessier avec pause 3s', limited: 'Pont fessier pause 3s', home: 'Pont fessier pause 3s' }, reps: '12', restSeconds: 30, notes: 'Activation glutes.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Squat bulgare haltères lourds', limited: 'Squat bulgare haltères', home: 'Squat bulgare au sol lourd' }, reps: '6–8/jambe', tempo: '3010', restSeconds: 90, notes: 'Force unilatérale jambes.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Hip Thrust barre lourd', limited: 'Hip Thrust haltère lourd', home: 'Hip Thrust unilatéral lesté' }, reps: '8', tempo: '2011', restSeconds: 90, notes: 'Extension puissante de hanche.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'H5', name: { full: 'Fentes marchantes lourdes', limited: 'Fentes arrières lourdes', home: 'Fentes arrières lourd KB' }, reps: '8/jambe', restSeconds: 60, notes: 'Superset H5 — Stabilité genou/bassin.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'H6', name: { full: 'Abduction poulie / élastique lourd', limited: 'Abduction élastique fort', home: 'Abduction au sol gainée' }, reps: '12/côté', restSeconds: 60, notes: 'Superset H6 — Moyen fessier.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Kettlebell Swings lourds Finisher', limited: 'Swings haltère lourd', home: 'Swings KB lourd' }, reps: '3 × 15 reps', restSeconds: 40, notes: 'Puissance explosive finale.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Étirements fessiers & ischios', limited: 'Étirements fessiers & ischios', home: 'Étirements fessiers & ischios' }, reps: '3 min', restSeconds: 0, notes: 'Décompression.' }
+    ],
+    // Séance 4 : Force Poussée Verticale & Épaules
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Rotations d\'épaules & Ouverture scapulaire', limited: 'Rotations d\'épaules', home: 'Rotations d\'épaules' }, reps: '2 min', restSeconds: 30, notes: 'Préparation coiffe des rotateurs.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Band Pull-Apart & Pompes wall', limited: 'Band Pull-Apart', home: 'Pompes wall' }, reps: '15', restSeconds: 30, notes: 'Activation dentelé antérieur.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Développé militaire barre lourd', limited: 'Développé militaire haltères lourd', home: 'Pike Push-ups pieds surélevés' }, reps: '5', tempo: '2010', restSeconds: 120, notes: 'Presse verticale lourde. Tronc verrouillé.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Développé couché incliné barre', limited: 'Développé incliné haltères lourd', home: 'Pompes déclinées tempo 3-1-1' }, reps: '6', tempo: '3010', restSeconds: 120, notes: 'Force haut pectoraux & deltoïdes.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'H7', name: { full: 'Élévations latérales lourdes', limited: 'Élévations latérales haltères', home: 'Élévations latérales KB / sacs' }, reps: '10', restSeconds: 60, notes: 'Superset H7 — Massif latéral épaules.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'H8', name: { full: 'Dips lestés / Dips barres parallèles', limited: 'Dips sur banc lestés', home: 'Dips sur chaise' }, reps: '8', restSeconds: 60, notes: 'Superset H8 — Force triceps & pectoraux.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Farmer Carry unilatéral lourd', limited: 'Farmer Carry haltère lourd', home: 'Suitcase Carry KB' }, reps: '3 × 40 m', restSeconds: 40, notes: 'Grip & stabilité anti-inclinaison.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Étirements épaules & décompression', limited: 'Étirements épaules', home: 'Étirements épaules' }, reps: '3 min', restSeconds: 0, notes: 'Relâchement articulaire.' }
+    ],
+    // Séance 5 : Force Accessoires & Puissance Full Body
+    [
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'World\'s Greatest Stretch & Mobilité hanches', limited: 'World\'s Greatest Stretch', home: 'World\'s Greatest Stretch' }, reps: '2 min', restSeconds: 30, notes: 'Déverrouillage complet.' },
+      { phase: 1, phaseName: '1. Échauffement Dynamique & Activation', category: 'warmup', name: { full: 'Gainage commando d\'activation', limited: 'Gainage commando', home: 'Gainage commando' }, reps: '10 reps', restSeconds: 30, notes: 'Stabilité tronc.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Soulevé de terre roumain barre lourd', limited: 'SDT roumain haltères lourd', home: 'Single Leg RDL KB lourd' }, reps: '6', tempo: '3010', restSeconds: 120, notes: 'Tension maximale chaîne postérieure.' },
+      { phase: 2, phaseName: '2. Mouvements Polyarticulaires Principaux', category: 'compound', name: { full: 'Push Press barre / haltères lourds', limited: 'Push Press haltères lourd', home: 'Thrusters lourds' }, reps: '5', tempo: 'Explosif', restSeconds: 120, notes: 'Puissance explosive synchronisée.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'H9', name: { full: 'Step-ups sur banc lestés', limited: 'Step-ups sur chaise lestés', home: 'Step-ups poids du corps' }, reps: '8/jambe', restSeconds: 60, notes: 'Superset H9 — Force unilatérale quadriceps.' },
+      { phase: 3, phaseName: '3. Isolation & Supersets Métaboliques', category: 'isolation', supersetGroup: 'H10', name: { full: 'Rowing T-Bar / Rowing unilatéral lourd', limited: 'Rowing unilatéral haltère lourd', home: 'Rowing KB lourd' }, reps: '8/bras', restSeconds: 60, notes: 'Superset H10 — Épaisseur dos & grip.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Sled Push ou KB Swings lourds', limited: 'KB Swings lourds', home: 'KB Swings lourds' }, reps: '3 × 45 s', restSeconds: 40, notes: 'Explosivité finale.' },
+      { phase: 4, phaseName: '4. Finisher & Récupération P1-P4', category: 'finisher', name: { full: 'Décompression vertébrale & stretching', limited: 'Décompression vertébrale', home: 'Décompression vertébrale' }, reps: '3 min', restSeconds: 0, notes: 'Retour au calme.' }
     ]
   ]
 };
@@ -557,7 +693,8 @@ function buildStructuredSessions(p: UserProfile): WorkoutSession[] {
 
   // Définir la volumétrie initiale basée sur l'expérience
   const mainSets = exp === 'débutante' ? 3 : exp === 'avancée' ? 5 : 4;
-  const templates = GOAL_TEMPLATES_4PHASES[p.mainGoal] ?? GOAL_TEMPLATES_4PHASES['muscle'];
+  const safeGoal = (p.mainGoal && GOAL_TEMPLATES_4PHASES[p.mainGoal]) ? p.mainGoal : 'muscle';
+  const templates = GOAL_TEMPLATES_4PHASES[safeGoal] ?? GOAL_TEMPLATES_4PHASES['muscle'];
 
   return trainingDays.map((day, i) => {
     const rawTemplates = templates[i % templates.length];

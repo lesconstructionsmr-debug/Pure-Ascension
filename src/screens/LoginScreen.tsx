@@ -213,7 +213,7 @@ export const LoginScreen: React.FC<Props> = ({ onBack, onSuccess }) => {
           <View style={{ marginTop: spacing[6], alignItems: 'center' }}>
             <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button">
               <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[600] }}>
-                Pas encore de compte ? <Text style={{ fontFamily: fontFamily.hanken.bold, color: colors.sage[600] }}>Commencer le diagnostic</Text>
+                Pas encore de compte ? <Text style={{ fontFamily: fontFamily.hanken.bold, color: colors.sage[600] }}>Commencer le quiz</Text>
               </Text>
             </Pressable>
           </View>

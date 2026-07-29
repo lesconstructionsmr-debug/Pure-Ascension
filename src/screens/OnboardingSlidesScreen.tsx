@@ -21,7 +21,7 @@ const SLIDES = [
     id: '1',
     bg:    colors.sage[800],
     accent:colors.sage[300],
-    preview: 'diagnostic' as PreviewVariant,
+    preview: 'quiz' as PreviewVariant,
     tag:   'ÉTAPE 1',
     title: 'Réponds à',
     titleItalic: '10 questions simples.',

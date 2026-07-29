@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Platform, Text, Linking }   from 'react-native';
+import { Platform, Text, Linking, ActivityIndicator }   from 'react-native';
 import { BlurView }         from 'expo-blur';
 import { Home, UtensilsCrossed, Dumbbell, User } from 'lucide-react-native';
 import { colors, fontFamily }    from '../theme/theme';
@@ -26,7 +26,7 @@ import { ProfileHistoryScreen }   from '../screens/profile/ProfileHistoryScreen'
 import { ProfileNotificationsScreen } from '../screens/profile/ProfileNotificationsScreen';
 import { ProfileRitualsScreen }        from '../screens/profile/ProfileRitualsScreen';
 import { ProfileEditScreen }           from '../screens/profile/ProfileEditScreen';
-import { OnboardingDiagnosticScreen }    from '../screens/OnboardingDiagnosticScreen';
+import { OnboardingQuizScreen }          from '../screens/OnboardingQuizScreen';
 import { OnboardingSlidesScreen }        from '../screens/OnboardingSlidesScreen';
 import { ProgramGenerationScreen }       from '../screens/ProgramGenerationScreen';
 import { ProgramReadyScreen }            from '../screens/ProgramReadyScreen';
@@ -98,8 +98,6 @@ function MealsStackScreen() {
   return (
     <MealsSt.Navigator screenOptions={{ headerShown:false }}>
       <MealsSt.Screen name="MealsMain" component={MealsScreen} />
-      <MealsSt.Screen name="RecipeBook" component={RecipeBookScreen} />
-      <MealsSt.Screen name="RecipeDetail" component={RecipeDetailScreen} />
     </MealsSt.Navigator>
   );
 }
@@ -114,6 +112,8 @@ function WorkoutsStackScreen() {
   );
 }
 
+import { WearablesScreen } from '../screens/WearablesScreen';
+
 function ProfileStackScreen() {
   return (
     <ProfileSt.Navigator screenOptions={{ headerShown:false }}>
@@ -123,6 +123,7 @@ function ProfileStackScreen() {
       <ProfileSt.Screen name="Notifications" component={ProfileNotificationsScreenWrapper} />
       <ProfileSt.Screen name="Rituals"       component={ProfileRitualsScreenWrapper} />
       <ProfileSt.Screen name="EditProfile"  component={ProfileEditScreenWrapper} />
+      <ProfileSt.Screen name="Wearables"    component={WearablesScreen} />
     </ProfileSt.Navigator>
   );
 }
@@ -147,19 +148,19 @@ function MainTabs() {
 /* ─── Root ────────────────────────────────────────────────────────────────── */
 /**
  * Tunnel de conversion : la valeur AVANT le signup.
- *   splash → slides → diagnostic (10 q) → generating → teaser → signup → dashboard
+ *   splash → slides → quiz (10 q) → generating → teaser → signup → dashboard
  * Le profil + programme sont gardés en mémoire (pendingRef) et sauvegardés
  * dans Firestore au moment de la création du compte.
  */
 type OnboardingScreen =
   | 'splash'       // 0. Logo + CTA unique
   | 'slides'       // 1. Mini-présentation (4 slides)
-  | 'diagnostic'   // 2. 10 questions conversationnelles
+  | 'quiz'         // 2. 10 questions conversationnelles
   | 'generating'   // 3. Écran de génération (~10 s)
   | 'teaser'       // 4. Aperçu verrouillé du programme
   | 'signup'       // 5. Création de compte (minimal)
   | 'login'        //    Connexion comptes existants
-  | 'ready';       //    Programme prêt (parcours re-diagnostic, déjà connecté)
+  | 'ready';       //    Programme prêt (parcours re-quiz, déjà connecté)
 
 export const RootNavigator: React.FC = () => {
   const [authed,      setAuthed]      = useState(false);
@@ -343,18 +344,42 @@ export const RootNavigator: React.FC = () => {
       }
     };
     window.addEventListener('LOGIN_ACTION', handleWebLogin);
-    return () => window.removeEventListener('LOGIN_ACTION', handleWebLogin);
+
+    // ── Prise en charge des ancres URL web (#connexion, #login, #signup, #quiz) ──
+    const checkHash = () => {
+      const hash = window.location.hash.toLowerCase();
+      if (hash.includes('connexion') || hash.includes('login')) {
+        setScreen('login');
+      } else if (hash.includes('inscription') || hash.includes('signup')) {
+        setScreen('signup');
+      } else if (hash.includes('quiz')) {
+        setScreen('quiz');
+      }
+    };
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+
+    return () => {
+      window.removeEventListener('LOGIN_ACTION', handleWebLogin);
+      window.removeEventListener('hashchange', checkHash);
+    };
   }, []);
 
-  // Affiche rien pendant que Firebase vérifie la session / le profil
-  if (!authReady || (authed && hasProfile === null)) return null;
+  // Indicateur de chargement fluide pendant l'initialisation Firebase (évite l'écran vert vide)
+  if (!authReady || (authed && hasProfile === null)) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.sand[50], justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.sage[500]} />
+      </View>
+    );
+  }
 
-  // ── Connecté MAIS diagnostic jamais complété → diagnostic obligatoire ──
+  // ── Connecté MAIS quiz jamais complété → quiz obligatoire ──
   if (authed && !hasProfile) {
     if (screen === 'slides')
       return (
         <OnboardingSlidesScreen
-          onDone={() => setScreen('diagnostic')}
+          onDone={() => setScreen('quiz')}
         />
       );
 
@@ -375,7 +400,7 @@ export const RootNavigator: React.FC = () => {
       );
 
     return (
-      <OnboardingDiagnosticScreen
+      <OnboardingQuizScreen
         initialName={userName}
         onBack={() => setScreen('slides')}
         onComplete={async (p) => {
@@ -487,15 +512,14 @@ export const RootNavigator: React.FC = () => {
   }
 
   return (
-    <DailyProgressProvider>
-      {/* Objectif calorique réel issu du diagnostic — plus de valeur hardcodée */}
-      <CalorieProvider
-        key={storeProgram?.id ?? 'no-program'}
-        initialGoal={storeProgram?.calories ?? 1800}
-      >
+    <CalorieProvider
+      key={storeProgram?.id ?? 'no-program'}
+      initialGoal={storeProgram?.calories ?? 1800}
+    >
+      <DailyProgressProvider>
         <MainTabs userName={userName} userEmail={userEmail} />
-      </CalorieProvider>
-    </DailyProgressProvider>
+      </DailyProgressProvider>
+    </CalorieProvider>
   );
 };
 

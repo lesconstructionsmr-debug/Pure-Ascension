@@ -17,6 +17,7 @@ import { useCalorie } from '../context/CalorieContext';
 import { FeedbackButton } from '../components/FeedbackButton';
 import { EmptyState } from '../components/EmptyState';
 import { useProgramStore } from '../store/useProgramStore';
+import { calculateAndUpdateStreak } from '../hooks/useStreak';
 import { getProgramProgress, getTodaySession, generateProgram } from '../services/programService';
 import { saveUserProfileAndProgram } from '../services/dbService';
 import { auth, db } from '../services/firebase';
@@ -61,13 +62,15 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const [showMealScannerModal, setShowMealScannerModal] = React.useState(false);
 
   React.useEffect(() => {
+    calculateAndUpdateStreak();
     const uid = auth.currentUser?.uid;
     if (!uid) return;
     const unsub = onSnapshot(doc(db, 'users', uid), (snap) => {
       if (snap.exists()) {
         const d = snap.data();
-        if (d.streakDays !== undefined) {
-          useProgramStore.getState().setStreakDays(d.streakDays);
+        if (d.streakDays !== undefined && d.streakDays > 0) {
+          const localStreak = useProgramStore.getState().streakDays;
+          useProgramStore.getState().setStreakDays(Math.max(localStreak, Number(d.streakDays) || 1));
         }
         if (d.completedWorkoutsCount !== undefined) {
           // Ne jamais faire régresser le compteur : le local peut contenir des séances non encore synchronisées.
@@ -126,7 +129,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
         hydrationLevel: Number(hydrationLevel),
         stomachAcid,
         deepWhy: deepWhy.trim() || 'Non renseigné',
-        digestiveDiagnosticCompleted: true,
+        digestiveQuizCompleted: true,
       };
 
       // Régénérer le programme avec les nouvelles données
@@ -182,7 +185,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
     completionPct: calculatedPct,
   };
 
-  const showDigestiveBanner = profile && !profile.digestiveDiagnosticCompleted;
+  const showDigestiveBanner = profile && !profile.digestiveQuizCompleted;
 
   return (
     <View style={{ flex:1 }}>
@@ -208,7 +211,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             </Pressable>
           </View>
 
-          {/* Barre d'action rapide supérieure : 'Scanner un repas' | 'Ajouter un aliment' */}
+          {/* Barre d'action rapide supérieure : 'Scanner un repas avec l'IA' */}
           <View style={s.quickActionsRow}>
             <Pressable
               onPress={() => {
@@ -219,19 +222,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
               accessibilityRole="button"
             >
               <Camera size={16} color="#fff" />
-              <Text style={s.quickBtnPrimaryText}>Scanner un repas</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                setShowGroceryListModal(true);
-              }}
-              style={s.quickBtnSecondary}
-              accessibilityRole="button"
-            >
-              <Utensils size={16} color={colors.sage[700]} />
-              <Text style={s.quickBtnSecondaryText}>Ajouter un aliment</Text>
+              <Text style={s.quickBtnPrimaryText}>Scanner un repas avec l'IA</Text>
             </Pressable>
           </View>
 
@@ -282,7 +273,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
                     </Text>
                   </View>
                   <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.xs, color:colors.sage[700] }}>
-                    ({waterGlasses}/8 verres · {totalKcal} kcal)
+                    ({mealsCount}/3 repas · {waterGlasses}/8 verres · {totalKcal} kcal)
                   </Text>
                 </View>
                 <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginTop:spacing[2] }}>
@@ -304,7 +295,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
                 </View>
               </View>
 
-              {/* 💪 Puissance & Entraînement (En attente) */}
+              {/* 💪 Puissance & Entraînement (En attente / Validé) */}
               <View style={{ backgroundColor:colors.clay[50], borderRadius:radius.md, padding:spacing[3] }}>
                 <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
                   <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[2] }}>
@@ -356,7 +347,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
                           borderRadius: radius.md,
                           backgroundColor: isSelected ? item.bg : colors.sand[200],
                           alignItems: 'center',
-                          justify: 'center',
+                          justifyContent: 'center',
                           borderWidth: isSelected ? 0 : 1,
                           borderColor: colors.ink[200],
                         }}
@@ -438,8 +429,8 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             </Card>
           )}
 
-          {/* Carte 'PROCHAINE SÉANCE' : 'Circuit training' (Lundi · 45 min · 5 exercices) */}
-          <SectionHeader title="PROCHAINE SÉANCE" />
+          {/* Carte 'PROCHAINE SÉANCE' / 'SÉANCE DU JOUR VALIDÉE' */}
+          <SectionHeader title={workoutPct === 100 ? "SÉANCE DU JOUR VALIDÉE" : "PROCHAINE SÉANCE"} />
           <Pressable 
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -449,15 +440,22 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           >
             <Card elevation="sm" padding={spacing[5]}>
               <View style={{ flexDirection:'row', alignItems:'center', gap:spacing[4] }}>
-                <View style={{ width:44, height:44, borderRadius:22, backgroundColor:colors.clay[100], alignItems:'center', justifyContent:'center' }}>
-                  <Activity size={20} color={colors.clay[500]} strokeWidth={2} />
+                <View style={{ width:44, height:44, borderRadius:22, backgroundColor: workoutPct === 100 ? colors.sage[100] : colors.clay[100], alignItems:'center', justifyContent:'center' }}>
+                  {workoutPct === 100 ? (
+                    <Check size={20} color={colors.sage[600]} strokeWidth={2.5} />
+                  ) : (
+                    <Activity size={20} color={colors.clay[500]} strokeWidth={2} />
+                  )}
                 </View>
                 <View style={{ flex:1 }}>
                   <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.base, color:colors.ink[900], marginBottom:spacing[0.5] }}>
-                    {today?.session?.title || 'Circuit training'}
+                    {workoutPct === 100 ? 'Séance accomplie avec succès 🔥' : (today?.session?.title || 'Circuit training')}
                   </Text>
                   <Text style={{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[600] }}>
-                    {today?.session?.day || 'Lundi'} · {today?.session?.duration || 45} min · {today?.session?.exerciseCount || 5} exercices
+                    {workoutPct === 100 
+                      ? `${completedWorkoutsCount} séance${completedWorkoutsCount > 1 ? 's' : ''} validée${completedWorkoutsCount > 1 ? 's' : ''} au total`
+                      : `${today?.session?.day || 'Aujourd\'hui'} · ${today?.session?.duration || 45} min · ${today?.session?.exerciseCount || 5} exercices`
+                    }
                   </Text>
                 </View>
                 <ChevronRight size={20} color={colors.ink[500]} strokeWidth={2} />

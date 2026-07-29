@@ -276,7 +276,7 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
         <View style={{ flex:1, justifyContent:'center', padding:spacing[5] }}>
           <EmptyState
             title="Aucune séance active"
-            message="Complète ton diagnostic pour recevoir ton plan d'entraînement."
+            message="Complète ton quiz de profil fitness pour recevoir ton plan d'entraînement."
             ctaLabel="Retour"
             onCta={onClose}
           />
@@ -447,7 +447,7 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
                 <Sparkles size={14} color={colors.clay[500]} />
                 <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: colors.ink[900] }}>Pourquoi cet exercice ?</Text>
               </View>
-              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[700], lineHeight: lineHeight.relaxed }}>
+              <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[700], lineHeight: 18 }}>
                 {exercise.name.toLowerCase().includes('squat')
                   ? "Renforce l'ensemble des jambes et les fessiers. Développe une posture solide et brûle des calories même au repos."
                   : exercise.name.toLowerCase().includes('pompe') || exercise.name.toLowerCase().includes('développé')

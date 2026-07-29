@@ -39,6 +39,7 @@ export interface UserProfile {
   cardioSport?:        'course' | 'velo' | 'trail' | 'general';
   deepWhy?:            string;
   digestiveSymptoms?:  string[];
+  digestiveQuizCompleted?: boolean;
   lastProgramAdjustmentDate?: string;
   adjustmentCount?:    number;
   // Santé & alimentation

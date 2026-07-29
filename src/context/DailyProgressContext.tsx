@@ -9,6 +9,8 @@ import { auth } from '../services/firebase';
 import { saveDailyProgress, getTodayProgress, saveCompletedWorkout } from '../services/dbService';
 import { useProgramStore } from '../store/useProgramStore';
 import { useWorkoutHistoryStore } from '../store/useWorkoutHistoryStore';
+import { useCalorie } from './CalorieContext';
+import { calculateAndUpdateStreak } from '../hooks/useStreak';
 
 const TOTAL_MEALS   = 3;
 const TOTAL_WATER   = 8; // verres
@@ -71,6 +73,7 @@ export const DailyProgressProvider: React.FC<{ children: React.ReactNode }> = ({
     let isMounted = true;
     
     const loadProgressForUser = async (uid: string | null) => {
+      calculateAndUpdateStreak();
       const storageKey = `daily_progress_${todayKey()}`;
       try {
         // 1. Charger d'abord localement pour affichage immédiat
@@ -253,10 +256,18 @@ export const DailyProgressProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, [persistState]);
 
-  const mealsCount = checkedMealIds.size;
-  const mealsPct   = Math.round((mealsCount / TOTAL_MEALS) * 100);
-  const workoutPct = workoutCompleted ? 100 : 0;
-  const waterPct   = Math.round((waterGlasses / TOTAL_WATER) * 100);
+  const calorieCtx = useCalorie();
+  const calorieEntriesCount = calorieCtx?.entries?.length || 0;
+  const history = useWorkoutHistoryStore(st => st.history);
+  const hasWorkoutToday = history.some(w => w.dateKey === todayKey());
+  const isWorkoutDone = workoutCompleted || hasWorkoutToday;
+
+  const totalLoggedMeals = Math.max(checkedMealIds.size, calorieEntriesCount);
+  const mealsCount = totalLoggedMeals;
+  const targetMealsCount = Math.max(TOTAL_MEALS, mealsCount);
+  const mealsPct   = Math.min(100, Math.round((mealsCount / targetMealsCount) * 100));
+  const workoutPct = isWorkoutDone ? 100 : 0;
+  const waterPct   = Math.min(100, Math.round((waterGlasses / TOTAL_WATER) * 100));
   const sleepPct   = Math.round((sleepScore / 5) * 100);
   const mentalPct  = mentalCheckin ? 100 : 0;
 

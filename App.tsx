@@ -18,7 +18,16 @@ import {
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { colors } from './src/theme/theme';
 
-export default function App() {
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
+  enableInExpoDevelopment: false,
+  debug: false,
+  enabled: !__DEV__ || !!process.env.EXPO_PUBLIC_SENTRY_DSN,
+});
+
+function App() {
   const [fontsLoaded] = useFonts({
     HankenGrotesk_400Regular,
     HankenGrotesk_500Medium,
@@ -53,3 +62,5 @@ export default function App() {
     </NavigationContainer>
   );
 }
+
+export default Sentry.wrap(App);

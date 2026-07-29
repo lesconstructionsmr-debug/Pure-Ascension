@@ -423,21 +423,6 @@ export const MealsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
               <Text style={s.toolLabel}>Liste de courses (depuis mon plan)</Text>
               <ChevronRight size={18} color={colors.ink[400]} />
             </Pressable>
-            <View style={s.toolDivider} />
-            <Pressable
-              style={s.toolRow}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                navigation?.navigate('RecipeBook');
-              }}
-              accessibilityRole="button"
-            >
-              <View style={s.toolIconWrap}>
-                <Text style={{ fontSize: 18 }}>📖</Text>
-              </View>
-              <Text style={s.toolLabel}>Livre de recettes</Text>
-              <ChevronRight size={18} color={colors.ink[400]} />
-            </Pressable>
           </View>
         </View>
 

@@ -1,11 +1,12 @@
 /**
- * useStreak
- * Streak quotidien persisté dans AsyncStorage.
- * Règle : si l'utilisatrice ouvre l'app aujourd'hui → streak monte.
- * Si elle saute un jour → streak repart à 1.
+ * useStreak & calculateAndUpdateStreak
+ * Gestion réactive du Streak (série de jours consécutifs d'utilisation).
  */
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '../services/firebase';
+import { updateStreak } from '../services/dbService';
+import { useProgramStore } from '../store/useProgramStore';
 
 const KEY_STREAK     = '@pureascension:streak';
 const KEY_LAST_DATE  = '@pureascension:lastDate';
@@ -27,47 +28,64 @@ function yesterdayStr(): string {
   return `${year}-${month}-${day}`;
 }
 
+export async function calculateAndUpdateStreak(): Promise<number> {
+  try {
+    const [savedStreak, lastDate] = await Promise.all([
+      AsyncStorage.getItem(KEY_STREAK),
+      AsyncStorage.getItem(KEY_LAST_DATE),
+    ]);
+
+    const today     = todayStr();
+    const yesterday = yesterdayStr();
+    const current   = savedStreak ? parseInt(savedStreak, 10) : 0;
+
+    let newStreak = 1;
+
+    if (lastDate === today) {
+      // Déjà connecté aujourd'hui : on conserve au moins le streak courant (minimum 1)
+      newStreak = Math.max(1, current);
+    } else if (lastDate === yesterday) {
+      // Connexion le jour suivant : on incrémente la série
+      newStreak = Math.max(1, current) + 1;
+      await AsyncStorage.setItem(KEY_STREAK, String(newStreak));
+      await AsyncStorage.setItem(KEY_LAST_DATE, today);
+    } else {
+      // Premier jour ou jour manqué : on initialise à 1
+      newStreak = 1;
+      await AsyncStorage.setItem(KEY_STREAK, '1');
+      await AsyncStorage.setItem(KEY_LAST_DATE, today);
+    }
+
+    // Mettre à jour Zustand localement
+    useProgramStore.getState().setStreakDays(newStreak);
+
+    // Synchroniser avec Firestore si connecté
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      updateStreak(uid, newStreak).catch(() => {});
+    }
+
+    return newStreak;
+  } catch (err) {
+    console.warn('Erreur calculateAndUpdateStreak:', err);
+    useProgramStore.getState().setStreakDays(1);
+    return 1;
+  }
+}
+
 export function useStreak() {
-  const [streak, setStreak] = useState(0);
+  const [streak, setStreak] = useState(1);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        const [savedStreak, lastDate] = await Promise.all([
-          AsyncStorage.getItem(KEY_STREAK),
-          AsyncStorage.getItem(KEY_LAST_DATE),
-        ]);
-
-        const today     = todayStr();
-        const yesterday = yesterdayStr();
-        const current   = savedStreak ? parseInt(savedStreak, 10) : 0;
-
-        let newStreak = current;
-
-        if (lastDate === today) {
-          // Déjà compté aujourd'hui — rien à faire
-          newStreak = current;
-        } else if (lastDate === yesterday) {
-          // Hier → on incrémente
-          newStreak = current + 1;
-          await AsyncStorage.setItem(KEY_STREAK,    String(newStreak));
-          await AsyncStorage.setItem(KEY_LAST_DATE, today);
-        } else {
-          // Raté un jour ou premier lancement → repart à 1
-          newStreak = 1;
-          await AsyncStorage.setItem(KEY_STREAK,    '1');
-          await AsyncStorage.setItem(KEY_LAST_DATE, today);
-        }
-
-        setStreak(newStreak);
-      } catch {
-        setStreak(1); // fallback silencieux
-      } finally {
+    let isMounted = true;
+    calculateAndUpdateStreak().then((val) => {
+      if (isMounted) {
+        setStreak(val);
         setLoaded(true);
       }
-    };
-    init();
+    });
+    return () => { isMounted = false; };
   }, []);
 
   return { streak, loaded };

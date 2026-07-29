@@ -17,7 +17,14 @@
       }
     },
     "plugins": [
-      "expo-image-picker"
+      "expo-image-picker",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "o4511616564002816",
+          "project": "plan-growth"
+        }
+      ]
     ],
     "android": {
       "package": "com.pureascension.app",

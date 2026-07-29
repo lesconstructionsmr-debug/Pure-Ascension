@@ -49,7 +49,7 @@ export const AscensionCardModal: React.FC<AscensionCardModalProps> = ({
       ` Score d'Ascension : ${data.ascensionScore}%\n` +
       `🔥 Streak Discipline : ${data.streakDays} jours consécutifs\n\n` +
       `• Entraînement : ${data.workoutCompleted ? 'Validé 💪' : 'En cours'}\n` +
-      `• Nutrition & Eau : ${data.mealsCount}/3 Repas • ${data.waterGlasses} Verres d'eau 🥗\n` +
+      `• Nutrition & Eau : ${data.mealsCount}/${Math.max(3, data.mealsCount)} Repas • ${data.waterGlasses} Verres d'eau 🥗\n` +
       `• Sommeil & Récupération : ${data.sleepScore >= 5 ? '⚡ Reposé' : data.sleepScore >= 3 ? '😐 Moyen' : data.sleepScore === 1 ? '😴 Fatigué' : 'Récupération'} 🌙\n` +
       `• Équilibre Mental : ${data.mentalCheckin ? 'Validé 🧘' : 'Sérénité'}\n\n` +
       `Rejoins l'élite de la discipline sur https://pureascension.app`;
