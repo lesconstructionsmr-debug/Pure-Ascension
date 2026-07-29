@@ -18,14 +18,17 @@ import {
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { colors } from './src/theme/theme';
 
+import { Platform } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 
-Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
-  enableInExpoDevelopment: false,
-  debug: false,
-  enabled: !__DEV__ || !!process.env.EXPO_PUBLIC_SENTRY_DSN,
-});
+if (Platform.OS !== 'web') {
+  Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
+    enableInExpoDevelopment: false,
+    debug: false,
+    enabled: !__DEV__ || !!process.env.EXPO_PUBLIC_SENTRY_DSN,
+  });
+}
 
 function App() {
   const [fontsLoaded] = useFonts({
@@ -63,4 +66,5 @@ function App() {
   );
 }
 
-export default Sentry.wrap(App);
+export default Platform.OS === 'web' ? App : Sentry.wrap(App);
+
