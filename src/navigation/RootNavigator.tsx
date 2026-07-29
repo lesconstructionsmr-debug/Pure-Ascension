@@ -238,6 +238,8 @@ export const RootNavigator: React.FC = () => {
             // Mode hors-ligne / erreur réseau : Préserver le profil et programme locaux de Zustand s'ils existent !
             if (currentStore.profile && currentStore.program) {
               setHasProfile(true);
+            } else {
+              setHasProfile(false);
             }
             return;
           }
@@ -473,6 +475,24 @@ export const RootNavigator: React.FC = () => {
         />
       );
 
+    // ── 0. Quiz Onboarding ──
+    if (screen === 'quiz')
+      return (
+        <OnboardingQuizScreen
+          initialName={userName}
+          onBack={() => setScreen('splash')}
+          onComplete={async (p) => {
+            setProfile(p);
+            useProgramStore.getState().setProfile(p);
+            if (p.firstName) setUserName(p.firstName);
+            useProgramStore.getState().setUserData(p.firstName || '', userEmail || auth.currentUser?.email || '');
+            const prog = generateProgram(p);
+            useProgramStore.getState().setProgram(prog);
+            setScreen('generating');
+          }}
+        />
+      );
+
     // ── 1. Inscription minimale ──
     if (screen === 'signup')
       return (
@@ -505,7 +525,7 @@ export const RootNavigator: React.FC = () => {
     // Fallback : retour au splash
     return (
       <SplashScreen
-        onStart={() => setScreen('signup')}
+        onStart={() => setScreen('quiz')}
         onLogin={() => setScreen('login')}
       />
     );
