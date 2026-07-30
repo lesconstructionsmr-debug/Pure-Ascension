@@ -177,12 +177,12 @@ export const CalorieProvider: React.FC<{ children: React.ReactNode; initialGoal?
     persistState(entriesRef.current, kcal);
   }, [persistState]);
 
-  const totalKcal     = entries.reduce((s, e) => s + e.kcal,     0);
-  const totalProteins = entries.reduce((s, e) => s + e.proteins,  0);
-  const totalCarbs    = entries.reduce((s, e) => s + e.carbs,     0);
-  const totalFats     = entries.reduce((s, e) => s + e.fats,      0);
+  const totalKcal     = Math.round(entries.reduce((s, e) => s + (e.kcal || 0), 0));
+  const totalProteins = Math.round(entries.reduce((s, e) => s + (e.proteins || 0), 0) * 10) / 10;
+  const totalCarbs    = Math.round(entries.reduce((s, e) => s + (e.carbs || 0), 0) * 10) / 10;
+  const totalFats     = Math.round(entries.reduce((s, e) => s + (e.fats || 0), 0) * 10) / 10;
   const remainingKcal = Math.max(0, goalKcal - totalKcal);
-  const pct           = Math.min(100, Math.round((totalKcal / goalKcal) * 100));
+  const pct           = goalKcal > 0 ? Math.min(100, Math.round((totalKcal / goalKcal) * 100)) : 0;
 
   return (
     <Ctx.Provider value={{
