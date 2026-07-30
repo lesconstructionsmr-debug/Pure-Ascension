@@ -83,7 +83,49 @@ const LOCAL_DATABASE = [
   { name: 'Tomate', kcal: 18, proteins: 0.9, carbs: 3.9, fats: 0.2 },
 
   // Suppléments
-  { name: 'Whey Protein (1 mesure)', kcal: 120, proteins: 24, carbs: 3, fats: 1.5 }
+  { name: 'Whey Protein (1 mesure)', kcal: 120, proteins: 24, carbs: 3, fats: 1.5 },
+
+  // 🛒 INVENTAIRE COSTCO / KIRKLAND SIGNATURE
+  { name: 'Costco — Poulet Rôti Kirkland (100g)', kcal: 165, proteins: 28, carbs: 0, fats: 6 },
+  { name: 'Costco — Poitrine de Poulet Désossée Kirkland (100g)', kcal: 120, proteins: 26, carbs: 0, fats: 1.5 },
+  { name: 'Costco — Blancs d\'Œufs Liquides Kirkland (100ml)', kcal: 50, proteins: 11, carbs: 1, fats: 0 },
+  { name: 'Costco — Saumon Atlantique Sauvage Kirkland (100g)', kcal: 210, proteins: 22, carbs: 0, fats: 13 },
+  { name: 'Costco — Barre Protéinée Kirkland (60g)', kcal: 190, proteins: 21, carbs: 22, fats: 7 },
+  { name: 'Costco — Yaourt Grec Nature 0% Kirkland (175g)', kcal: 100, proteins: 18, carbs: 6, fats: 0 },
+  { name: 'Costco — Flocons d\'Avoine Bio Kirkland (50g)', kcal: 190, proteins: 7, carbs: 32, fats: 3.5 },
+  { name: 'Costco — Beurre d\'Amande Naturel Kirkland (16g)', kcal: 98, proteins: 3.4, carbs: 3, fats: 8.8 },
+  { name: 'Costco — Beurre de Cacahuète Bio Kirkland (16g)', kcal: 95, proteins: 4, carbs: 3, fats: 8 },
+  { name: 'Costco — Bœuf Haché Maigre 90/10 Kirkland (100g)', kcal: 170, proteins: 22, carbs: 0, fats: 9 },
+  { name: 'Costco — Bacon de Dinde Kirkland (2 tranches)', kcal: 70, proteins: 6, carbs: 1, fats: 5 },
+  { name: 'Costco — Fruits Rouges Surgelés Kirkland (140g)', kcal: 70, proteins: 1, carbs: 17, fats: 0.5 },
+  { name: 'Costco — Noix de Cajou Kirkland (30g)', kcal: 170, proteins: 5, carbs: 9, fats: 14 },
+  { name: 'Costco — Dinde Hachée Kirkland (100g)', kcal: 150, proteins: 20, carbs: 0, fats: 8 },
+  { name: 'Costco — Quinoa Biologique Kirkland Cuit (150g)', kcal: 180, proteins: 6.5, carbs: 32, fats: 3 },
+  { name: 'Costco — Premier Protein Shake Kirkland (330ml)', kcal: 160, proteins: 30, carbs: 5, fats: 3 },
+  { name: 'Costco — Cottage Cheese 2% Kirkland (125g)', kcal: 100, proteins: 14, carbs: 4, fats: 2.5 },
+  { name: 'Costco — Guacamole Individuel Kirkland (57g)', kcal: 100, proteins: 1, carbs: 5, fats: 9 },
+  { name: 'Costco — Crevettes Blanches Surgelées Kirkland (100g)', kcal: 85, proteins: 20, carbs: 0, fats: 0.5 },
+
+  // 🛒 INVENTAIRE IGA / MARQUES QUÉBÉCOISES (Compliments, Oikos, St-Hubert, etc.)
+  { name: 'IGA — Poitrine de Poulet Compliments (100g)', kcal: 130, proteins: 27, carbs: 0, fats: 2 },
+  { name: 'IGA — Œufs Gros Compliments (1 œuf)', kcal: 70, proteins: 6, carbs: 0.5, fats: 5 },
+  { name: 'IGA — Poitrine de Poulet Rôti St-Hubert (100g)', kcal: 155, proteins: 25, carbs: 1, fats: 5.5 },
+  { name: 'IGA — Yaourt Grec 2% Oikos (175g)', kcal: 130, proteins: 15, carbs: 9, fats: 3.5 },
+  { name: 'IGA — Yaourt Probiotique Activia (115g)', kcal: 90, proteins: 4, carbs: 13, fats: 2.5 },
+  { name: 'IGA — Lait PurFiltre 2% Lactantia (250ml)', kcal: 130, proteins: 9, carbs: 12, fats: 5 },
+  { name: 'IGA — Sirop d\'Érable Pur du Québec (15ml)', kcal: 52, proteins: 0, carbs: 13.4, fats: 0 },
+  { name: 'IGA — Saumon Fumé Atlantique Compliments (50g)', kcal: 90, proteins: 10, carbs: 0.5, fats: 5 },
+  { name: 'IGA — Fromage Oka Régulier (30g)', kcal: 110, proteins: 7, carbs: 0.5, fats: 9 },
+  { name: 'IGA — Fromage Cheddar Doux P\'tit Québec (30g)', kcal: 120, proteins: 7, carbs: 0.4, fats: 10 },
+  { name: 'IGA — Dinde Hachée Maigre Compliments (100g)', kcal: 140, proteins: 21, carbs: 0, fats: 6 },
+  { name: 'IGA — Galette de Riz Sucrée Compliments (1 galette)', kcal: 50, proteins: 1, carbs: 11, fats: 0.5 },
+  { name: 'IGA — Hummus Traditionnel Compliments (30g)', kcal: 70, proteins: 2, carbs: 5, fats: 4.5 },
+  { name: 'IGA — Pain Multigrains Compliments (1 tranche)', kcal: 80, proteins: 4, carbs: 14, fats: 1.5 },
+  { name: 'IGA — Tofu Ferme Bio Compliments (100g)', kcal: 120, proteins: 13, carbs: 2, fats: 7 },
+  { name: 'IGA — Dinde Fumée en Tranches Compliments (50g)', kcal: 50, proteins: 10, carbs: 1, fats: 0.7 },
+  { name: 'IGA — Mélange Salade César Compliments (100g)', kcal: 140, proteins: 3, carbs: 7, fats: 11 },
+  { name: 'IGA — Filet de Porc Mince Béresford (100g)', kcal: 120, proteins: 22, carbs: 0, fats: 3.5 },
+  { name: 'IGA — Flocons d\'Avoine Rapides Compliments (40g)', kcal: 150, proteins: 5, carbs: 27, fats: 2.5 }
 ];
 
 /* ─── Open Food Facts search ───────────────────────────────────────────────── */
