@@ -13,7 +13,9 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Pure Ascension utilise l'appareil photo pour scanner et analyser vos repas avec l'IA.",
-        "NSPhotoLibraryUsageDescription": "Pure Ascension utilise la bibliothèque de photos pour analyser la nutrition de vos plats."
+        "NSPhotoLibraryUsageDescription": "Pure Ascension utilise la bibliothèque de photos pour analyser la nutrition de vos plats.",
+        "NSHealthShareUsageDescription": "Pure Ascension utilise Apple HealthKit pour lire vos pas, votre pouls et vos calories d'entraînement.",
+        "NSHealthUpdateUsageDescription": "Pure Ascension enregistre vos séances et calories dépensées dans Apple HealthKit."
       }
     },
     "plugins": [
@@ -48,12 +50,6 @@
         "projectId": "a030d00b-c1e1-4d54-9b58-261100d1052f"
       }
     },
-    "owner": "maxgrowthplans-team",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/a030d00b-c1e1-4d54-9b58-261100d1052f"
-    }
+    "owner": "maxgrowthplans-team"
   }
 }

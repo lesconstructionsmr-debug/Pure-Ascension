@@ -406,11 +406,114 @@ export function getExerciseBiomechanics(
 
 /* ─── BANQUE D'ALTERNATIVES ÉQUIVALENTES BIOMÉCANIQUEMENT ───────────────── */
 export function getExerciseAlternatives(exName: string): ExerciseAlternative[] {
-  const n = exName.toLowerCase();
+  const n = exName.toLowerCase().trim();
 
-  // Jambes - Pattern Squat
-  if (n.includes('squat') || n.includes('presse')) {
-    return [
+  // Helper de filtrage strict : ne supprime QUE si le nom de l'alternative est quasi-identique à l'exercice actuel.
+  const filterCurrent = (alts: ExerciseAlternative[]) =>
+    alts.filter(alt => {
+      const altName = alt.name.toLowerCase().trim();
+      if (altName === n) return false;
+      if (altName.startsWith('variante ') && altName.includes(n)) return false;
+      if (n.length > 8 && (altName.includes(n) || n.includes(altName))) return false;
+      return true;
+    });
+
+  // 1. Core / Sangle Abdominale & Stabilité (Plank, Crunch, Gainage, Deadbug)
+  if (n.includes('gainage') || n.includes('plank') || n.includes('core') || n.includes('crunch') || n.includes('commando') || n.includes('hollow') || n.includes('deadbug') || n.includes('bird') || n.includes('russian') || n.includes('relevé') || n.includes('abs') || n.includes('ventral')) {
+    return filterCurrent([
+      {
+        name: 'Plank Statique Coude-Orteils',
+        category: 'Transverse / Sangle Abdominale',
+        equipment: 'Poids du corps',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Renforcement isométrique du transverse et stabilité lombo-pelvienne sans flexion de colonne.',
+        tempoCode: 'Statique 45s',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Mountain Climbers Contrôlés',
+        category: 'Transverse / Obliques / Flexion Hanche',
+        equipment: 'Poids du corps',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Gainage dynamique combinant stabilité du tronc et travail anti-extension.',
+        tempoCode: '2-0-2-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Deadbug avec Extension Opposée',
+        category: 'Transverse / Stabilité Lombaire',
+        equipment: 'Poids du corps',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Excellente alternative pour engager le transverse en maintenant le bas du dos plaqué au sol.',
+        tempoCode: '3-1-1-0',
+        rpeTarget: 'RPE 7.5 / 10',
+      },
+      {
+        name: 'Gainage Latéral Obliques (Side Plank)',
+        category: 'Obliques / Carré des Lombes',
+        equipment: 'Poids du corps',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Focus sur la stabilité latérale et le renforcement des obliques sans torsion.',
+        tempoCode: 'Statique 30s',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Bird Dog avec Pause 2s',
+        category: 'Érecteurs / Stabilité Postérieure',
+        equipment: 'Poids du corps',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Stabilité anti-rotation de la colonne et travail croisé chaîne postérieure.',
+        tempoCode: '2-2-2-0',
+        rpeTarget: 'RPE 7 / 10',
+      },
+    ]);
+  }
+
+  // 2. Poussée Verticale / Épaules (Militaire, Overhead Press, Push Press, Arnold)
+  if (n.includes('militaire') || n.includes('overhead') || n.includes('push press') || n.includes('arnold press') || (n.includes('press') && !n.includes('bench') && !n.includes('chest') && !n.includes('leg') && !n.includes('presse')) || (n.includes('développé') && (n.includes('épaul') || n.includes('assise') || n.includes('debout')))) {
+    return filterCurrent([
+      {
+        name: 'Développé Militaire aux Haltères / KB (Debout)',
+        category: 'Deltoïdes & Poussée Verticale',
+        equipment: 'Kettlebell / Haltères',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Poussée verticale bilatérale renforçant la coiffe des rotateurs et le gainage debout.',
+        tempoCode: '2-1-1-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Push Press Explosif aux Haltères',
+        category: 'Poussée Verticale & Impulsion',
+        equipment: 'Haltères',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Utilise la poussée des jambes pour passer la charge en puissance au-dessus de la tête.',
+        tempoCode: '1-0-1-0',
+        rpeTarget: 'RPE 8.5 / 10',
+      },
+      {
+        name: 'Arnold Press Assis aux Haltères',
+        category: 'Deltoïdes & Rotation Épaules',
+        equipment: 'Haltères',
+        difficulty: 'Avancé',
+        biomechanicMatch: 'Rotation complète des poignets recrutant les 3 faisceaux du deltoïde.',
+        tempoCode: '3-1-1-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Pompes Pique (Pike Push-ups)',
+        category: 'Deltoïdes Antérieurs / Triceps',
+        equipment: 'Poids du corps',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Alternative sans charge externe sollicitant les épaules en poussée verticale.',
+        tempoCode: '3-1-1-0',
+        rpeTarget: 'RPE 7.5 / 10',
+      },
+    ]);
+  }
+
+  // 3. Pattern Squat / Quadriceps & Presse à Cuisses
+  if (n.includes('squat') || n.includes('presse') || n.includes('leg press') || n.includes('hacksquat') || n.includes('sissi')) {
+    return filterCurrent([
       {
         name: 'Goblet Squat avec Haltère',
         category: 'Quadriceps / Fessiers',
@@ -447,12 +550,12 @@ export function getExerciseAlternatives(exName: string): ExerciseAlternative[] {
         tempoCode: '4-1-1-0',
         rpeTarget: 'RPE 7.5 / 10',
       },
-    ];
+    ]);
   }
 
-  // Chaîne Postérieure - Pattern Hinge (Soulevé de terre / Hip Thrust)
-  if (n.includes('soulevé') || n.includes('deadlift') || n.includes('thrust') || n.includes('ischio') || n.includes('morning')) {
-    return [
+  // 4. Chaîne Postérieure - Pattern Hinge (Soulevé de Terre, RDL, Good Morning)
+  if (n.includes('soulevé') || n.includes('deadlift') || n.includes('rdl') || n.includes('morning') || n.includes('ischio') || n.includes('leg curl')) {
+    return filterCurrent([
       {
         name: 'Soulevé de Terre Roumain aux Haltères',
         category: 'Ischio-jambiers / Fessiers',
@@ -461,15 +564,6 @@ export function getExerciseAlternatives(exName: string): ExerciseAlternative[] {
         biomechanicMatch: 'Focus maximal sur la phase excentrique et l\'étirement des ischio-jambiers.',
         tempoCode: '3-1-1-0',
         rpeTarget: 'RPE 8 / 10',
-      },
-      {
-        name: 'Hip Thrust à la Barre / Haltère',
-        category: 'Grand Fessier (Contraction maximale)',
-        equipment: 'Barre',
-        difficulty: 'Équivalent',
-        biomechanicMatch: 'Recrutement fessier maximal en position de raccourcissement avec tension constante.',
-        tempoCode: '2-1-2-0',
-        rpeTarget: 'RPE 8.5 / 10',
       },
       {
         name: 'Good Morning aux Haltères / Barre',
@@ -481,7 +575,7 @@ export function getExerciseAlternatives(exName: string): ExerciseAlternative[] {
         rpeTarget: 'RPE 7.5 / 10',
       },
       {
-        name: 'Leg Curl unilatéral au sol (Serviette glissée)',
+        name: 'Leg Curl Unilatéral au Sol (Serviette)',
         category: 'Ischio-jambiers',
         equipment: 'Poids du corps',
         difficulty: 'Facile',
@@ -489,12 +583,21 @@ export function getExerciseAlternatives(exName: string): ExerciseAlternative[] {
         tempoCode: '2-1-2-0',
         rpeTarget: 'RPE 8 / 10',
       },
-    ];
+      {
+        name: 'Kettlebell Swings Explosifs',
+        category: 'Ischio-jambiers / Fessiers Balistique',
+        equipment: 'Équivalent',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Extension balistique de hanche sollicitant la puissance de la chaîne postérieure.',
+        tempoCode: '1-0-1-0',
+        rpeTarget: 'RPE 8.5 / 10',
+      },
+    ]);
   }
 
-  // Poussée Horizontale - Développé couché / Pompes
-  if (n.includes('développé') || n.includes('pompe') || n.includes('push') || n.includes('pec')) {
-    return [
+  // 5. Poussée Horizontale - Développé couché / Bench / Pompes
+  if (n.includes('développé') || n.includes('pompe') || n.includes('bench') || n.includes('chest press') || n.includes('pec') || (n.includes('push') && !n.includes('push press') && !n.includes('pike'))) {
+    return filterCurrent([
       {
         name: 'Développé Incliné aux Haltères',
         category: 'Pectoraux (Faisceau Claviculaire)',
@@ -514,7 +617,7 @@ export function getExerciseAlternatives(exName: string): ExerciseAlternative[] {
         rpeTarget: 'RPE 8 / 10',
       },
       {
-        name: 'Dips sur Banc ou Barres Parallèles',
+        name: 'Dips sur Barres Parallèles',
         category: 'Bas des Pectoraux / Triceps',
         equipment: 'Poids du corps',
         difficulty: 'Avancé',
@@ -531,28 +634,61 @@ export function getExerciseAlternatives(exName: string): ExerciseAlternative[] {
         tempoCode: '2-1-1-1',
         rpeTarget: 'RPE 8 / 10',
       },
-    ];
+    ]);
   }
 
-  // Tirage Vertical / Horizontal - Tractions / Rowing
-  if (n.includes('traction') || n.includes('rowing') || n.includes('tirage') || n.includes('pull')) {
-    return [
+  // 6. Tirage Vertical / Tractions & Lat Pulldown
+  if (n.includes('traction') || n.includes('lat pull') || n.includes('tirage poitrine') || n.includes('vertical pull')) {
+    return filterCurrent([
       {
-        name: 'Rowing Haltère Unilatéral',
-        category: 'Grand Dorsal / Rhomboïdes',
-        equipment: 'Haltères',
-        difficulty: 'Équivalent',
-        biomechanicMatch: 'Excellente trajectoire de tirage le long des hanches avec support du buste.',
-        tempoCode: '2-1-1-1',
-        rpeTarget: 'RPE 8 / 10',
-      },
-      {
-        name: 'Tirage Poitrine Poulie Haute',
+        name: 'Tirage Poitrine Poulie Haute Prise Large',
         category: 'Grand Dorsal (Largeur)',
         equipment: 'Poulie',
         difficulty: 'Équivalent',
         biomechanicMatch: 'Reproduit la trajectoire exacte des tractions avec ajustement précis de la charge.',
         tempoCode: '2-1-1-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Tractions Assistées à l\'Élastique',
+        category: 'Grand Dorsal / Grand Rond',
+        equipment: 'Élastique',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Conserve le schéma moteur exact des tractions en réduisant la charge effective.',
+        tempoCode: '3-1-1-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Tirage Vertical Bras Tendus à la Poulie',
+        category: 'Grand Dorsal (Isolation)',
+        equipment: 'Poulie',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Recrutement du grand dorsal sans engager les biceps.',
+        tempoCode: '2-1-1-1',
+        rpeTarget: 'RPE 7.5 / 10',
+      },
+      {
+        name: 'Rowing Inversé sous Barre (Inverted Row)',
+        category: 'Haut du Dos / Rhomboïdes',
+        equipment: 'Poids du corps',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Poids du corps avec travail de stabilité dorsale et gainage du buste.',
+        tempoCode: '2-1-1-1',
+        rpeTarget: 'RPE 8 / 10',
+      },
+    ]);
+  }
+
+  // 7. Tirage Horizontal / Rowing
+  if (n.includes('rowing') || n.includes('tirage') || n.includes('pull') || n.includes('renforcement dos')) {
+    return filterCurrent([
+      {
+        name: 'Rowing Haltère Unilatéral sur Banc',
+        category: 'Grand Dorsal / Rhomboïdes',
+        equipment: 'Haltères',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Excellente trajectoire de tirage le long des hanches avec support du buste.',
+        tempoCode: '2-1-1-1',
         rpeTarget: 'RPE 8 / 10',
       },
       {
@@ -573,37 +709,350 @@ export function getExerciseAlternatives(exName: string): ExerciseAlternative[] {
         tempoCode: '2-1-1-1',
         rpeTarget: 'RPE 7.5 / 10',
       },
-    ];
+      {
+        name: 'Rowing Buste Penché aux Haltères',
+        category: 'Rhomboïdes / Trapèzes Moyens',
+        equipment: 'Haltères',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Tirage bilatéral horizontal sollicitant le gainage lombaire et le haut du dos.',
+        tempoCode: '2-1-1-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+    ]);
   }
 
-  // Épaules / Bras / Divers - Fallback générique par groupe musculaire
-  return [
+  // 8. Isolation Biceps
+  if (n.includes('curl') || n.includes('biceps') || n.includes('brachial')) {
+    return filterCurrent([
+      {
+        name: 'Curl Biceps Incliné aux Haltères',
+        category: 'Biceps (Chef Long)',
+        equipment: 'Haltères',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Étirement maximal du chef long du biceps grâce à la rétraction des bras en arrière du buste.',
+        tempoCode: '3-1-1-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Curl Marteau aux Haltères (Hammer Curl)',
+        category: 'Brachioradialis / Brachial Antérieur',
+        equipment: 'Haltères',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Prise neutre ciblant l\'épaisseur du bras et le muscle brachio-radial.',
+        tempoCode: '2-1-1-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Curl Biceps à la Poulie Basse',
+        category: 'Biceps Brachial (Tension Continue)',
+        equipment: 'Poulie',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Offre une tension constante y compris au sommet de la flexion.',
+        tempoCode: '2-1-1-1',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Curl Concentré Unilatéral',
+        category: 'Biceps (Peak & Isolation)',
+        equipment: 'Haltères',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Elimine totalement le balancement et isole la contraction maximale.',
+        tempoCode: '3-1-1-1',
+        rpeTarget: 'RPE 8.5 / 10',
+      },
+    ]);
+  }
+
+  // 9. Isolation Triceps
+  if (n.includes('triceps') || n.includes('french press') || n.includes('kickback') || n.includes('barre au front')) {
+    return filterCurrent([
+      {
+        name: 'Extension Triceps au-dessus de la Tête (French Press)',
+        category: 'Triceps (Chef Long)',
+        equipment: 'Haltères',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Focus sur l\'étirement du chef long du triceps en position overhead.',
+        tempoCode: '3-1-1-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Pushdown Triceps à la Poulie Corde',
+        category: 'Triceps (Chefs Lateral & Médial)',
+        equipment: 'Poulie',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Isolation directe des coudes avec écartement des cordes en bas d\'amplitude.',
+        tempoCode: '2-1-1-1',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Pompes Prise Serrée (Diamant)',
+        category: 'Triceps / Pectoraux',
+        equipment: 'Poids du corps',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Recrutement des triceps au poids du corps avec liberté articulaire des poignets.',
+        tempoCode: '2-1-1-0',
+        rpeTarget: 'RPE 7.5 / 10',
+      },
+      {
+        name: 'Dips sur Banc (Bench Dips)',
+        category: 'Triceps Brachial',
+        equipment: 'Poids du corps',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Extension de coude fermée accessible partout sans équipement complexe.',
+        tempoCode: '2-1-1-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+    ]);
+  }
+
+  // 10. Isolation Épaules / Deltoïdes (Élévations Latérales / Oiseau)
+  if (n.includes('élévation') || n.includes('lateral') || n.includes('oiseau') || n.includes('deltoide') || n.includes('rear delt')) {
+    return filterCurrent([
+      {
+        name: 'Élévations Latérales aux Haltères',
+        category: 'Deltoïde Moyen (Largeur Épaules)',
+        equipment: 'Haltères',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Isolation ciblée de la portion moyenne des deltoïdes sans solliciter les trapèzes supérieurs.',
+        tempoCode: '2-1-2-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Élévations Latérales à la Poulie Basse',
+        category: 'Deltoïde Moyen (Tension Continue)',
+        equipment: 'Poulie',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Maintient la résistance en bas du mouvement contrairement aux haltères.',
+        tempoCode: '2-1-1-1',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Oiseau Buste Penché aux Haltères',
+        category: 'Deltoïde Postérieur',
+        equipment: 'Haltères',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Renforce l\'arrière de l\'épaule et la posture scapulaire.',
+        tempoCode: '2-1-1-1',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Élévations Frontales avec Disque / Haltère',
+        category: 'Deltoïde Antérieur',
+        equipment: 'Haltères',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Flexion d\'épaule ciblée sollicitant la portion antérieure du deltoïde.',
+        tempoCode: '2-1-1-0',
+        rpeTarget: 'RPE 7.5 / 10',
+      },
+    ]);
+  }
+
+  // 11. Isolation Fessiers & Hip Thrust
+  if (n.includes('fessier') || n.includes('thrust') || n.includes('frog') || n.includes('clamshell') || n.includes('abduction') || n.includes('glute')) {
+    return filterCurrent([
+      {
+        name: 'Hip Thrust à la Barre / Haltère',
+        category: 'Grand Fessier (Contraction Maximale)',
+        equipment: 'Barre',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Recrutement fessier maximal en position de raccourcissement avec tension constante.',
+        tempoCode: '2-1-2-0',
+        rpeTarget: 'RPE 8.5 / 10',
+      },
+      {
+        name: 'Frog Pumps au Sol (Contraction Fessière)',
+        category: 'Grand Fessier (Isolation)',
+        equipment: 'Poids du corps',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Isolation fessière en rotation externe de hanche réduisant le recrutement des ischios.',
+        tempoCode: '2-1-2-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Clamshell avec Élastique',
+        category: 'Moyen Fessier / Stabilité Hanche',
+        equipment: 'Élastique',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Renforcement du moyen fessier pour la stabilité du bassin en course et en squat.',
+        tempoCode: '2-1-2-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Kickback Fessier à la Poulie ou Élastique',
+        category: 'Grand & Moyen Fessier',
+        equipment: 'Élastique',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Extension de hanche isolée avec contraction maximale en haut d\'amplitude.',
+        tempoCode: '2-1-1-1',
+        rpeTarget: 'RPE 8 / 10',
+      },
+    ]);
+  }
+
+  // 12. Mollets & Cheville
+  if (n.includes('mollet') || n.includes('calf') || n.includes('extension cheville')) {
+    return filterCurrent([
+      {
+        name: 'Extensions Mollets Unilatérales Debout',
+        category: 'Mollets (Gastrocnémiens)',
+        equipment: 'Poids du corps',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Travail unilatéral avec étirement profond et pause isométrique en haut.',
+        tempoCode: '2-2-1-0',
+        rpeTarget: 'RPE 8.5 / 10',
+      },
+      {
+        name: 'Extensions Mollets Assis (Soleus)',
+        category: 'Mollets (Soléaire)',
+        equipment: 'Haltères',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Genoux fléchis à 90° isolant le muscle soléaire sous le gastrocnémien.',
+        tempoCode: '3-1-1-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Sauts Pliométriques sur Pointe des Pieds',
+        category: 'Mollets & Tendon d\'Achille',
+        equipment: 'Poids du corps',
+        difficulty: 'Avancé',
+        biomechanicMatch: 'Améliore la raideur tendineuse et le renvoi d\'énergie élastique.',
+        tempoCode: 'Explosif',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Extension Mollets sur Marche (Amplitude Maximale)',
+        category: 'Mollets (Étirement)',
+        equipment: 'Poids du corps',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Accentue la phase excentrique pour stimuler l\'hypertrophie des mollets.',
+        tempoCode: '4-1-1-0',
+        rpeTarget: 'RPE 8 / 10',
+      },
+    ]);
+  }
+
+  // 13. Mobilité / Étirements / Activation (Phase 1 & Phase 4)
+  if (n.includes('stretch') || n.includes('étirement') || n.includes('mobilité') || n.includes('ouverture') || n.includes('assouplissement') || n.includes('flexibilité') || n.includes('cooldown') || n.includes('warmup') || n.includes('échauffement') || n.includes('souplesse')) {
+    return filterCurrent([
+      {
+        name: 'Fente Basse avec Ouverture Thoracique (Low Lunge Twist)',
+        category: 'Mobilité Hanches & Rachis Thoracique',
+        equipment: 'Poids du corps',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Excellente ouverture de hanche combinée à la rotation de la colonne thoracique sans contrainte.',
+        tempoCode: 'Fluide 30s par côté',
+        rpeTarget: 'RPE 6 / 10',
+      },
+      {
+        name: 'Cossack Squat (Mobilité Hanches & Adducteurs)',
+        category: 'Mobilité Frontale & Adducteurs',
+        equipment: 'Poids du corps',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Travail d\'amplitude latérale des chevilles, genoux et adducteurs.',
+        tempoCode: '2-1-2-0',
+        rpeTarget: 'RPE 6.5 / 10',
+      },
+      {
+        name: 'Chien Tête en Bas vers Fente Dynamique',
+        category: 'Chaîne Postérieure & Flexion de Hanche',
+        equipment: 'Poids du corps',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Étire la chaîne postérieure complète (mollets, ischios) et décompresse les épaules.',
+        tempoCode: 'Fluide 45s',
+        rpeTarget: 'RPE 6 / 10',
+      },
+      {
+        name: 'Rotation Thoracique Quadrupédique (Quadruped T-Spine)',
+        category: 'Mobilité Thoracique & Épaules',
+        equipment: 'Poids du corps',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Isole la rotation thoracique en verrouillant les lombaires à quatre pattes.',
+        tempoCode: '2-2-2-0',
+        rpeTarget: 'RPE 5.5 / 10',
+      },
+    ]);
+  }
+
+  // 14. Cardio / HIIT / Plyométrie
+  if (n.includes('burpee') || n.includes('jack') || n.includes('jump') || n.includes('corde') || n.includes('knee') || n.includes('cardio') || n.includes('skipping') || n.includes('saut')) {
+    return filterCurrent([
+      {
+        name: 'Jumping Jacks Contrôlés Tempo Régulier',
+        category: 'Cardio / Endurance',
+        equipment: 'Poids du corps',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Élévation de la fréquence cardiaque avec faible impact articulaire.',
+        tempoCode: 'Continu 45s',
+        rpeTarget: 'RPE 7.5 / 10',
+      },
+      {
+        name: 'Corde à Sauter Virtuelle (Sauts Légers)',
+        category: 'Cardio / Mollets & Coordination',
+        equipment: 'Poids du corps',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Travail pliométrique léger stimulant le retour veineux sans surcharge.',
+        tempoCode: 'Continu 60s',
+        rpeTarget: 'RPE 7 / 10',
+      },
+      {
+        name: 'High Knees (Montées de Genoux Dynamiques)',
+        category: 'Cardio / Flexeurs de Hanche',
+        equipment: 'Poids du corps',
+        difficulty: 'Équivalent',
+        biomechanicMatch: 'Recrutement des psoas et de la chaîne antérieure en régime cardiovasculaire.',
+        tempoCode: 'Continu 30s',
+        rpeTarget: 'RPE 8 / 10',
+      },
+      {
+        name: 'Shadow Boxing (Cardio sans Impact)',
+        category: 'Cardio HAUT DU CORPS',
+        equipment: 'Poids du corps',
+        difficulty: 'Facile',
+        biomechanicMatch: 'Mobilisation des bras et du buste zéro choc pour les genoux et les chevilles.',
+        tempoCode: 'Continu 45s',
+        rpeTarget: 'RPE 7 / 10',
+      },
+    ]);
+  }
+
+  // 15. Fallback Généraliste Intelligente (Toujours 4 alternatives au minimum)
+  const cleanName = exName.replace(/\(.*\)/g, '').trim();
+  return filterCurrent([
     {
-      name: `${exName} aux Haltères`,
-      category: 'Variante Haltères',
-      equipment: 'Haltères',
+      name: `Variante Tempo Lent (4s) : ${cleanName}`,
+      category: 'Contrôle Excentrique',
+      equipment: 'Poids du corps',
       difficulty: 'Équivalent',
-      biomechanicMatch: 'Liberté de mouvement accrue et ajustement biomécanique individuel.',
-      tempoCode: '2-1-1-0',
+      biomechanicMatch: 'Augmente le temps sous tension et améliore la proprioception.',
+      tempoCode: '4-1-1-0',
+      rpeTarget: 'RPE 7.5 / 10',
+    },
+    {
+      name: `Variante Pause Isométrique (2s) : ${cleanName}`,
+      category: 'Fixation Posturale',
+      equipment: 'Poids du corps',
+      difficulty: 'Équivalent',
+      biomechanicMatch: 'Renforce la stabilité articulaire aux points d\'amplitude maximale.',
+      tempoCode: '2-2-1-0',
       rpeTarget: 'RPE 8 / 10',
     },
     {
-      name: `${exName} à l'Élastique`,
-      category: 'Variante Élastique',
-      equipment: 'Élastique',
-      difficulty: 'Facile',
-      biomechanicMatch: 'Résistance progressive idéale pour la santé articulaire.',
-      tempoCode: '2-1-1-1',
-      rpeTarget: 'RPE 7.5 / 10',
-    },
-    {
-      name: `${exName} au Poids du Corps`,
-      category: 'Variante Poids du corps',
+      name: `Variante Amplitude Réduite / Contrôlée : ${cleanName}`,
+      category: 'Sécurité Articulaire',
       equipment: 'Poids du corps',
       difficulty: 'Facile',
-      biomechanicMatch: 'Contrôle proprioceptif optimal sans matériel lourd.',
-      tempoCode: '3-1-1-0',
-      rpeTarget: 'RPE 7.5 / 10',
+      biomechanicMatch: 'Réduit le stress sur les tendons en maintenant l\'activation musculaire.',
+      tempoCode: '2-1-2-0',
+      rpeTarget: 'RPE 7 / 10',
     },
-  ];
+    {
+      name: `Variante Unilatérale / Poids du Corps : ${cleanName}`,
+      category: 'Équilibre & Stabilité',
+      equipment: 'Poids du corps',
+      difficulty: 'Équivalent',
+      biomechanicMatch: 'Elimine les asymétries de force et active les muscles stabilisateurs secondaires.',
+      tempoCode: '2-1-1-0',
+      rpeTarget: 'RPE 8 / 10',
+    },
+  ]);
 }

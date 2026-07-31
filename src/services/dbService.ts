@@ -1,7 +1,7 @@
 import {
   doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot, collection, addDoc, query, where, getDocs
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { UserProfile } from '../data';
 
 export function cleanObject(obj: any): any {
@@ -26,6 +26,7 @@ export function cleanObject(obj: any): any {
 
 /* ── User profile ─────────────────────────────────────────────────────────── */
 export async function saveUserProfile(uid: string, profile: UserProfile, goal: string) {
+  if (!uid || uid === 'local_user' || !auth.currentUser) return;
   try {
     const userRef = doc(db, 'users', uid);
     const snap = await getDoc(userRef);
@@ -54,12 +55,15 @@ export async function saveUserProfile(uid: string, profile: UserProfile, goal: s
         updatedAt: serverTimestamp(),
       }, { merge: true });
     }
-  } catch (err) {
-    console.warn('saveUserProfile: erreur réseau/offline Firestore (sauvegarde locale conservée)', err);
+  } catch (err: any) {
+    if (err?.code !== 'permission-denied') {
+      console.warn('saveUserProfile: erreur réseau/offline Firestore', err);
+    }
   }
 }
 
 export async function saveUserProfileAndProgram(uid: string, profile: UserProfile, program: any, goal: string) {
+  if (!uid || uid === 'local_user' || !auth.currentUser) return;
   try {
     const userRef = doc(db, 'users', uid);
     const snap = await getDoc(userRef);
@@ -89,26 +93,37 @@ export async function saveUserProfileAndProgram(uid: string, profile: UserProfil
         updatedAt: serverTimestamp(),
       }, { merge: true });
     }
-  } catch (err) {
-    console.warn('saveUserProfileAndProgram: erreur réseau/offline Firestore (sauvegarde locale conservée)', err);
+  } catch (err: any) {
+    if (err?.code !== 'permission-denied') {
+      console.warn('saveUserProfileAndProgram: erreur réseau/offline Firestore', err);
+    }
   }
 }
 
 export async function getUserData(uid: string) {
+  if (!uid || uid === 'local_user' || !auth.currentUser) return null;
   try {
     const snap = await getDoc(doc(db, 'users', uid));
     return snap.exists() ? snap.data() : null;
-  } catch (err) {
-    console.warn('getUserData: erreur réseau/offline Firestore', err);
+  } catch (err: any) {
+    if (err?.code !== 'permission-denied') {
+      console.warn('getUserData: erreur réseau/offline Firestore', err);
+    }
     return null;
   }
 }
 
 export function listenToUserData(uid: string, callback: (data: any, isError?: boolean) => void) {
+  if (!uid || uid === 'local_user' || !auth.currentUser) {
+    callback(null, false);
+    return () => {};
+  }
   return onSnapshot(doc(db, 'users', uid), (snap) => {
     callback(snap.exists() ? snap.data() : null, false);
-  }, (err) => {
-    console.error('Erreur listenToUserData Firestore:', err);
+  }, (err: any) => {
+    if (err?.code !== 'permission-denied') {
+      console.error('Erreur listenToUserData Firestore:', err);
+    }
     callback(null, true);
   });
 }
@@ -124,8 +139,10 @@ export async function getUserByReferralCode(code: string) {
       return { id: userDoc.id, ...userDoc.data() };
     }
     return null;
-  } catch (err) {
-    console.warn('getUserByReferralCode: erreur réseau/offline Firestore', err);
+  } catch (err: any) {
+    if (err?.code !== 'permission-denied') {
+      console.warn('getUserByReferralCode: erreur réseau/offline Firestore', err);
+    }
     return null;
   }
 }
@@ -139,31 +156,37 @@ export async function updateUserReferralInfo(
     rewardsEarned: number;
   }>
 ) {
+  if (!uid || uid === 'local_user' || !auth.currentUser) return;
   try {
     const userRef = doc(db, 'users', uid);
     await setDoc(userRef, {
       ...referralData,
       updatedAt: serverTimestamp(),
     }, { merge: true });
-  } catch (err) {
-    console.warn('updateUserReferralInfo: erreur réseau/offline Firestore', err);
+  } catch (err: any) {
+    if (err?.code !== 'permission-denied') {
+      console.warn('updateUserReferralInfo: erreur réseau/offline Firestore', err);
+    }
   }
 }
 
 export async function getReferralsByReferrer(referrerUid: string) {
+  if (!referrerUid || referrerUid === 'local_user' || !auth.currentUser) return [];
   try {
     const q = query(collection(db, 'users'), where('referredBy', '==', referrerUid));
     const querySnap = await getDocs(q);
     return querySnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (err) {
-    console.warn('getReferralsByReferrer: erreur réseau/offline Firestore', err);
+  } catch (err: any) {
+    if (err?.code !== 'permission-denied') {
+      console.warn('getReferralsByReferrer: erreur réseau/offline Firestore', err);
+    }
     return [];
   }
 }
 
 /* ── Daily progress ───────────────────────────────────────────────────────── */
 function todayKey() {
-  return new Date().toISOString().slice(0, 10); // "2026-06-21"
+  return new Date().toISOString().slice(0, 10);
 }
 
 export async function saveDailyProgress(uid: string, data: {
@@ -174,13 +197,16 @@ export async function saveDailyProgress(uid: string, data: {
   sleepScore?: number;
   mentalCheckin?: boolean;
 }) {
+  if (!uid || uid === 'local_user' || !auth.currentUser) return;
   try {
     const key = todayKey();
     const payload = { ...data, date: key, updatedAt: serverTimestamp() };
     await setDoc(doc(db, 'users', uid, 'progress', key), payload, { merge: true });
     await setDoc(doc(db, 'users', uid, 'dailyProgress', key), payload, { merge: true });
-  } catch (err) {
-    console.warn('saveDailyProgress: envoi différé ou hors-ligne Firestore', err);
+  } catch (err: any) {
+    if (err?.code !== 'permission-denied') {
+      console.warn('saveDailyProgress: envoi différé ou hors-ligne Firestore', err);
+    }
   }
 }
 
@@ -191,6 +217,7 @@ export async function saveCompletedWorkout(uid: string, workout: {
   durationSec: number;
   totalSets: number;
 }): Promise<boolean> {
+  if (!uid || uid === 'local_user' || !auth.currentUser) return false;
   try {
     const key = todayKey();
     
@@ -223,38 +250,49 @@ export async function saveCompletedWorkout(uid: string, workout: {
     );
 
     return true;
-  } catch (err) {
-    console.warn('saveCompletedWorkout: envoi différé ou hors-ligne Firestore', err);
+  } catch (err: any) {
+    if (err?.code !== 'permission-denied') {
+      console.warn('saveCompletedWorkout: envoi différé ou hors-ligne Firestore', err);
+    }
     return false;
   }
 }
 
 export async function getTodayProgress(uid: string) {
+  if (!uid || uid === 'local_user' || !auth.currentUser) return null;
   try {
     const key = todayKey();
     const snap = await getDoc(doc(db, 'users', uid, 'progress', key));
     if (snap.exists()) return snap.data();
     const snap2 = await getDoc(doc(db, 'users', uid, 'dailyProgress', key));
     return snap2.exists() ? snap2.data() : null;
-  } catch (err) {
-    console.warn('getTodayProgress: erreur réseau/offline Firestore', err);
+  } catch (err: any) {
+    if (err?.code !== 'permission-denied') {
+      console.warn('getTodayProgress: erreur réseau/offline Firestore', err);
+    }
     return null;
   }
 }
 
 export async function updateStreak(uid: string, streakDays: number) {
+  if (!uid || uid === 'local_user' || !auth.currentUser) return;
   try {
     await updateDoc(doc(db, 'users', uid), { streakDays, updatedAt: serverTimestamp() });
-  } catch (err) {
-    console.warn('updateStreak: envoi différé ou hors-ligne Firestore', err);
+  } catch (err: any) {
+    if (err?.code !== 'permission-denied') {
+      console.warn('updateStreak: envoi différé ou hors-ligne Firestore', err);
+    }
   }
 }
 
 export async function setUserPlan(uid: string, planLevel: 'free' | 'standard' | 'premium') {
+  if (!uid || uid === 'local_user' || !auth.currentUser) return;
   try {
     await updateDoc(doc(db, 'users', uid), { planLevel, updatedAt: serverTimestamp() });
-  } catch (err) {
-    console.warn('setUserPlan: envoi différé ou hors-ligne Firestore', err);
+  } catch (err: any) {
+    if (err?.code !== 'permission-denied') {
+      console.warn('setUserPlan: envoi différé ou hors-ligne Firestore', err);
+    }
   }
 }
 
@@ -262,13 +300,15 @@ export async function saveDailyCalories(uid: string, data: {
   entries: any[];
   goalKcal: number;
 }) {
+  if (!uid || uid === 'local_user' || !auth.currentUser) return;
   try {
     const key = todayKey();
     const payload = { foodEntries: data.entries, goalKcal: data.goalKcal, date: key, updatedAt: serverTimestamp() };
     await setDoc(doc(db, 'users', uid, 'progress', key), payload, { merge: true });
     await setDoc(doc(db, 'users', uid, 'dailyProgress', key), payload, { merge: true });
-  } catch (err) {
-    console.warn('saveDailyCalories: envoi différé ou hors-ligne Firestore', err);
+  } catch (err: any) {
+    if (err?.code !== 'permission-denied') {
+      console.warn('saveDailyCalories: envoi différé ou hors-ligne Firestore', err);
+    }
   }
 }
-

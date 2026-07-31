@@ -7,7 +7,7 @@ import {
 import { showAlert } from '../utils/alert';
 import {
   Bell, ChevronRight, ClipboardList, History, Lock,
-  Sparkles, Target, Zap, CheckCircle, RefreshCw, Activity, LogOut, Users, Watch
+  Sparkles, Target, Zap, CheckCircle, RefreshCw, Activity, LogOut, Users, Watch, Edit3, Scale
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
@@ -20,7 +20,7 @@ import { useProgramStore } from '../store/useProgramStore';
 import { useWorkoutHistoryStore } from '../store/useWorkoutHistoryStore';
 import { auth, db }        from '../services/firebase';
 import { logOut }          from '../services/authService';
-import { doc, onSnapshot, updateDoc, collection, addDoc, serverTimestamp, query, getDocs, orderBy, deleteDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, setDoc, collection, addDoc, serverTimestamp, query, getDocs, orderBy, deleteDoc } from 'firebase/firestore';
 
 /* ─── Constantes Strava ──────────────────────────────────────────────────── */
 const STRAVA_ORANGE = '#FC4C02';
@@ -253,6 +253,59 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
     ? `${profile.currentWeightKg} lbs` 
     : weightEvolution !== '—lb' ? weightEvolution : '— lbs';
 
+  /* Weight Modal State */
+  const [showWeightModal, setShowWeightModal] = useState(false);
+  const [inputWeight, setInputWeight] = useState('');
+  const [savingWeight, setSavingWeight] = useState(false);
+
+  const handleSaveWeight = async () => {
+    const num = parseFloat(inputWeight.replace(',', '.'));
+    if (isNaN(num) || num <= 0 || num > 350) {
+      showAlert('Poids invalide', 'Veuillez saisir une valeur de poids valide (ex: 74.5).');
+      return;
+    }
+
+    setSavingWeight(true);
+    try {
+      const updatedProfile = {
+        ...(profile || {}),
+        currentWeightKg: num,
+      };
+
+      useProgramStore.getState().setProfile(updatedProfile as any);
+      setWeightEvolution(`${num.toFixed(1)} lbs`);
+
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        // 1. Mise à jour du document profil utilisateur Firestore
+        await updateDoc(doc(db, 'users', uid), {
+          currentWeightKg: num,
+          weight: num,
+          updatedAt: serverTimestamp(),
+        }).catch(async () => {
+          await setDoc(doc(db, 'users', uid), { currentWeightKg: num, weight: num }, { merge: true });
+        });
+
+        // 2. Journalisation dans l'historique de progression
+        const todayISO = new Date().toISOString().split('T')[0];
+        await addDoc(collection(db, 'users', uid, 'progress'), {
+          date: todayISO,
+          weight: num,
+          createdAt: serverTimestamp(),
+        }).catch(() => {});
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showAlert('Poids mis à jour !', `Votre nouveau poids (${num} lbs) a été enregistré.`);
+      setShowWeightModal(false);
+    } catch (err) {
+      console.error('Erreur enregistrement poids:', err);
+      showAlert('Erreur', 'Impossible de sauvegarder le poids. Veuillez réessayer.');
+    } finally {
+      setSavingWeight(false);
+    }
+  };
+
   /* Feedback & Privacy state */
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
@@ -408,16 +461,29 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
           </View>
         </Card>
 
-        {/* ── Ligne de statistiques à 3 cartes blanches : Streak | Poids | Séances ── */}
+        {/* ── Ligne de statistiques à 3 cartes blanches : Streak | Poids (Interactif) | Séances ── */}
         <View style={s.statsRow}>
           <View style={s.statWhiteCard}>
             <Text style={s.statVal}>{displayStreak}j</Text>
             <Text style={s.statLabel}>Streak</Text>
           </View>
-          <View style={s.statWhiteCard}>
-            <Text style={s.statVal}>{displayWeight}</Text>
-            <Text style={s.statLabel}>Poids</Text>
-          </View>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              const currentVal = profile?.currentWeightKg ? String(profile.currentWeightKg) : '';
+              setInputWeight(currentVal);
+              setShowWeightModal(true);
+            }}
+            style={({ pressed }) => [s.statWhiteCard, pressed && { opacity: 0.75, backgroundColor: colors.sage[50] }]}
+            accessibilityRole="button"
+            accessibilityLabel="Modifier le poids"
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <Text style={s.statVal}>{displayWeight}</Text>
+              <Edit3 size={12} color={colors.clay[500]} />
+            </View>
+            <Text style={[s.statLabel, { color: colors.clay[600], textDecorationLine: 'underline' }]}>Poids ✏️</Text>
+          </Pressable>
           <View style={s.statWhiteCard}>
             <Text style={s.statVal}>{displaySessions}</Text>
             <Text style={s.statLabel}>Séance{displaySessions !== 1 ? 's' : ''}</Text>
@@ -562,6 +628,29 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
                 <ClipboardList size={18} color={colors.clay[500]} />
               </View>
               <Text style={s.cardListText}>Mon programme & profil</Text>
+              <ChevronRight size={18} color={colors.ink[400]} />
+            </Pressable>
+
+            <View style={s.cardListDivider} />
+
+            {/* Régénérer mon plan d'entraînement 🔄 > */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                navigation?.navigate('ProgramAdjustment');
+              }}
+              style={s.cardListRow}
+              accessibilityRole="button"
+            >
+              <View style={s.iconCircleSage}>
+                <RefreshCw size={18} color={colors.sage[600]} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardListText}>Régénérer mon plan d'entraînement 🔄</Text>
+                <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: 11, color: colors.sage[700], marginTop: 1 }}>
+                  Recalibrer selon tes préférences & retours
+                </Text>
+              </View>
               <ChevronRight size={18} color={colors.ink[400]} />
             </Pressable>
 
@@ -840,6 +929,103 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
           mentalCheckin,
         }}
       />
+      {/* Modal Modification du Poids */}
+      <Modal
+        visible={showWeightModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowWeightModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+          <View style={{
+            backgroundColor: '#fbf8f3',
+            borderTopLeftRadius: radius['2xl'],
+            borderTopRightRadius: radius['2xl'],
+            padding: spacing[6],
+            gap: spacing[5],
+            ...shadows.lg,
+          }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2.5] }}>
+                <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.clay[50], alignItems: 'center', justifyContent: 'center' }}>
+                  <Scale size={20} color={colors.clay[500]} />
+                </View>
+                <View>
+                  <Text style={{ fontFamily: fontFamily.spectral.bold, fontSize: fontSize.xl, color: colors.ink[900] }}>
+                    Mettre à jour ton poids
+                  </Text>
+                  <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[600] }}>
+                    Suivi dynamique de ta métamorphose
+                  </Text>
+                </View>
+              </View>
+              <Pressable
+                onPress={() => setShowWeightModal(false)}
+                style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.ink[100], alignItems: 'center', justifyContent: 'center' }}
+                accessibilityRole="button"
+              >
+                <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[600] }}>✕</Text>
+              </Pressable>
+            </View>
+
+            <View style={{ gap: spacing[2] }}>
+              <Text style={{ fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.sm, color: colors.ink[800] }}>
+                Poids actuel (lbs)
+              </Text>
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#fff',
+                borderWidth: 1.5,
+                borderColor: colors.clay[300],
+                borderRadius: radius.xl,
+                paddingHorizontal: spacing[4],
+                paddingVertical: spacing[3],
+              }}>
+                <TextInput
+                  style={{
+                    flex: 1,
+                    fontFamily: fontFamily.hanken.bold,
+                    fontSize: fontSize['2xl'],
+                    color: colors.ink[900],
+                  }}
+                  value={inputWeight}
+                  onChangeText={setInputWeight}
+                  keyboardType="decimal-pad"
+                  placeholder="ex: 165"
+                  placeholderTextColor={colors.ink[400]}
+                  autoFocus
+                />
+                <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.clay[500] }}>
+                  lbs
+                </Text>
+              </View>
+            </View>
+
+            <Pressable
+              disabled={!inputWeight.trim() || savingWeight}
+              onPress={handleSaveWeight}
+              style={({ pressed }) => [{
+                backgroundColor: colors.clay[500],
+                paddingVertical: spacing[4],
+                borderRadius: radius.xl,
+                alignItems: 'center',
+                justify: 'center',
+                ...shadows.sm,
+              }, (!inputWeight.trim() || savingWeight) && { opacity: 0.5 }, pressed && { opacity: 0.85 }]}
+              accessibilityRole="button"
+            >
+              {savingWeight ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: '#fff' }}>
+                  Enregistrer le poids ⚖️
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };

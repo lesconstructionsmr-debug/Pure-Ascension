@@ -84,7 +84,7 @@ export const CalorieProvider: React.FC<{ children: React.ReactNode; initialGoal?
         }
 
         // 2. Si connecté, synchroniser avec Firestore sans écraser les données locales
-        if (uid) {
+        if (uid && uid !== 'local_user' && auth.currentUser) {
           const remote = await getTodayProgress(uid);
           if (remote && isMounted) {
             let finalEntries = currentLocalEntries;

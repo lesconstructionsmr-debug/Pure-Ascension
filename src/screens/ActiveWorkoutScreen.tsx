@@ -59,6 +59,8 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
   const [selectedRestPreset, setSelectedRestPreset] = useState<45 | 90>(90);
   const [showSwapModal, setShowSwapModal] = useState(false);
 
+  const [swapReason, setSwapReason] = useState<'discomfort' | 'preference' | null>(null);
+
   const restAnim       = useRef(new Animated.Value(1)).current;
   const doneAnim       = useRef(new Animated.Value(0)).current;
   const celebrateAnim  = useRef(new Animated.Value(0)).current;
@@ -618,16 +620,18 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
         <Check size={32} color="#fff" strokeWidth={2.5} />
       </Animated.View>
 
-      {/* MODAL 1-TAP REMPLACER L'EXERCICE */}
-      <Modal visible={showSwapModal} animationType="slide" transparent>
+      {/* MODAL 1-TAP REMPLACER L'EXERCICE AVEC SELECTION DE RAISON */}
+      <Modal visible={showSwapModal} animationType="slide" transparent onRequestClose={() => { setShowSwapModal(false); setSwapReason(null); }}>
         <View style={s.modalBackdrop}>
           <View style={s.modalContent}>
             <View style={s.modalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={s.modalTitle}>Remplacer l'exercice 🔄</Text>
-                <Text style={s.modalSub}>Alternatives biomécaniques équivalentes</Text>
+                <Text style={s.modalSub}>
+                  {swapReason === null ? 'Étape 1/2 : Sélection de la raison' : 'Étape 2/2 : Alternatives biomécaniques'}
+                </Text>
               </View>
-              <Pressable style={s.modalCloseBtn} onPress={() => setShowSwapModal(false)} accessibilityRole="button">
+              <Pressable style={s.modalCloseBtn} onPress={() => { setShowSwapModal(false); setSwapReason(null); }} accessibilityRole="button">
                 <X size={20} color={colors.ink[600]} />
               </Pressable>
             </View>
@@ -640,40 +644,130 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
               </View>
             )}
 
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: spacing[3], paddingVertical: spacing[3] }}>
-              {alternatives.map((alt, idx) => (
+            {swapReason === null ? (
+              /* ÉTAPE 1 : SELECTION DE LA RAISON */
+              <View style={{ gap: spacing[3], marginVertical: spacing[3] }}>
+                <Text style={{ fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.sm, color: colors.ink[800] }}>
+                  Pour quelle raison souhaites-tu remplacer cet exercice ?
+                </Text>
+
                 <Pressable
-                  key={idx}
-                  style={s.altCard}
-                  onPress={() => handleSwapExercise(alt)}
+                  style={[s.altCard, { backgroundColor: colors.sand[50], borderColor: colors.clay[300] }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSwapReason('discomfort');
+                  }}
                   accessibilityRole="button"
                 >
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                    <View style={{ flex: 1, paddingRight: spacing[2] }}>
-                      <Text style={s.altName}>{alt.name}</Text>
-                      <Text style={s.altCategory}>{alt.category}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.clay[100], alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 20 }}>🩹</Text>
                     </View>
-                    <View style={s.altEquipBadge}>
-                      <Text style={s.altEquipBadgeText}>{alt.equipment}</Text>
-                    </View>
-                  </View>
-
-                  <View style={s.altRationaleBox}>
-                    <Text style={s.altRationaleText}>💡 {alt.biomechanicMatch}</Text>
-                  </View>
-
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                      <Text style={s.altMetaText}>Tempo: <Text style={{ fontFamily: fontFamily.hanken.bold }}>{alt.tempoCode}</Text></Text>
-                      <Text style={s.altMetaText}>Cible: <Text style={{ fontFamily: fontFamily.hanken.bold }}>{alt.rpeTarget}</Text></Text>
-                    </View>
-                    <View style={s.selectAltBtn}>
-                      <Text style={s.selectAltBtnText}>Choisir 1-Tap →</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                        Gêne ou inconfort physique
+                      </Text>
+                      <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[600], marginTop: 2 }}>
+                        Trouver une alternative plus douce pour les articulations ou sans contrainte axiale.
+                      </Text>
                     </View>
                   </View>
                 </Pressable>
-              ))}
-            </ScrollView>
+
+                <Pressable
+                  style={[s.altCard, { backgroundColor: colors.sand[50], borderColor: colors.sage[300] }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSwapReason('preference');
+                  }}
+                  accessibilityRole="button"
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.sage[100], alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 20 }}>⚡</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.ink[900] }}>
+                        Préférence personnelle / Envie de variante
+                      </Text>
+                      <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[600], marginTop: 2 }}>
+                        Changer de mouvement tout en conservant le même ciblage et la même efficacité.
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+              </View>
+            ) : (
+              /* ÉTAPE 2 : CARTE EXPLICATIVE ET ALTERNATIVES */
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: spacing[3], paddingVertical: spacing[3] }}>
+                {swapReason === 'preference' && exercise && (
+                  <View style={{ backgroundColor: '#F0F7F2', borderRadius: radius.lg, padding: spacing[3.5], borderWidth: 1, borderColor: colors.sage[300] }}>
+                    <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: colors.sage[800], marginBottom: 4 }}>
+                      💡 Pourquoi {exercise.name} est important dans ton programme :
+                    </Text>
+                    <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[700], lineHeight: 18 }}>
+                      Cet exercice sollicite spécifiquement <Text style={{ fontFamily: fontFamily.hanken.bold }}>{biomechanics.primaryMuscles.join(' & ')}</Text>. Il garantit un équilibre postural et un développement musculaire harmonieux. Si tu choisis de le remplacer, privilégie une alternative à ciblage équivalent ci-dessous !
+                    </Text>
+                  </View>
+                )}
+
+                {swapReason === 'discomfort' && exercise && (
+                  <View style={{ backgroundColor: '#FCF5EE', borderRadius: radius.lg, padding: spacing[3.5], borderWidth: 1, borderColor: colors.clay[300] }}>
+                    <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: colors.clay[700], marginBottom: 4 }}>
+                      🛡️ Adaptation pour ton confort articulaire :
+                    </Text>
+                    <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[700], lineHeight: 18 }}>
+                      Écouter ses sensations est essentiel pour progresser sans gêne. Les alternatives ci-dessous réduisent la contrainte articulaire tout en maintenant un excellent travail musculaire.
+                    </Text>
+                  </View>
+                )}
+
+                <Pressable
+                  onPress={() => setSwapReason(null)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginVertical: 2 }}
+                >
+                  <Text style={{ fontFamily: fontFamily.hanken.medium, fontSize: fontSize.xs, color: colors.sage[600] }}>
+                    ← Modifier la raison du remplacement
+                  </Text>
+                </Pressable>
+
+                {alternatives.map((alt, idx) => (
+                  <Pressable
+                    key={idx}
+                    style={s.altCard}
+                    onPress={() => {
+                      handleSwapExercise(alt);
+                      setSwapReason(null);
+                    }}
+                    accessibilityRole="button"
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                      <View style={{ flex: 1, paddingRight: spacing[2] }}>
+                        <Text style={s.altName}>{alt.name}</Text>
+                        <Text style={s.altCategory}>{alt.category}</Text>
+                      </View>
+                      <View style={s.altEquipBadge}>
+                        <Text style={s.altEquipBadgeText}>{alt.equipment}</Text>
+                      </View>
+                    </View>
+
+                    <View style={s.altRationaleBox}>
+                      <Text style={s.altRationaleText}>💡 {alt.biomechanicMatch}</Text>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                      <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <Text style={s.altMetaText}>Tempo: <Text style={{ fontFamily: fontFamily.hanken.bold }}>{alt.tempoCode}</Text></Text>
+                        <Text style={s.altMetaText}>Cible: <Text style={{ fontFamily: fontFamily.hanken.bold }}>{alt.rpeTarget}</Text></Text>
+                      </View>
+                      <View style={s.selectAltBtn}>
+                        <Text style={s.selectAltBtnText}>Choisir 1-Tap →</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>

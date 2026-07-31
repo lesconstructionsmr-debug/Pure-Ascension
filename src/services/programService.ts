@@ -442,8 +442,12 @@ interface PhaseDef {
   name: Record<GymAccess, string>;
   reps: string | number;
   tempo?: string;
+  rpe?: string;
+  rest?: string;
   restSeconds?: number;
   supersetGroup?: string;
+  muscles?: string[];
+  biomechanicsTip?: string;
   notes?: string;
 }
 
@@ -1023,6 +1027,139 @@ export async function adjustProgram(
   }, { merge: true });
 
   return adjustedProgram;
+}
+
+/* ─── RÉGÉNÉRATION COMPLÈTE DU PROGRAMME SUR-MESURE ─────────────────────── */
+export interface RegenerationOptions {
+  frictionPoints: string[];
+  focusAreas: string[];
+  gymAccess: UserProfile['gymAccess'];
+  frequency: UserProfile['frequency'];
+  intensity: 'light' | 'moderate' | 'intense';
+}
+
+export async function regenerateTailoredProgram(
+  uid: string,
+  currentProgram: GeneratedProgram,
+  options: RegenerationOptions,
+  currentProfile?: Partial<UserProfile>
+) {
+  const updatedProfile: UserProfile = {
+    gymAccess: options.gymAccess || currentProgram.gymAccess || 'halteres',
+    frequency: options.frequency || currentProgram.frequency || 3,
+    sessionDuration: options.frictionPoints.includes('too-long') ? 30 : (currentProgram.sessionDuration || 45),
+    mainGoal: currentProgram.goal || 'muscle',
+    experience: currentProgram.experience || 'intermédiaire',
+    age: currentProfile?.age || 28,
+    sex: currentProfile?.sex || 'femme',
+    currentWeightKg: currentProfile?.currentWeightKg || 70,
+    targetWeightKg: currentProfile?.targetWeightKg || 65,
+    heightCm: currentProfile?.heightCm || 165,
+    activityLevel: currentProfile?.activityLevel || 'actif',
+  } as UserProfile;
+
+  const newProgram = generateProgram(updatedProfile);
+
+  const tailoredSessions = newProgram.sessions.map((sess) => {
+    let customExercises = [...sess.exercises];
+
+    if (options.gymAccess === 'kettlebell-board') {
+      customExercises = customExercises.map(ex => {
+        const n = ex.name.toLowerCase();
+        if (n.includes('pompe') || n.includes('push-up') || n.includes('développé') || n.includes('pec')) {
+          return {
+            ...ex,
+            name: 'Pompes Push-Up Board (Prise Modulaire & Contrôlée)',
+            notes: 'Varier les angles d\'ancrage (Neutre / Large / Serré) pour cibler sous tous les angles',
+          };
+        }
+        if (n.includes('squat') || n.includes('fente')) {
+          return {
+            ...ex,
+            name: 'Goblet Squat Kettlebell',
+            notes: 'Maintien de la Kettlebell contre le torse, amplitude complète',
+          };
+        }
+        if (n.includes('soulevé') || n.includes('deadlift') || n.includes('ischio') || n.includes('hips')) {
+          return {
+            ...ex,
+            name: 'Kettlebell Swings Explosifs & Hinge',
+            notes: 'Extension dynamique des hanches & engagement de la chaîne postérieure',
+          };
+        }
+        if (n.includes('rowing') || n.includes('tirage')) {
+          return {
+            ...ex,
+            name: 'Rowing Unilatéral Kettlebell (Buste Penché)',
+            notes: 'Tirage coude près du corps, contrôle de la phase négative',
+          };
+        }
+        if (n.includes('épaule') || n.includes('développé militaire') || n.includes('press')) {
+          return {
+            ...ex,
+            name: 'Clean & Press Kettlebell Unilatéral',
+            notes: 'Épaulé puis poussée verticale au-dessus de la tête',
+          };
+        }
+        return ex;
+      });
+    }
+
+    if (options.frictionPoints.includes('high-impact')) {
+      customExercises = customExercises.map(ex => {
+        if (ex.name.toLowerCase().includes('burpee') || ex.name.toLowerCase().includes('jump')) {
+          return {
+            ...ex,
+            name: 'Shadow Boxing Contrôlé',
+            notes: 'Alternative sans impact articulaire',
+          };
+        }
+        return ex;
+      });
+    }
+
+    if (options.intensity === 'light') {
+      customExercises = customExercises.map(ex => ({
+        ...ex,
+        reps: typeof ex.reps === 'number' ? Math.max(8, ex.reps - 2) : ex.reps,
+      }));
+    } else if (options.intensity === 'intense') {
+      customExercises = customExercises.map(ex => ({
+        ...ex,
+        reps: typeof ex.reps === 'number' ? ex.reps + 2 : ex.reps,
+      }));
+    }
+
+    return {
+      ...sess,
+      exercises: customExercises,
+    };
+  });
+
+  const finalProgram: GeneratedProgram = {
+    ...newProgram,
+    id: `prog_regen_${Date.now()}`,
+    name: `${newProgram.name} (Recalibré)`,
+    sessions: tailoredSessions,
+    startDate: new Date().toISOString(),
+  };
+
+  // Synchronisation Firestore sécurisée (non-bloquante pour la persistance locale)
+  if (uid && uid !== 'local_user') {
+    try {
+      await saveProgram(uid, finalProgram);
+      await setDoc(doc(db, 'users', uid), {
+        lastProgramRegenerationDate: new Date().toISOString(),
+        regenerationCount: ((currentProgram as any).regenerationCount ?? 0) + 1,
+        gymAccess: options.gymAccess,
+        frequency: options.frequency,
+      }, { merge: true });
+    } catch (fsErr) {
+      console.warn('Sync Firestore non-bloquante lors de la régénération:', fsErr);
+    }
+  }
+
+  return finalProgram;
 }
 
 /* ─── HELPERS D'AFFICHAGE ET PROGRESSION ─────────────────────────────────── */

@@ -169,10 +169,8 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const today    = getTodaySession(program);
   
   const totalSessions = program.totalWeeks * (program.sessionsPerWeek || 4);
-  const programWorkoutPct = totalSessions > 0 ? Math.round((completedWorkoutsCount / totalSessions) * 100) : 0;
-  const dailyBonusPct = Math.round((ascensionScore / 100) * (100 / (totalSessions || 1)));
-  const calculatedPct = Math.min(100, Math.max(progress.completionPct, programWorkoutPct + dailyBonusPct));
-  const currentDayCalculated = completedWorkoutsCount > 0 ? Math.min(progress.totalDays, Math.max(progress.day, completedWorkoutsCount + 1)) : progress.day;
+  const realCompletionPct = totalSessions > 0 ? Math.min(100, Math.round((completedWorkoutsCount / totalSessions) * 100)) : 0;
+  const currentDayCalculated = completedWorkoutsCount > 0 ? Math.min(progress.totalDays, Math.max(1, completedWorkoutsCount + 1)) : Math.min(progress.totalDays, Math.max(1, progress.day));
   const currentWeekCalculated = Math.min(program.totalWeeks, Math.ceil(currentDayCalculated / 7));
 
   const programNameUpper = (program.name || 'FAT BURNER PRO').toUpperCase();
@@ -182,7 +180,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
     currentWeek: currentWeekCalculated,
     totalWeeks: progress.totalWeeks || 12,
     tagline: currentWeekCalculated === 1 ? 'on démarre !' : 'tu avances bien.',
-    completionPct: calculatedPct,
+    completionPct: realCompletionPct,
   };
 
   const showDigestiveBanner = profile && !profile.digestiveQuizCompleted;

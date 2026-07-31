@@ -14,7 +14,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { Watch, ArrowLeft, CheckCircle2, RefreshCw, Zap, Shield, ChevronRight } from 'lucide-react-native';
+import { Watch, ArrowLeft, CheckCircle2, RefreshCw, Zap, Shield } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, fontFamily, fontSize, radius, shadows, spacing } from '../theme/theme';
 import { useWearableStore } from '../store/useWearableStore';
@@ -54,8 +54,6 @@ export const WearablesScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (e) {}
-    } else if (Platform.OS !== 'ios') {
-      Alert.alert('Compatibilité', 'L\'intégration Apple Watch & HealthKit est réservée aux appareils iOS.');
     }
   };
 
@@ -318,7 +316,7 @@ const s = StyleSheet.create({
   metricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-[between]',
+    justifyContent: 'space-between',
     marginVertical: spacing[2],
   },
   metricItem: {

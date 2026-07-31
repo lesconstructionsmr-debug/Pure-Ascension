@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Check, Dumbbell, Lock, Sparkles, ChevronRight, Activity, Calendar, Zap, Flame } from 'lucide-react-native';
+import { Check, Dumbbell, Lock, Sparkles, ChevronRight, Activity, Calendar, Zap, Flame, RefreshCw } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 import { Badge }    from '../components/Badge';
@@ -17,24 +17,51 @@ import { getTodaySession, saveProgram } from '../services/programService';
 import { auth } from '../services/firebase';
 import { useDailyProgress } from '../context/DailyProgressContext';
 
-export function getMuscleGroup(name: string): { label: string; icon: string; bg: string; color: string } {
+export function getMuscleGroup(name: string, reps?: string | number): { label: string; icon: string; bg: string; color: string; objective: string } {
   const n = name.toLowerCase();
-  if (n.includes('squat') || n.includes('fente') || n.includes('presse') || n.includes('leg') || n.includes('ischio') || n.includes('mollet') || n.includes('quad') || n.includes('fessier')) {
-    return { label: 'Force', icon: 'legs', bg: '#EAF2EC', color: colors.sage[600] };
+
+  // 1. Mobilité / Échauffement / Respirations / Etirements
+  if (n.includes('stretch') || n.includes('étirement') || n.includes('mobilité') || n.includes('respiration') || n.includes('échauffement') || n.includes('lunge twist') || n.includes('spine')) {
+    return { label: 'MOBILITÉ', icon: 'cardio', bg: '#EBF6F0', color: colors.sage[700], objective: 'Souplesse & Mobilité' };
   }
+
+  // 2. Endurance / Pliométrie / Métabolique / Cardio
+  if (n.includes('burpee') || n.includes('jump') || n.includes('swing') || n.includes('métabolique') || n.includes('shadow') || n.includes('corde') || n.includes('high knees') || n.includes('cardio')) {
+    return { label: 'ENDURANCE', icon: 'cardio', bg: '#FFF4EB', color: colors.clay[600], objective: 'Capacité cardiovasculaire' };
+  }
+
+  // 3. Tronc / Gainage / Core
+  if (n.includes('gainage') || n.includes('crunch') || n.includes('abdo') || n.includes('core') || n.includes('planche') || n.includes('sit-up') || n.includes('hollow') || n.includes('deadbug')) {
+    return { label: 'CORE & TRONC', icon: 'core', bg: '#FDFCEB', color: '#B58416', objective: 'Stabilité & Transverse' };
+  }
+
+  // 4. Distinction Hypertrophie vs Force vs Endurance selon le nom ou les réps
+  const isHighRep = typeof reps === 'string' ? (reps.includes('12') || reps.includes('15') || reps.includes('20')) : (typeof reps === 'number' && reps >= 12);
+  const isLowRep = typeof reps === 'string' ? (reps.includes('3') || reps.includes('4') || reps.includes('5') || reps.includes('6')) : (typeof reps === 'number' && reps <= 6);
+
+  if (n.includes('squat') || n.includes('fente') || n.includes('presse') || n.includes('leg') || n.includes('ischio') || n.includes('mollet') || n.includes('quad') || n.includes('fessier') || n.includes('hip thrust')) {
+    if (isLowRep) return { label: 'FORCE', icon: 'legs', bg: '#EAF2EC', color: colors.sage[700], objective: 'Gain de force maximale' };
+    if (isHighRep) return { label: 'ENDURANCE', icon: 'legs', bg: '#EAF2EC', color: colors.sage[600], objective: 'Endurance musculaire' };
+    return { label: 'HYPERTROPHIE', icon: 'legs', bg: '#EAF2EC', color: colors.sage[600], objective: 'Volume & Galbe musculaire' };
+  }
+
   if (n.includes('développé') || n.includes('push-up') || n.includes('pompe') || n.includes('chest') || n.includes('dips') || n.includes('pec')) {
-    return { label: 'Force', icon: 'push', bg: '#FCF2ED', color: colors.clay[500] };
+    if (isLowRep) return { label: 'FORCE', icon: 'push', bg: '#FCF2ED', color: colors.clay[600], objective: 'Poussée lourde & Force' };
+    if (isHighRep) return { label: 'ENDURANCE', icon: 'push', bg: '#FCF2ED', color: colors.clay[500], objective: 'Endurance de poussée' };
+    return { label: 'HYPERTROPHIE', icon: 'push', bg: '#FCF2ED', color: colors.clay[500], objective: 'Volume Pectoraux & Triceps' };
   }
+
   if (n.includes('traction') || n.includes('tirage') || n.includes('rowing') || n.includes('lombaires') || n.includes('back') || n.includes('pull')) {
-    return { label: 'Force', icon: 'pull', bg: '#EEF7FB', color: '#4E7384' };
+    if (isLowRep) return { label: 'FORCE', icon: 'pull', bg: '#EEF7FB', color: '#3B6071', objective: 'Force de tirage' };
+    if (isHighRep) return { label: 'ENDURANCE', icon: 'pull', bg: '#EEF7FB', color: '#4E7384', objective: 'Endurance dorsale' };
+    return { label: 'HYPERTROPHIE', icon: 'pull', bg: '#EEF7FB', color: '#4E7384', objective: 'Épaisseur & V-Taper' };
   }
-  if (n.includes('biceps') || n.includes('triceps') || n.includes('curl') || n.includes('bras') || n.includes('shoulder') || n.includes('élévation') || n.includes('épaules') || n.includes('delto')) {
-    return { label: 'Bras / Épaules', icon: 'arms', bg: '#F8F1FD', color: '#9C54D6' };
+
+  if (n.includes('biceps') || n.includes('triceps') || n.includes('curl') || n.includes('bras') || n.includes('shoulder') || n.includes('élévation') || n.includes('épaules') || n.includes('delto') || n.includes('clean & press')) {
+    return { label: 'HYPERTROPHIE', icon: 'arms', bg: '#F8F1FD', color: '#8E3EC9', objective: 'Développement esthétique bras/épaules' };
   }
-  if (n.includes('gainage') || n.includes('crunch') || n.includes('abdo') || n.includes('core') || n.includes('planche') || n.includes('sit-up')) {
-    return { label: 'Tronc', icon: 'core', bg: '#FDFCEB', color: '#D4A84B' };
-  }
-  return { label: 'Force', icon: 'cardio', bg: '#F5F5F5', color: colors.ink[600] };
+
+  return { label: isHighRep ? 'ENDURANCE' : 'HYPERTROPHIE', icon: 'cardio', bg: '#F5F5F5', color: colors.ink[600], objective: 'Développement général' };
 }
 
 export const ExerciseImage: React.FC<{ name: string; size?: number }> = ({ name, size = 44 }) => {
@@ -144,7 +171,7 @@ const Hero: React.FC = () => (
 );
 
 const ExRow: React.FC<{ex:Exercise; onToggle:(id:string)=>void}> = ({ex, onToggle}) => {
-  const group = getMuscleGroup(ex.name);
+  const group = getMuscleGroup(ex.name, ex.reps);
 
   return (
     <Pressable 
@@ -168,7 +195,7 @@ const ExRow: React.FC<{ex:Exercise; onToggle:(id:string)=>void}> = ({ex, onToggl
           <Badge label={group.label} variant="solid" />
         </View>
         <Text style={{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.ink[500] }}>
-          🎯 {group.label === 'Force' ? 'Développement musculaire' : 'Renforcement'} · Contrôlé
+          🎯 {group.objective} · Contrôlé
         </Text>
       </View>
       <Text style={s.exReps}>{ex.sets}×{ex.reps}</Text>
@@ -288,9 +315,20 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
     <SafeAreaView style={s.safe}>
       <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-        {/* Header : Titre 'Séances' en grand */}
+        {/* Header : Titre 'Séances' + Bouton Régénérer */}
         <View style={s.header}>
           <Text style={s.headerTitle} accessibilityRole="header">Séances</Text>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              navigation?.navigate('ProgramAdjustment');
+            }}
+            style={s.adjustBtn}
+            accessibilityRole="button"
+          >
+            <RefreshCw size={13} color={colors.sage[700]} />
+            <Text style={s.adjustBtnText}>Régénérer mon plan 🔄</Text>
+          </Pressable>
         </View>
 
         {/* Bloc supérieur photo de séance (fond vert sombre épuré) */}
@@ -418,8 +456,31 @@ const s = StyleSheet.create({
   content: { paddingBottom:spacing[10] },
   
   /* Header */
-  header:  { paddingHorizontal:spacing[5], paddingTop:spacing[6], paddingBottom:spacing[3] },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[6],
+    paddingBottom: spacing[3],
+  },
   headerTitle: { fontFamily:fontFamily.spectral.regular, fontSize:fontSize['3xl'], color:colors.ink[900] },
+  adjustBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.sage[100],
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1.5],
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.sage[300],
+  },
+  adjustBtnText: {
+    fontFamily: fontFamily.hanken.semiBold,
+    fontSize: fontSize.xs,
+    color: colors.sage[800],
+  },
 
   /* Hero / Bloc supérieur photo de séance */
   heroContainer: {

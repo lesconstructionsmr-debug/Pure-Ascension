@@ -22,12 +22,16 @@ import { Platform } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 
 if (Platform.OS !== 'web') {
-  Sentry.init({
-    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
-    enableInExpoDevelopment: false,
-    debug: false,
-    enabled: !__DEV__ || !!process.env.EXPO_PUBLIC_SENTRY_DSN,
-  });
+  const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN || 'https://e6a3b35ebc70f4613d3a05d6a418e044@o4511616564002816.ingest.de.sentry.io/4511616583532624';
+  try {
+    Sentry.init({
+      dsn: sentryDsn,
+      debug: false,
+      tracesSampleRate: 0.2,
+    });
+  } catch (err) {
+    console.warn('Initialisation Sentry:', err);
+  }
 }
 
 function App() {
@@ -42,7 +46,16 @@ function App() {
     Spectral_500Medium_Italic,
   });
 
-  if (!fontsLoaded) {
+  const [forceReady, setForceReady] = React.useState(false);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setForceReady(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!fontsLoaded && !forceReady) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.sand[50], alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={colors.sage[500]} />

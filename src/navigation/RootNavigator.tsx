@@ -35,6 +35,7 @@ import { RecipeBookScreen }             from '../screens/RecipeBookScreen';
 import { RecipeDetailScreen }           from '../screens/RecipeDetailScreen';
 import { ProgramAdjustmentScreen }       from '../screens/ProgramAdjustmentScreen';
 import { AICoachScreen }                  from '../screens/AICoachScreen';
+import { WearablesScreen }                 from '../screens/WearablesScreen';
 
 import { UserProfile } from '../data';
 import { DailyProgressProvider } from '../context/DailyProgressContext';
@@ -54,7 +55,7 @@ type AuthStack   = { Welcome:undefined; Login:undefined; Signup:undefined; Goal:
 type HomeStack   = { HomeMain:undefined; AICoach:undefined };
 type MealsStack  = { MealsMain:undefined; RecipeBook:undefined; RecipeDetail:{ recipeId:string } };
 type WorkoutsStack = { WorkoutsMain:undefined; ActiveWorkout:undefined; ProgramAdjustment:undefined };
-type ProfileStack  = { ProfileMain:undefined; Goals:{ isNewUser?: boolean }; History:{ isNewUser?: boolean }; Notifications:undefined; Rituals:undefined; EditProfile:undefined };
+type ProfileStack  = { ProfileMain:undefined; Goals:{ isNewUser?: boolean }; History:{ isNewUser?: boolean }; Notifications:undefined; Rituals:undefined; EditProfile:undefined; Wearables:undefined };
 type TabList     = { Accueil:undefined; Repas:undefined; Séances:undefined; Profil:undefined };
 
 const Auth        = createNativeStackNavigator<AuthStack>();
@@ -82,6 +83,9 @@ function ProfileRitualsScreenWrapper({ navigation }: any) {
 }
 function ProfileEditScreenWrapper({ navigation }: any) {
   return <ProfileEditScreen onBack={() => navigation.goBack()} onSave={() => navigation.goBack()} />;
+}
+function WearablesScreenWrapper({ navigation }: any) {
+  return <WearablesScreen navigation={navigation} />;
 }
 
 /* ─── Stack screens ──────────────────────────────────────────────────────── */
@@ -112,8 +116,6 @@ function WorkoutsStackScreen() {
   );
 }
 
-import { WearablesScreen } from '../screens/WearablesScreen';
-
 function ProfileStackScreen() {
   return (
     <ProfileSt.Navigator screenOptions={{ headerShown:false }}>
@@ -123,7 +125,8 @@ function ProfileStackScreen() {
       <ProfileSt.Screen name="Notifications" component={ProfileNotificationsScreenWrapper} />
       <ProfileSt.Screen name="Rituals"       component={ProfileRitualsScreenWrapper} />
       <ProfileSt.Screen name="EditProfile"  component={ProfileEditScreenWrapper} />
-      <ProfileSt.Screen name="Wearables"    component={WearablesScreen} />
+      <ProfileSt.Screen name="Wearables"    component={WearablesScreenWrapper} />
+      <ProfileSt.Screen name="ProgramAdjustment" component={ProgramAdjustmentScreen} />
     </ProfileSt.Navigator>
   );
 }
@@ -309,8 +312,20 @@ export const RootNavigator: React.FC = () => {
       setAuthReady(true);
     });
 
+    // Filet de sécurité anti-page blanche : débloque l'UI au bout de 2.5s même si le réseau est lent
+    const fallbackTimer = setTimeout(() => {
+      setAuthReady(true);
+      const currentStore = useProgramStore.getState();
+      if (currentStore.profile && currentStore.program) {
+        setHasProfile(true);
+      } else if (hasProfile === null) {
+        setHasProfile(false);
+      }
+    }, 2500);
+
     return () => {
       unsub();
+      clearTimeout(fallbackTimer);
       if (unsubDb) unsubDb();
     };
   }, []);

@@ -116,6 +116,10 @@ export const handler: Handler = async (event) => {
 
     if (process.env.STRIPE_SECRET_KEY) {
       try {
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+          apiVersion: '2023-10-16' as any,
+        });
+
         // A) Vérifier ou créer le coupon 20% de réduction pour le filleul
         try {
           await stripe.coupons.retrieve(refereeCouponId);
