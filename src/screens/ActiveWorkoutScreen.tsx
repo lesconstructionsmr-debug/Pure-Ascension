@@ -288,7 +288,8 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
   }
 
   const group = exercise ? getMuscleGroup(exercise.name) : { label: 'Général', bg: '#F5F5F5', color: colors.ink[600] };
-  const alternatives = exercise ? getExerciseAlternatives(exercise.name) : [];
+  const healthConditions = useProgramStore.getState().profile?.healthConditions;
+  const alternatives = exercise ? getExerciseAlternatives(exercise.name, healthConditions) : [];
 
   return (
     <SafeAreaView style={s.safe}>

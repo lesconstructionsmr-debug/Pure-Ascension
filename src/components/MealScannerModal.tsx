@@ -141,6 +141,7 @@ export const MealScannerModal: React.FC<MealScannerModalProps> = ({ visible, onC
   const [editCarbs, setEditCarbs] = useState<string>('');
   const [editFats, setEditFats] = useState<string>('');
   const [editFibers, setEditFibers] = useState<string>('');
+  const [userHint, setUserHint] = useState<string>('');
 
   // Animation values for scanner line
   const [scanAnim] = useState(new Animated.Value(0));
@@ -154,6 +155,7 @@ export const MealScannerModal: React.FC<MealScannerModalProps> = ({ visible, onC
       setPortionFactor(1);
       setIsEditing(false);
       setScanStep('');
+      setUserHint('');
     }
   }, [visible]);
 
@@ -212,6 +214,7 @@ export const MealScannerModal: React.FC<MealScannerModalProps> = ({ visible, onC
     setPortionFactor(1);
     setIsEditing(false);
     setScanStep('');
+    setUserHint('');
     lastScanRef.current = null;
     try {
       await AsyncStorage.removeItem(PENDING_SCAN_KEY);
@@ -223,7 +226,7 @@ export const MealScannerModal: React.FC<MealScannerModalProps> = ({ visible, onC
     onClose();
   };
 
-  const performAiScan = async (uri: string, base64?: string | null) => {
+  const performAiScan = async (uri: string, base64?: string | null, hintText?: string) => {
     lastScanRef.current = { uri, base64 };
     setImageUri(uri);
     setIsScanning(true);
@@ -233,7 +236,13 @@ export const MealScannerModal: React.FC<MealScannerModalProps> = ({ visible, onC
     setIsEditing(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    setScanStep('Optimisation de la prise de vue...');
+    const effectiveHint = hintText !== undefined ? hintText : userHint;
+
+    setScanStep(
+      effectiveHint?.trim()
+        ? `Prise en compte des précisions : "${effectiveHint.trim()}"...`
+        : 'Optimisation de la prise de vue...'
+    );
 
     const t1 = setTimeout(() => {
       setScanStep('Analyse visuelle Pure Ascension IA...');
@@ -249,7 +258,7 @@ export const MealScannerModal: React.FC<MealScannerModalProps> = ({ visible, onC
       let result: ScannedMealResult | null = null;
 
       try {
-        result = await callBackendScanMeal(uri, base64);
+        result = await callBackendScanMeal(uri, base64, effectiveHint);
       } catch (backendErr) {
         if (backendErr instanceof NonFoodScanError) {
           clearTimeout(t1);
@@ -477,6 +486,22 @@ export const MealScannerModal: React.FC<MealScannerModalProps> = ({ visible, onC
                   L'IA Vision Pure Ascension estime instantanément les ingrédients, le volume et la répartition en macronutriments de ton repas.
                 </Text>
 
+                {/* Case de précision / description pour l'IA */}
+                <View style={s.hintContainer}>
+                  <View style={s.hintHeaderRow}>
+                    <Sparkles size={14} color={colors.sage[600]} />
+                    <Text style={s.hintLabelText}>Précision ou ingrédient masqué (optionnel) :</Text>
+                  </View>
+                  <TextInput
+                    style={s.hintInput}
+                    value={userHint}
+                    onChangeText={setUserHint}
+                    placeholder="ex: Viande hachée de bœuf, sauce yaourt, épices..."
+                    placeholderTextColor={colors.ink[400]}
+                    returnKeyType="done"
+                  />
+                </View>
+
                 <View style={s.pickerBtnRow}>
                   <Pressable style={s.primaryPickBtn} onPress={handlePickCamera} accessibilityRole="button">
                     <Camera size={22} color="#fff" />
@@ -614,6 +639,36 @@ export const MealScannerModal: React.FC<MealScannerModalProps> = ({ visible, onC
                   <View style={s.scoreBadge}>
                     <Text style={s.scoreBadgeTitle}>SCORE P1</Text>
                     <Text style={s.scoreBadgeVal}>{scanResult.densityScore}</Text>
+                  </View>
+                </View>
+
+                {/* Case de précision / ré-analyse pour l'IA */}
+                <View style={s.adjustHintCard}>
+                  <View style={s.adjustHintHeaderRow}>
+                    <Sparkles size={14} color={colors.sage[600]} />
+                    <Text style={s.adjustHintTitle}>Aider l'IA ou préciser un ingrédient :</Text>
+                  </View>
+                  <View style={s.adjustHintInputRow}>
+                    <TextInput
+                      style={s.adjustHintInput}
+                      value={userHint}
+                      onChangeText={setUserHint}
+                      placeholder="ex: Viande hachée de bœuf, sauce crémeuse..."
+                      placeholderTextColor={colors.ink[400]}
+                      returnKeyType="done"
+                    />
+                    <Pressable
+                      style={s.rescanWithHintBtn}
+                      onPress={() => {
+                        if (imageUri) {
+                          performAiScan(imageUri, lastScanRef.current?.base64, userHint);
+                        }
+                      }}
+                      accessibilityRole="button"
+                    >
+                      <RefreshCw size={14} color="#fff" />
+                      <Text style={s.rescanWithHintBtnText}>Ré-analyser</Text>
+                    </Pressable>
                   </View>
                 </View>
 
@@ -1420,6 +1475,90 @@ const s = StyleSheet.create({
     fontFamily: fontFamily.hanken.medium,
     fontSize: fontSize.xs,
     color: colors.ink[600],
+  },
+
+  // User Hint / Description Box Styles
+  hintContainer: {
+    width: '100%',
+    backgroundColor: colors.sand[50],
+    borderRadius: radius.lg,
+    padding: spacing[3],
+    gap: spacing[2],
+    borderWidth: 1,
+    borderColor: colors.sage[200],
+    marginTop: spacing[2],
+  },
+  hintHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1.5],
+  },
+  hintLabelText: {
+    fontFamily: fontFamily.hanken.medium,
+    fontSize: fontSize.xs,
+    color: colors.sage[900],
+  },
+  hintInput: {
+    fontFamily: fontFamily.hanken.regular,
+    fontSize: fontSize.sm,
+    color: colors.ink[900],
+    backgroundColor: '#fff',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    borderWidth: 1,
+    borderColor: colors.ink[200],
+  },
+
+  adjustHintCard: {
+    backgroundColor: '#fff',
+    borderRadius: radius.xl,
+    padding: spacing[4],
+    gap: spacing[2.5],
+    borderWidth: 1,
+    borderColor: colors.sage[200],
+    ...shadows.sm,
+  },
+  adjustHintHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1.5],
+  },
+  adjustHintTitle: {
+    fontFamily: fontFamily.hanken.semiBold,
+    fontSize: fontSize.xs,
+    color: colors.sage[900],
+  },
+  adjustHintInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  adjustHintInput: {
+    flex: 1,
+    fontFamily: fontFamily.hanken.regular,
+    fontSize: fontSize.sm,
+    color: colors.ink[900],
+    backgroundColor: colors.sand[50],
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    borderWidth: 1,
+    borderColor: colors.ink[200],
+  },
+  rescanWithHintBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1.5],
+    backgroundColor: colors.sage[700],
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2.5],
+    borderRadius: radius.lg,
+  },
+  rescanWithHintBtnText: {
+    fontFamily: fontFamily.hanken.bold,
+    fontSize: fontSize.xs,
+    color: '#fff',
   },
 
   // Legal / Compliance Notice

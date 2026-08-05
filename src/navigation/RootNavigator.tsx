@@ -82,7 +82,26 @@ function ProfileRitualsScreenWrapper({ navigation }: any) {
   return <ProfileRitualsScreen onBack={() => navigation.goBack()} />;
 }
 function ProfileEditScreenWrapper({ navigation }: any) {
-  return <ProfileEditScreen onBack={() => navigation.goBack()} onSave={() => navigation.goBack()} />;
+  const profile = useProgramStore(s => s.profile);
+  return (
+    <ProfileEditScreen
+      currentProfile={profile ?? undefined}
+      onBack={() => navigation.goBack()}
+      onSave={async (p) => {
+        const prev = useProgramStore.getState().profile;
+        const merged = { ...(prev || {}), ...p } as UserProfile;
+        useProgramStore.getState().setProfile(merged);
+        const uid = auth.currentUser?.uid;
+        const program = useProgramStore.getState().program;
+        if (uid && program) {
+          await saveUserProfileAndProgram(uid, merged, program, merged.mainGoal || 'muscle').catch(() => {});
+        } else if (uid) {
+          await saveUserProfile(uid, merged, merged.mainGoal || 'muscle').catch(() => {});
+        }
+        navigation.goBack();
+      }}
+    />
+  );
 }
 function WearablesScreenWrapper({ navigation }: any) {
   return <WearablesScreen navigation={navigation} />;

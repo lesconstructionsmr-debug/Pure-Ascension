@@ -27,9 +27,9 @@ const RITUALS: Ritual[] = [
     tags:['matin','mobilité','énergie'], completedToday:true,
   },
   {
-    id:'r2', icon:Wind, title:'Respiration consciente', duration:'5 min',
+    id:'r2', icon:Wind, title:'Respiration 4-7-8', duration:'5 min · 3 cycles',
     color:colors.info[500], bg:colors.info[50],
-    desc:'3 cycles de respiration 4-7-8 pour calmer le système nerveux et aiguiser la concentration.',
+    desc:'Technique de Dr. Andrew Weil pour calmer le système nerveux. Assieds-toi confortablement, colonne droite, langue contre le palais.',
     tags:['matin','soir','stress'], completedToday:false,
   },
   {
@@ -193,6 +193,29 @@ export const ProfileRitualsScreen: React.FC<Props> = ({ onBack }) => {
               {isExpanded && (
                 <View style={[s.expandedBox, { borderLeftColor:ritual.color }]}>
                   <Text style={s.expandedText}>{ritual.desc}</Text>
+                  {ritual.id === 'r2' && (
+                    <View style={s.breathSteps}>
+                      <Text style={s.breathStepsTitle}>Comment pratiquer</Text>
+                      {[
+                        { step: '1', label: 'Inspire', detail: 'par le nez pendant 4 secondes' },
+                        { step: '2', label: 'Retiens', detail: 'ta respiration pendant 7 secondes' },
+                        { step: '3', label: 'Expire', detail: 'lentement par la bouche pendant 8 secondes' },
+                      ].map(phase => (
+                        <View key={phase.step} style={s.breathStepRow}>
+                          <View style={[s.breathStepBadge, { backgroundColor: ritual.color }]}>
+                            <Text style={s.breathStepNum}>{phase.step}</Text>
+                          </View>
+                          <Text style={s.breathStepText}>
+                            <Text style={s.breathStepLabel}>{phase.label}</Text>
+                            {' — '}{phase.detail}
+                          </Text>
+                        </View>
+                      ))}
+                      <Text style={s.breathTip}>
+                        Répète 3 cycles (≈ 1–2 min). Idéal au réveil, avant le sommeil, ou en cas de stress.
+                      </Text>
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -346,8 +369,16 @@ const s = StyleSheet.create({
   tag:     { paddingHorizontal:spacing[3], paddingVertical:spacing[1], borderRadius:radius.pill },
   tagText: { fontFamily:fontFamily.hanken.medium, fontSize:10, textTransform:'uppercase', letterSpacing:0.5 },
 
-  expandedBox: { backgroundColor:colors.sand[100], borderRadius:radius.md, padding:spacing[4], borderLeftWidth:3 },
+  expandedBox: { backgroundColor:colors.sand[100], borderRadius:radius.md, padding:spacing[4], borderLeftWidth:3, gap:spacing[3] },
   expandedText:{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.sm, color:colors.ink[700], lineHeight:fontSize.sm*lineHeight.relaxed },
+  breathSteps: { gap: spacing[2.5], marginTop: spacing[1] },
+  breathStepsTitle: { fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.sm, color: colors.ink[800], marginBottom: spacing[1] },
+  breathStepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3] },
+  breathStepBadge: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  breathStepNum: { fontFamily: fontFamily.hanken.bold, fontSize: 11, color: '#fff' },
+  breathStepText: { flex: 1, fontFamily: fontFamily.hanken.regular, fontSize: fontSize.sm, color: colors.ink[700], lineHeight: fontSize.sm * lineHeight.relaxed },
+  breathStepLabel: { fontFamily: fontFamily.hanken.semiBold, color: colors.ink[900] },
+  breathTip: { fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[500], marginTop: spacing[1], lineHeight: fontSize.xs * lineHeight.relaxed },
 
   addCard: { flexDirection:'row', alignItems:'center', gap:spacing[4], padding:spacing[5], borderRadius:radius.xl, borderWidth:2, borderColor:colors.sage[200], borderStyle:'dashed', justifyContent:'center' },
   addIcon: { width:40, height:40, borderRadius:20, backgroundColor:colors.sage[100], alignItems:'center', justifyContent:'center' },

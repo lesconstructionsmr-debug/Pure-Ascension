@@ -4,6 +4,8 @@
  * conseils d'exécution anatomiques et générateur d'alternatives 1-tap.
  */
 
+import { filterAlternativesForHealth } from './healthExerciseFilters';
+
 export interface WorkoutPhaseInfo {
   phaseNumber: 1 | 2 | 3 | 4;
   name: string;
@@ -405,18 +407,24 @@ export function getExerciseBiomechanics(
 }
 
 /* ─── BANQUE D'ALTERNATIVES ÉQUIVALENTES BIOMÉCANIQUEMENT ───────────────── */
-export function getExerciseAlternatives(exName: string): ExerciseAlternative[] {
+export function getExerciseAlternatives(
+  exName: string,
+  healthConditions?: string | null,
+): ExerciseAlternative[] {
   const n = exName.toLowerCase().trim();
 
   // Helper de filtrage strict : ne supprime QUE si le nom de l'alternative est quasi-identique à l'exercice actuel.
   const filterCurrent = (alts: ExerciseAlternative[]) =>
-    alts.filter(alt => {
-      const altName = alt.name.toLowerCase().trim();
-      if (altName === n) return false;
-      if (altName.startsWith('variante ') && altName.includes(n)) return false;
-      if (n.length > 8 && (altName.includes(n) || n.includes(altName))) return false;
-      return true;
-    });
+    filterAlternativesForHealth(
+      alts.filter(alt => {
+        const altName = alt.name.toLowerCase().trim();
+        if (altName === n) return false;
+        if (altName.startsWith('variante ') && altName.includes(n)) return false;
+        if (n.length > 8 && (altName.includes(n) || n.includes(altName))) return false;
+        return true;
+      }),
+      healthConditions,
+    );
 
   // 1. Core / Sangle Abdominale & Stabilité (Plank, Crunch, Gainage, Deadbug)
   if (n.includes('gainage') || n.includes('plank') || n.includes('core') || n.includes('crunch') || n.includes('commando') || n.includes('hollow') || n.includes('deadbug') || n.includes('bird') || n.includes('russian') || n.includes('relevé') || n.includes('abs') || n.includes('ventral')) {

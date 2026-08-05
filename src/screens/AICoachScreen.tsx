@@ -82,11 +82,14 @@ function getSmartQuestions(profile: any): { question: string; answer: string }[]
 export const AICoachScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const isPremium = useProgramStore(s => s.isPremium);
   const program = useProgramStore(s => s.program);
+  const storeProfile = useProgramStore(s => s.profile);
 
-  // Reconstruire un profil minimal depuis le programme (sans champ profile dans le store)
+  // Profil minimal + conditions santé (grossesse/post-partum) pour le coach
   const inferredProfile = program ? {
     mainGoal: program.goal,
     cardioSport: program.cardioSport,
+    healthConditions: storeProfile?.healthConditions || '',
+    experience: storeProfile?.experience || program.experience,
   } : null;
 
   const [messages, setMessages] = useState<Message[]>([

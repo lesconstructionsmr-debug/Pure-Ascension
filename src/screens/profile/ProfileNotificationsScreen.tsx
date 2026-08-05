@@ -194,10 +194,38 @@ export const ProfileNotificationsScreen: React.FC<Props> = ({ onBack }) => {
           <Text style={s.sectionTitle}>Horaires personnalisés</Text>
           <View style={s.sectionCard}>
             {[
-              { key: 'meals', label: 'Rappels repas', options: ['12:00 & 19:00', '12:30 & 19:30', '13:00 & 20:00'] },
-              { key: 'workout', label: 'Rappel séance', options: ['07:30 (Matin)', '12:15 (Midi)', '17:30 (Fin de journée)', '19:00 (Soir)'] },
-              { key: 'hydration', label: 'Rappels hydratation', options: ['Toutes les heures', 'Toutes les 2h', '3x par jour'] },
-              { key: 'evening', label: 'Routine du soir', options: ['21:00', '21:30', '22:00', '22:30'] },
+              {
+                key: 'meals',
+                label: 'Rappels repas',
+                options: [
+                  '07:30 & 12:00', '08:00 & 12:30', '12:00 & 19:00', '12:30 & 19:30',
+                  '13:00 & 20:00', '18:00 & 21:00', 'Personnalisé 11:30 & 18:30',
+                ],
+              },
+              {
+                key: 'workout',
+                label: 'Rappel séance',
+                options: [
+                  '06:30 (Tôt)', '07:00 (Matin)', '07:30 (Matin)', '08:00 (Matin)',
+                  '12:00 (Midi)', '12:15 (Midi)', '17:00 (Fin de journée)', '17:30 (Fin de journée)',
+                  '18:30 (Soir)', '19:00 (Soir)', '20:00 (Soir)',
+                ],
+              },
+              {
+                key: 'hydration',
+                label: 'Rappels hydratation',
+                options: [
+                  'Toutes les heures', 'Toutes les 90 min', 'Toutes les 2h',
+                  '3x par jour', '4x par jour', 'Au réveil + midi + soir',
+                ],
+              },
+              {
+                key: 'evening',
+                label: 'Routine du soir',
+                options: [
+                  '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00',
+                ],
+              },
             ].map((row, i) => (
               <View key={row.key} style={[s.timeRow, i > 0 && s.itemBorder]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
@@ -241,9 +269,26 @@ export const ProfileNotificationsScreen: React.FC<Props> = ({ onBack }) => {
             <Text style={s.timeModalTitle}>Choisir un horaire de rappel</Text>
             <Text style={s.timeModalSub}>Sélectionne l'heure préférentielle pour ton rituel</Text>
 
-            {editingKey && [
-              '08:00', '12:30 & 19:30', '17:30', '21:30', 'Toutes les 2h'
-            ].map(t => (
+            {editingKey && (
+              (
+                {
+                  meals: [
+                    '07:30 & 12:00', '08:00 & 12:30', '12:00 & 19:00', '12:30 & 19:30',
+                    '13:00 & 20:00', '18:00 & 21:00', 'Personnalisé 11:30 & 18:30',
+                  ],
+                  workout: [
+                    '06:30 (Tôt)', '07:00 (Matin)', '07:30 (Matin)', '08:00 (Matin)',
+                    '12:00 (Midi)', '12:15 (Midi)', '17:00 (Fin de journée)', '17:30 (Fin de journée)',
+                    '18:30 (Soir)', '19:00 (Soir)', '20:00 (Soir)',
+                  ],
+                  hydration: [
+                    'Toutes les heures', 'Toutes les 90 min', 'Toutes les 2h',
+                    '3x par jour', '4x par jour', 'Au réveil + midi + soir',
+                  ],
+                  evening: ['20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00'],
+                } as Record<string, string[]>
+              )[editingKey] || []
+            ).map(t => (
               <Pressable
                 key={t}
                 style={s.timeModalOption}

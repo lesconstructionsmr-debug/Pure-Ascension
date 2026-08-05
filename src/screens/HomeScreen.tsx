@@ -1,6 +1,6 @@
 import React from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, Platform, Modal, TextInput } from 'react-native';
-import { Activity, ChevronRight, Droplets, Plus, Minus, Bot, Leaf, X, Check, Sparkles, ChevronLeft, Moon, Brain, Star, Users, Camera, ShoppingBag, MoreHorizontal, Utensils } from 'lucide-react-native';
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, Platform, Modal, TextInput, Linking } from 'react-native';
+import { Activity, ChevronRight, Droplets, Plus, Minus, Bot, Leaf, X, Check, Sparkles, ChevronLeft, Moon, Brain, Star, Users, Camera, ShoppingBag, MoreHorizontal, Utensils, Smartphone } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, fontFamily, fontSize, lineHeight, letterSpacing, spacing, radius, shadows } from '../theme/theme';
 import { Avatar }   from '../components/Avatar';
@@ -12,6 +12,8 @@ import { ReferralModal } from '../components/ReferralModal';
 import { AscensionCardModal } from '../components/AscensionCardModal';
 import { GroceryListModal } from '../components/GroceryListModal';
 import { MealScannerModal } from '../components/MealScannerModal';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { useLanguage } from '../context/LanguageContext';
 import { useDailyProgress } from '../context/DailyProgressContext';
 import { useCalorie } from '../context/CalorieContext';
 import { FeedbackButton } from '../components/FeedbackButton';
@@ -43,6 +45,7 @@ const SectionHeader: React.FC<{title:string;action?:string;onAction?:()=>void}> 
 );
 
 export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
+  const { t, language } = useLanguage();
   const program = useProgramStore(s => s.program);
   const profile = useProgramStore(s => s.profile);
   const storeName = useProgramStore(s => s.userName);
@@ -168,18 +171,25 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const progress = getProgramProgress(program);
   const today    = getTodaySession(program);
   
+  const effectiveWorkoutCount = Math.max(completedWorkoutsCount, workoutPct > 0 ? 1 : 0);
   const totalSessions = program.totalWeeks * (program.sessionsPerWeek || 4);
-  const realCompletionPct = totalSessions > 0 ? Math.min(100, Math.round((completedWorkoutsCount / totalSessions) * 100)) : 0;
-  const currentDayCalculated = completedWorkoutsCount > 0 ? Math.min(progress.totalDays, Math.max(1, completedWorkoutsCount + 1)) : Math.min(progress.totalDays, Math.max(1, progress.day));
+  const realCompletionPct = totalSessions > 0 ? Math.min(100, Math.round((effectiveWorkoutCount / totalSessions) * 100)) : 0;
+  const currentDayCalculated = effectiveWorkoutCount > 0 ? Math.min(progress.totalDays, Math.max(1, effectiveWorkoutCount + 1)) : Math.min(progress.totalDays, Math.max(1, progress.day));
   const currentWeekCalculated = Math.min(program.totalWeeks, Math.ceil(currentDayCalculated / 7));
 
   const programNameUpper = (program.name || 'FAT BURNER PRO').toUpperCase();
+  const progressTagline =
+    realCompletionPct === 0 ? 'on démarre !' :
+    realCompletionPct < 25 ? 'belle avance, continue.' :
+    realCompletionPct < 50 ? 'tu avances bien.' :
+    realCompletionPct < 75 ? 'tu es sur la bonne voie.' :
+    'presque au bout !';
   const displayProgram = {
     eyebrow: `${programNameUpper} · JOUR ${currentDayCalculated}`,
     currentDay: currentDayCalculated,
     currentWeek: currentWeekCalculated,
     totalWeeks: progress.totalWeeks || 12,
-    tagline: currentWeekCalculated === 1 ? 'on démarre !' : 'tu avances bien.',
+    tagline: progressTagline,
     completionPct: realCompletionPct,
   };
 
@@ -190,26 +200,29 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
       <SafeAreaView style={s.safe}>
         <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-          {/* Header avec Titre 'Accueil' en grand & Bouton '...' en haut à droite */}
+          {/* Header avec Titre 'Accueil' / 'Home' & Switcher de Langue FR | EN en évidence */}
           <View style={s.header}>
             <View style={{ flex:1 }}>
-              <Text style={s.headerTitle} accessibilityRole="header">Accueil</Text>
+              <Text style={s.headerTitle} accessibilityRole="header">{t('home')}</Text>
               <Text style={s.subgreeting}>{greeting}</Text>
             </View>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowAscensionCardModal(true);
-              }}
-              style={s.moreBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Plus d'options"
-            >
-              <MoreHorizontal size={24} color={colors.ink[900]} />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+              <LanguageSwitcher variant="pill" />
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowAscensionCardModal(true);
+                }}
+                style={s.moreBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Plus d'options"
+              >
+                <MoreHorizontal size={24} color={colors.ink[900]} />
+              </Pressable>
+            </View>
           </View>
 
-          {/* Barre d'action rapide supérieure : 'Scanner un repas avec l'IA' */}
+          {/* Barre d'action rapide : scanner, courses, TestFlight */}
           <View style={s.quickActionsRow}>
             <Pressable
               onPress={() => {
@@ -220,23 +233,46 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
               accessibilityRole="button"
             >
               <Camera size={16} color="#fff" />
-              <Text style={s.quickBtnPrimaryText}>Scanner un repas avec l'IA</Text>
+              <Text style={s.quickBtnPrimaryText}>Scanner un repas</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setShowGroceryListModal(true);
+              }}
+              style={s.quickBtnSecondary}
+              accessibilityRole="button"
+              accessibilityLabel="Liste de courses"
+            >
+              <ShoppingBag size={16} color={colors.ink[900]} />
+              <Text style={s.quickBtnSecondaryText}>Courses</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                Linking.openURL('https://testflight.apple.com/join/Rm776vTU');
+              }}
+              style={[s.quickBtnPrimary, { backgroundColor: colors.sage[800] }]}
+              accessibilityRole="button"
+            >
+              <Smartphone size={16} color="#fff" />
+              <Text style={s.quickBtnPrimaryText}>iOS</Text>
             </Pressable>
           </View>
 
-          {/* Carte de programme : 'FAT BURNER PRO · JOUR 3' -> 'Semaine 1 sur 12 — on démarre !' */}
+          {/* Carte programme : % d'avance + message positif (semaine en secondaire) */}
           <Card dark elevation="md" padding={spacing[6]}>
             <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:spacing[3] }}>
               <Eyebrow>{displayProgram.eyebrow}</Eyebrow>
-              <Badge label={`Jour ${displayProgram.currentDay}`} variant="solid" />
+              <Badge label={`Sem. ${displayProgram.currentWeek}/${displayProgram.totalWeeks}`} variant="solid" />
             </View>
             <Text style={s.programTitle}>
-              Semaine {displayProgram.currentWeek} sur {displayProgram.totalWeeks} —{' '}
+              {displayProgram.completionPct} % d'avance —{' '}
               <Text style={s.programTitleItalic}>{displayProgram.tagline}</Text>
             </Text>
             <Progress value={displayProgram.completionPct} fillColor={colors.sage[400]} trackColor={colors.sage[800]} height={6} style={{ marginBottom:spacing[2] }} />
             <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
-              <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.sm, color:colors.sage[300] }}>{displayProgram.completionPct} % complété</Text>
+              <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.sm, color:colors.sage[300] }}>Jour {displayProgram.currentDay} · {effectiveWorkoutCount}/{totalSessions} séances</Text>
               <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.sm, color:colors.sand[200] }}>{streakDays} jour{streakDays !== 1 ? 's' : ''} de série 🔥</Text>
             </View>
           </Card>

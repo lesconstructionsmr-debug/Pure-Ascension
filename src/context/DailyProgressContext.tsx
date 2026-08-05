@@ -2,8 +2,10 @@
  * DailyProgressContext
  * State partagé pour la progression quotidienne.
  * Sauvegarde et synchronise en temps réel avec AsyncStorage & Firestore.
+ * Reset automatique à chaque nouveau jour local.
  */
-import React, { createContext, useCallback, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../services/firebase';
 import { saveDailyProgress, getTodayProgress, saveCompletedWorkout } from '../services/dbService';
@@ -22,6 +24,14 @@ function todayKey(): string {
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+const EMPTY_DAY = {
+  workoutDone: false,
+  waterGlasses: 0,
+  mealsDone: [] as string[],
+  sleepScore: 0,
+  mentalCheckin: false,
+};
 
 interface DailyProgressCtx {
   // State
@@ -57,82 +67,148 @@ export const DailyProgressProvider: React.FC<{ children: React.ReactNode }> = ({
   const [sleepScore,       setSleep]          = useState(0);
   const [mentalCheckin,    setMental]         = useState(false);
 
-  const mealsRef = React.useRef(checkedMealIds);
+  const mealsRef = useRef(checkedMealIds);
   mealsRef.current = checkedMealIds;
-  const workoutRef = React.useRef(workoutCompleted);
+  const workoutRef = useRef(workoutCompleted);
   workoutRef.current = workoutCompleted;
-  const waterRef = React.useRef(waterGlasses);
+  const waterRef = useRef(waterGlasses);
   waterRef.current = waterGlasses;
-  const sleepRef = React.useRef(sleepScore);
+  const sleepRef = useRef(sleepScore);
   sleepRef.current = sleepScore;
-  const mentalRef = React.useRef(mentalCheckin);
+  const mentalRef = useRef(mentalCheckin);
   mentalRef.current = mentalCheckin;
+  const loadedDateRef = useRef<string>(todayKey());
 
-  // Charger la progression du jour au démarrage et à la connexion
+  const applyEmptyDay = useCallback(() => {
+    setCheckedMeals(new Set());
+    setWorkoutDone(false);
+    setWater(0);
+    setSleep(0);
+    setMental(false);
+  }, []);
+
+  const loadProgressForUser = useCallback(async (uid: string | null) => {
+    calculateAndUpdateStreak();
+    const key = todayKey();
+    loadedDateRef.current = key;
+    const storageKey = `daily_progress_${key}`;
+
+    try {
+      const local = await AsyncStorage.getItem(storageKey);
+      let currentWorkoutDone = false;
+      let currentWater = 0;
+      let currentMeals: string[] = [];
+      let currentSleep = 0;
+      let currentMental = false;
+      const hasLocal = !!local;
+
+      if (local) {
+        const parsed = JSON.parse(local);
+        currentWorkoutDone = !!parsed.workoutDone;
+        currentWater = Number(parsed.waterGlasses) || 0;
+        currentMeals = Array.isArray(parsed.mealsDone) ? parsed.mealsDone : [];
+        currentSleep = Number(parsed.sleepScore) || 0;
+        currentMental = !!parsed.mentalCheckin;
+        setWorkoutDone(currentWorkoutDone);
+        setWater(currentWater);
+        setCheckedMeals(new Set(currentMeals));
+        setSleep(currentSleep);
+        setMental(currentMental);
+      } else {
+        // Nouveau jour local : partir de zéro (pas de report d'hier)
+        applyEmptyDay();
+      }
+
+      if (uid && uid !== 'local_user' && auth.currentUser) {
+        const remote = await getTodayProgress(uid);
+        // N'accepter le remote que s'il porte bien la date du jour local
+        if (remote && (!remote.date || remote.date === key)) {
+          // Si aucune donnée locale pour aujourd'hui, ne pas importer un seed "prérempli"
+          // sauf si l'utilisateur a réellement progressé (workout / meals).
+          const remoteWater = Number(remote.waterGlasses) || 0;
+          const remoteSleep = Number(remote.sleepScore) || 0;
+          const remoteMeals = Array.isArray(remote.mealsDone) ? remote.mealsDone : [];
+          const remoteWorkout = !!remote.workoutDone;
+          const remoteMental = !!remote.mentalCheckin;
+          const remoteHasUserActivity =
+            remoteWorkout || remoteMeals.length > 0 || remoteMental || remoteSleep > 0;
+
+          if (!hasLocal && !remoteHasUserActivity && remoteWater > 0 && remoteSleep === 0) {
+            // Seed démo hydratation seule → ignorer pour un 1er open du jour
+            await AsyncStorage.setItem(storageKey, JSON.stringify(EMPTY_DAY));
+            applyEmptyDay();
+            return;
+          }
+
+          const finalWorkoutDone = currentWorkoutDone || remoteWorkout;
+          const finalMeals = Array.from(new Set([...currentMeals, ...remoteMeals]));
+          const finalMental = currentMental || remoteMental;
+          // Eau / sommeil : local prioritaire si déjà écrit aujourd'hui ; sinon remote
+          const finalWater = hasLocal ? Math.max(currentWater, remoteWater) : (remoteHasUserActivity ? remoteWater : 0);
+          const finalSleep = hasLocal
+            ? (currentSleep > 0 ? currentSleep : remoteSleep)
+            : (remoteHasUserActivity ? remoteSleep : 0);
+
+          setWorkoutDone(finalWorkoutDone);
+          setWater(finalWater);
+          setCheckedMeals(new Set(finalMeals));
+          setSleep(finalSleep);
+          setMental(finalMental);
+
+          await AsyncStorage.setItem(storageKey, JSON.stringify({
+            workoutDone: finalWorkoutDone,
+            waterGlasses: finalWater,
+            mealsDone: finalMeals,
+            sleepScore: finalSleep,
+            mentalCheckin: finalMental,
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('Erreur chargement progression quotidienne:', err);
+    }
+  }, [applyEmptyDay]);
+
+  // Charger au démarrage / auth + reset si le jour a changé
   useEffect(() => {
     let isMounted = true;
-    
-    const loadProgressForUser = async (uid: string | null) => {
-      calculateAndUpdateStreak();
-      const storageKey = `daily_progress_${todayKey()}`;
-      try {
-        // 1. Charger d'abord localement pour affichage immédiat
-        const local = await AsyncStorage.getItem(storageKey);
-        let currentWorkoutDone = false;
-        let currentWater = 0;
-        let currentMeals: string[] = [];
-        let currentSleep = 0;
-        let currentMental = false;
 
-        if (local && isMounted) {
-          const parsed = JSON.parse(local);
-          if (parsed.workoutDone !== undefined) { setWorkoutDone(!!parsed.workoutDone); currentWorkoutDone = !!parsed.workoutDone; }
-          if (parsed.waterGlasses !== undefined) { setWater(parsed.waterGlasses || 0); currentWater = parsed.waterGlasses || 0; }
-          if (Array.isArray(parsed.mealsDone)) { setCheckedMeals(new Set(parsed.mealsDone)); currentMeals = parsed.mealsDone; }
-          if (parsed.sleepScore !== undefined) { setSleep(parsed.sleepScore || 0); currentSleep = parsed.sleepScore || 0; }
-          if (parsed.mentalCheckin !== undefined) { setMental(!!parsed.mentalCheckin); currentMental = !!parsed.mentalCheckin; }
-        }
-
-        // 2. Si connecté, synchroniser avec Firestore sans écraser les données locales
-        if (uid && uid !== 'local_user' && auth.currentUser) {
-          const remote = await getTodayProgress(uid);
-          if (remote && isMounted) {
-            const finalWorkoutDone = currentWorkoutDone || !!remote.workoutDone;
-            const finalWater = Math.max(currentWater, remote.waterGlasses || 0);
-            const remoteMeals = Array.isArray(remote.mealsDone) ? remote.mealsDone : [];
-            const finalMeals = Array.from(new Set([...currentMeals, ...remoteMeals]));
-            const finalSleep = currentSleep > 0 ? currentSleep : (remote.sleepScore || 0);
-            const finalMental = currentMental || !!remote.mentalCheckin;
-
-            setWorkoutDone(finalWorkoutDone);
-            setWater(finalWater);
-            setCheckedMeals(new Set(finalMeals));
-            setSleep(finalSleep);
-            setMental(finalMental);
-
-            await AsyncStorage.setItem(storageKey, JSON.stringify({
-              workoutDone: finalWorkoutDone,
-              waterGlasses: finalWater,
-              mealsDone: finalMeals,
-              sleepScore: finalSleep,
-              mentalCheckin: finalMental,
-            }));
-          }
-        }
-      } catch (err) {
-        console.error('Erreur chargement progression quotidienne:', err);
-      }
+    const boot = async () => {
+      if (!isMounted) return;
+      await loadProgressForUser(auth.currentUser?.uid ?? null);
     };
+    boot();
 
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubAuth = auth.onAuthStateChanged((user) => {
       loadProgressForUser(user ? user.uid : null);
     });
 
+    const onAppState = (state: AppStateStatus) => {
+      if (state !== 'active') return;
+      const key = todayKey();
+      if (key !== loadedDateRef.current) {
+        applyEmptyDay();
+        loadProgressForUser(auth.currentUser?.uid ?? null);
+      }
+    };
+    const sub = AppState.addEventListener('change', onAppState);
+
+    // Filet de sécurité si l'app reste ouverte après minuit
+    const interval = setInterval(() => {
+      const key = todayKey();
+      if (key !== loadedDateRef.current) {
+        applyEmptyDay();
+        loadProgressForUser(auth.currentUser?.uid ?? null);
+      }
+    }, 60_000);
+
     return () => {
       isMounted = false;
-      unsubscribe();
+      unsubAuth();
+      sub.remove();
+      clearInterval(interval);
     };
-  }, []);
+  }, [loadProgressForUser, applyEmptyDay]);
 
   // Rejouer vers Firestore les séances terminées hors-ligne / avant connexion
   useEffect(() => {
@@ -160,7 +236,12 @@ export const DailyProgressProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const persistState = useCallback(async (meals: string[], workoutDone: boolean, water: number, sleep: number, mental: boolean) => {
-    const storageKey = `daily_progress_${todayKey()}`;
+    const key = todayKey();
+    // Si on persiste un autre jour que celui chargé, recharger d'abord
+    if (key !== loadedDateRef.current) {
+      loadedDateRef.current = key;
+    }
+    const storageKey = `daily_progress_${key}`;
     const dataToSave = {
       mealsDone: meals,
       workoutDone,
@@ -210,13 +291,11 @@ export const DailyProgressProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (!sessionDetails) return;
 
-    // 1. Écriture locale immédiate : la séance est conservée même hors-ligne / hors compte.
     const entry = useWorkoutHistoryStore.getState().addCompleted(sessionDetails);
     if (!entry) return;
 
     useProgramStore.getState().incrementCompletedWorkouts();
 
-    // 2. Synchronisation Firestore, marquée seulement si elle aboutit.
     const uid = auth.currentUser?.uid;
     if (uid) {
       saveCompletedWorkout(uid, sessionDetails)
@@ -271,7 +350,6 @@ export const DailyProgressProvider: React.FC<{ children: React.ReactNode }> = ({
   const sleepPct   = Math.round((sleepScore / 5) * 100);
   const mentalPct  = mentalCheckin ? 100 : 0;
 
-  // Calcul du score global d'Ascension (P1: 30%, P2: 35%, P3: 20%, P4: 15%)
   const p1Score = (mealsPct * 0.6) + (waterPct * 0.4);
   const ascensionScore = Math.round((p1Score * 0.30) + (workoutPct * 0.35) + (sleepPct * 0.20) + (mentalPct * 0.15));
 

@@ -631,12 +631,16 @@ export function extractGeminiVisionText(responseData: {
 export async function callGeminiVision(
   mimeType: string,
   data: string,
-  apiKey: string
+  apiKey: string,
+  userHint?: string
 ): Promise<VisionParseResult> {
   const cleanKey = sanitizeApiKey(apiKey);
   if (!cleanKey) return { type: 'parse_error' };
 
   let quotaExceeded = false;
+  const userPromptText = userHint && userHint.trim().length > 0
+    ? `Analyse cette image de repas. L'utilisateur indique la précision suivante sur le plat ou les ingrédients : "${userHint.trim()}". Prends impérativement en compte cet indice pour classifier correctement tous les aliments (notamment la nature exacte des viandes, garnitures, sauces ou épices) et retourne les valeurs nutritionnelles sous forme de JSON strict.`
+    : 'Analyse cette image de repas et retourne les valeurs nutritionnelles sous forme de JSON strict.';
 
   for (const model of GEMINI_VISION_MODELS) {
     try {
@@ -645,7 +649,7 @@ export async function callGeminiVision(
         contents: [{
           role: 'user',
           parts: [
-            { text: 'Analyse cette image de repas et retourne les valeurs nutritionnelles sous forme de JSON strict.' },
+            { text: userPromptText },
             { inline_data: { mime_type: mimeType, data } },
           ],
         }],
@@ -699,9 +703,14 @@ export async function callGeminiVision(
 export async function callOpenAIVision(
   mimeType: string,
   data: string,
-  apiKey: string
+  apiKey: string,
+  userHint?: string
 ): Promise<VisionParseResult> {
   try {
+    const userPromptText = userHint && userHint.trim().length > 0
+      ? `Analyse cette image de repas. L'utilisateur indique la précision suivante sur le plat ou les ingrédients : "${userHint.trim()}". Prends impérativement en compte cet indice pour classifier correctement tous les aliments (notamment la nature exacte des viandes, garnitures, sauces ou épices) et retourne les valeurs nutritionnelles sous forme de JSON strict.`
+      : 'Analyse cette image de repas et retourne les valeurs nutritionnelles sous forme de JSON strict.';
+
     const response = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -715,7 +724,7 @@ export async function callOpenAIVision(
           {
             role: 'user',
             content: [
-              { type: 'text', text: 'Analyse cette image de repas et retourne les valeurs nutritionnelles sous forme de JSON strict.' },
+              { type: 'text', text: userPromptText },
               { type: 'image_url', image_url: { url: `data:${mimeType};base64,${data}` } },
             ],
           },
@@ -826,14 +835,15 @@ export const CORS_HEADERS = {
 
 async function runVisionFallbackChain(
   imageData: { mimeType: string; data: string },
-  headers: Record<string, string>
+  headers: Record<string, string>,
+  userHint?: string
 ) {
   let geminiQuotaExceeded = false;
 
   const GEMINI_API_KEY = sanitizeApiKey(process.env.GEMINI_API_KEY || '');
   if (GEMINI_API_KEY) {
     console.log('Exécution de l\'analyse visuelle via Google Gemini Vision...');
-    const geminiResult = await callGeminiVision(imageData.mimeType, imageData.data, GEMINI_API_KEY);
+    const geminiResult = await callGeminiVision(imageData.mimeType, imageData.data, GEMINI_API_KEY, userHint);
 
     geminiQuotaExceeded = geminiResult.type === 'quota_exceeded';
 
@@ -857,7 +867,7 @@ async function runVisionFallbackChain(
   const OPENAI_API_KEY = sanitizeApiKey(process.env.OPENAI_API_KEY || '');
   if (OPENAI_API_KEY) {
     console.log('Exécution de l\'analyse visuelle via OpenAI GPT-4o Vision (gpt-4o-mini)...');
-    const openaiResult = await callOpenAIVision(imageData.mimeType, imageData.data, OPENAI_API_KEY);
+    const openaiResult = await callOpenAIVision(imageData.mimeType, imageData.data, OPENAI_API_KEY, userHint);
 
     if (openaiResult.type === 'non_food') {
       return buildErrorResponse(
@@ -893,9 +903,18 @@ async function runVisionFallbackChain(
 }
 
 export async function processScanMealRequest(body: Record<string, unknown>, headers = CORS_HEADERS) {
-  const { imageBase64, imageUrl, image } = body;
+  const { imageBase64, imageUrl, image, userHint, userNote, hint, description } = body;
   const rawImageData = (imageBase64 || image) as string | undefined;
   const imageUrlStr = imageUrl as string | undefined;
+  const hintText = typeof userHint === 'string' && userHint.trim().length > 0
+    ? userHint.trim()
+    : typeof description === 'string' && description.trim().length > 0
+      ? description.trim()
+      : typeof userNote === 'string' && userNote.trim().length > 0
+        ? userNote.trim()
+        : typeof hint === 'string' && hint.trim().length > 0
+          ? hint.trim()
+          : undefined;
 
   if (!rawImageData && !imageUrlStr) {
     return buildErrorResponse(
@@ -927,5 +946,5 @@ export async function processScanMealRequest(body: Record<string, unknown>, head
     return buildErrorResponse(validation.statusCode, 'INVALID_IMAGE', validation.error, headers);
   }
 
-  return runVisionFallbackChain(imageData, headers);
+  return runVisionFallbackChain(imageData, headers, hintText);
 }

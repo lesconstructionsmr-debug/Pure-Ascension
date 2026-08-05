@@ -47,7 +47,8 @@ export async function setupDemoUser(uid: string) {
   for (let i = 0; i < 30; i++) {
     const d = new Date();
     d.setDate(today.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
+    // Date locale (évite le décalage UTC de toISOString)
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     
     // Courbe de poids réaliste descendante (de 195 à ~181.5 lb)
     const initialWeight = 195;
@@ -58,15 +59,20 @@ export async function setupDemoUser(uid: string) {
     
     // Entraînement 4x par semaine
     const dayOfWeek = d.getDay();
-    const workoutDone = dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5 || dayOfWeek === 6;
+    const workoutDone = i === 0
+      ? false
+      : (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5 || dayOfWeek === 6);
     
     const progressRef = doc(db, 'users', uid, 'progress', dateStr);
     batch.set(progressRef, {
       date: dateStr,
       weight: simulatedWeight,
-      waterGlasses: Math.floor(Math.random() * 3) + 6, // 6 à 8 verres
+      // Aujourd'hui (i===0) : zéro — évite eau/sommeil préremplis au 1er open
+      waterGlasses: i === 0 ? 0 : Math.floor(Math.random() * 3) + 6,
+      sleepScore: i === 0 ? 0 : undefined,
       workoutDone,
-      mealsDone: ['meal-1', 'meal-2', 'meal-3'],
+      mealsDone: i === 0 ? [] : ['meal-1', 'meal-2', 'meal-3'],
+      mentalCheckin: false,
       updatedAt: new Date()
     }, { merge: true });
   }

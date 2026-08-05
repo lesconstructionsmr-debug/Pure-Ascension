@@ -64,6 +64,30 @@ function OptionCard({
   );
 }
 
+const KG_TO_LB = 2.20462262;
+const LB_TO_KG = 0.45359237;
+const CM_TO_IN = 1 / 2.54;
+const IN_TO_CM = 2.54;
+
+function toDisplayLbs(kg?: number | null): string {
+  if (kg == null || !Number.isFinite(Number(kg)) || Number(kg) <= 0) return '';
+  return String(Math.round(Number(kg) * KG_TO_LB * 10) / 10);
+}
+
+function toDisplayIn(cm?: number | null): string {
+  if (cm == null || !Number.isFinite(Number(cm)) || Number(cm) <= 0) return '';
+  return String(Math.round(Number(cm) * CM_TO_IN * 10) / 10);
+}
+
+/** 65 → 5'5" */
+function formatInchesAsFeet(totalIn: number): string {
+  if (!Number.isFinite(totalIn) || totalIn <= 0) return '';
+  const whole = Math.round(totalIn);
+  const feet = Math.floor(whole / 12);
+  const inches = whole % 12;
+  return `${feet}'${inches}"`;
+}
+
 function NumericInput({
   label, value, onChange, unit, min, max, hint,
 }: {
@@ -78,8 +102,8 @@ function NumericInput({
         <TextInput
           style={st.numericInput}
           value={value}
-          onChangeText={onChange}
-          keyboardType="decimal-pad"
+          onChangeText={(t) => onChange(t.replace(/[^0-9.,]/g, ''))}
+          keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder="—"
@@ -130,10 +154,10 @@ export const OnboardingQuestionnaireScreen: React.FC<Props> = ({
   const [step, setStep]     = useState(1);
   const slideAnim           = useRef(new Animated.Value(0)).current;
 
-  // ── Form state ──
-  const [heightCm,        setHeightCm]        = useState(String(initialProfile.heightCm        ?? ''));
-  const [currentWeight,   setCurrentWeight]   = useState(String(initialProfile.currentWeightKg ?? ''));
-  const [targetWeight,    setTargetWeight]     = useState(String(initialProfile.targetWeightKg  ?? ''));
+  // ── Form state (UI en in / lbs ; stockage profil en cm / kg) ──
+  const [heightCm,        setHeightCm]        = useState(toDisplayIn(initialProfile.heightCm));
+  const [currentWeight,   setCurrentWeight]   = useState(toDisplayLbs(initialProfile.currentWeightKg));
+  const [targetWeight,    setTargetWeight]     = useState(toDisplayLbs(initialProfile.targetWeightKg));
   const [currentBF,       setCurrentBF]       = useState(String(initialProfile.currentBFPct    ?? ''));
   const [targetBF,        setTargetBF]        = useState(String(initialProfile.targetBFPct     ?? ''));
   const [experience,      setExperience]      = useState<TrainingExperience | ''>(initialProfile.experience ?? '');
@@ -188,10 +212,15 @@ export const OnboardingQuestionnaireScreen: React.FC<Props> = ({
   };
 
   const handleComplete = () => {
+    const parseNum = (v: string) => parseFloat(String(v).replace(',', '.')) || 0;
+    const heightIn = parseNum(heightCm);
+    const weightLb = parseNum(currentWeight);
+    const targetLb = parseNum(targetWeight);
     const profile: UserProfile = {
-      heightCm:            Number(heightCm),
-      currentWeightKg:     Number(currentWeight),
-      targetWeightKg:      Number(targetWeight),
+      ...initialProfile,
+      heightCm:            Math.round(heightIn * IN_TO_CM),
+      currentWeightKg:     Math.round(weightLb * LB_TO_KG * 10) / 10,
+      targetWeightKg:      Math.round(targetLb * LB_TO_KG * 10) / 10,
       currentBFPct:        Number(currentBF),
       targetBFPct:         Number(targetBF),
       experience:          experience as TrainingExperience,
@@ -269,8 +298,23 @@ export const OnboardingQuestionnaireScreen: React.FC<Props> = ({
                   unit="in"
                   min={55}
                   max={85}
-                  hint={"Ex : 65 in (5'5\")"}
+                  hint={
+                    (() => {
+                      const n = parseFloat(String(heightCm).replace(',', '.'));
+                      if (n > 40 && n < 110) {
+                        return `= ${formatInchesAsFeet(n)}  ·  ≈ ${Math.round(n * IN_TO_CM)} cm`;
+                      }
+                      return "Saisis en pouces — ex : 65 in = 5'5\" (165 cm)";
+                    })()
+                  }
                 />
+                {!!heightCm && parseFloat(String(heightCm).replace(',', '.')) > 40 && (
+                  <View style={[st.infoChip, { backgroundColor: colors.sage[50] }]}>
+                    <Text style={[st.infoChipText, { color: colors.sage[700] }]}>
+                      Conversion : {formatInchesAsFeet(parseFloat(String(heightCm).replace(',', '.')))} = {Math.round(parseFloat(String(heightCm).replace(',', '.')) * IN_TO_CM)} cm
+                    </Text>
+                  </View>
+                )}
                 <View style={st.refCard}>
                   <Text style={st.refTitle}>Pourquoi c'est important ?</Text>
                   <Text style={st.refText}>

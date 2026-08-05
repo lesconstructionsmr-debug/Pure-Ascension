@@ -109,7 +109,14 @@ export const ProfileGoalsScreen: React.FC<Props> = ({ onBack, isNewUser = false 
               return { ...g, target: currentProfile.frequency };
             }
             if (g.id === 'weight' && currentProfile?.targetWeightKg) {
-              return { ...g, target: currentProfile.targetWeightKg };
+              const kgToLb = (kg: number) => Math.round(Number(kg) * 2.20462262 * 10) / 10;
+              return {
+                ...g,
+                current: currentProfile.currentWeightKg
+                  ? kgToLb(currentProfile.currentWeightKg)
+                  : g.current,
+                target: kgToLb(currentProfile.targetWeightKg),
+              };
             }
             return g;
           });
@@ -120,12 +127,13 @@ export const ProfileGoalsScreen: React.FC<Props> = ({ onBack, isNewUser = false 
       }
 
       if (currentProfile) {
+        const kgToLb = (kg: number) => Math.round(Number(kg) * 2.20462262 * 10) / 10;
         const profileGoals: GoalItem[] = [
           {
             id: 'weight',
             label: 'Objectif de poids',
-            current: currentProfile.currentWeightKg || 150,
-            target: currentProfile.targetWeightKg || 140,
+            current: currentProfile.currentWeightKg ? kgToLb(currentProfile.currentWeightKg) : 150,
+            target: currentProfile.targetWeightKg ? kgToLb(currentProfile.targetWeightKg) : 140,
             unit: 'lbs',
             color: colors.clay[500],
             iconName: 'target',
@@ -233,10 +241,12 @@ export const ProfileGoalsScreen: React.FC<Props> = ({ onBack, isNewUser = false 
       const currentProfile = useProgramStore.getState().profile;
       if (currentProfile) {
         const newFreq = (workoutGoal ? Math.min(6, Math.max(2, Math.round(workoutGoal.target))) : currentProfile.frequency) as 2 | 3 | 4 | 5 | 6;
+        const lbToKg = (lb: number) => Math.round(Number(lb) * 0.45359237 * 10) / 10;
         const updatedProfile: UserProfile = {
           ...currentProfile,
           frequency: newFreq,
-          targetWeightKg: weightGoal ? weightGoal.target : currentProfile.targetWeightKg,
+          targetWeightKg: weightGoal ? lbToKg(weightGoal.target) : currentProfile.targetWeightKg,
+          currentWeightKg: weightGoal ? lbToKg(weightGoal.current) : currentProfile.currentWeightKg,
           hydrationLevel: waterGoal ? waterGoal.target : currentProfile.hydrationLevel,
         };
 

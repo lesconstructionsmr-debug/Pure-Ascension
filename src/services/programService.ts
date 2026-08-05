@@ -15,6 +15,11 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { cleanObject } from './dbService';
 import type { UserProfile, WorkoutSession, Exercise, GymAccess, TrainingExperience } from '../data';
+import {
+  isPregnancySafeMode,
+  sanitizeExerciseName,
+  capRpeForConditions,
+} from '../utils/healthExerciseFilters';
 
 /* ─── Types & Interfaces ─────────────────────────────────────────────────── */
 export interface ProgramMacros { protein: number; carbs: number; fat: number }
@@ -715,16 +720,21 @@ function buildStructuredSessions(p: UserProfile): WorkoutSession[] {
       if (t.phase === 3) isolationCount++;
       if (t.phase === 4) finisherCount++;
 
-      const exerciseName = t.name[accessKey] || t.name.home;
+      const rawName = t.name[accessKey] || t.name.home;
+      const exerciseName = sanitizeExerciseName(rawName, p.healthConditions);
       const sets = t.phase === 1 ? 2 : t.phase === 2 ? mainSets : t.phase === 3 ? 3 : 2;
       const pattern = getBiomechanicalPattern(exerciseName);
 
       const tempo = t.tempo || '3-1-1-0';
-      const rpe = t.rpe || (t.phase === 2 ? 'RPE 8.5' : t.phase === 3 ? 'RPE 8' : 'RPE 7');
+      const baseRpe = t.rpe || (t.phase === 2 ? 'RPE 8.5' : t.phase === 3 ? 'RPE 8' : 'RPE 7');
+      const rpe = capRpeForConditions(baseRpe, p.healthConditions) || baseRpe;
       const restSec = t.restSeconds || (t.phase === 2 ? 90 : 60);
       const restStr = t.rest || `${restSec}s`;
       const muscles = t.muscles || pattern.primaryMuscles;
       const biomechanicsTip = t.biomechanicsTip || t.notes || pattern.defaultNotes;
+      const pregnancyNote = exerciseName !== rawName
+        ? ' Mode grossesse/post-partum : variante sécurisée.'
+        : '';
 
       return {
         id: `s${i}-e${j}`,
@@ -743,7 +753,7 @@ function buildStructuredSessions(p: UserProfile): WorkoutSession[] {
         muscles,
         biomechanicsTip,
         level: exp,
-        notes: t.notes || `💡 ${biomechanicsTip}`,
+        notes: (t.notes || `💡 ${biomechanicsTip}`) + pregnancyNote,
       };
     });
 
@@ -770,14 +780,20 @@ function buildStructuredSessions(p: UserProfile): WorkoutSession[] {
 function buildEnduranceSessions(p: UserProfile, cardioZones: { z2: string; z3: string; z4: string; z5: string }): WorkoutSession[] {
   const trainingDays = getTrainingDays(p.frequency);
   const accessKey = getEquipmentAccessKey(p.gymAccess, p.equipment);
+  const pregnancySafe = isPregnancySafeMode(p.healthConditions);
 
   return trainingDays.map((day, i) => {
     const isRunning = i % 2 === 0;
 
     if (isRunning) {
-      const isZ2 = i % 4 === 0;
+      // Grossesse / post-partum : jamais Zone 5 / VMA
+      const isZ2 = pregnancySafe ? true : i % 4 === 0;
       const targetZone = isZ2 ? cardioZones.z2 : cardioZones.z5;
-      const title = isZ2 ? 'Sortie Longue — Zone 2 (Endurance Fondamentale)' : 'Fractionné VMA — Zone 5 (Haute Intensité)';
+      const title = isZ2
+        ? (pregnancySafe
+          ? 'Marche / footing Zone 2 — Effort conversationnel (grossesse/post-partum)'
+          : 'Sortie Longue — Zone 2 (Endurance Fondamentale)')
+        : 'Fractionné VMA — Zone 5 (Haute Intensité)';
 
       const exercises: Exercise[] = [
         {
@@ -795,7 +811,7 @@ function buildEnduranceSessions(p: UserProfile, cardioZones: { z2: string; z3: s
           id: `s${i}-e1`,
           name: title,
           sets: 1,
-          reps: isZ2 ? '60 à 90 min continuous' : '8 × 400m à VMA',
+          reps: isZ2 ? (pregnancySafe ? '30 à 45 min continuous' : '60 à 90 min continuous') : '8 × 400m à VMA',
           done: false,
           phase: 2,
           phaseName: '2. Mouvements Polyarticulaires Principaux',
@@ -804,14 +820,16 @@ function buildEnduranceSessions(p: UserProfile, cardioZones: { z2: string; z3: s
         },
         {
           id: `s${i}-e2`,
-          name: 'Gainage dynamique du bassin',
+          name: pregnancySafe ? 'Deadbug — respiration + plancher pelvien' : 'Gainage dynamique du bassin',
           sets: 3,
           reps: '45 s',
           done: false,
           phase: 3,
           phaseName: '3. Isolation & Supersets Métaboliques',
           category: 'isolation',
-          notes: 'Stabilité du bassin en foulée.',
+          notes: pregnancySafe
+            ? 'Priorité transverse & plancher pelvien — éviter les crunchs.'
+            : 'Stabilité du bassin en foulée.',
         },
         {
           id: `s${i}-e3`,
@@ -942,6 +960,13 @@ export function generateProgram(p: UserProfile): GeneratedProgram {
     });
   }
 
+  if (isPregnancySafeMode(p.healthConditions)) {
+    nutritionTips.push({
+      condition: 'Mode grossesse / post-partum',
+      recommendation: 'Programme adapté : pas de pliométrie, pas de VMA/Zone 5, core sécurisé (deadbug / bird-dog), RPE plafonné. Consulte toujours un professionnel de santé avant l\'effort.',
+    });
+  }
+
   const baseSessions = isEnduranceSport
     ? buildEnduranceSessions(p, cardioZones)
     : buildStructuredSessions(p);
@@ -1056,6 +1081,9 @@ export async function regenerateTailoredProgram(
     targetWeightKg: currentProfile?.targetWeightKg || 65,
     heightCm: currentProfile?.heightCm || 165,
     activityLevel: currentProfile?.activityLevel || 'actif',
+    healthConditions: currentProfile?.healthConditions || '',
+    dietaryRestrictions: currentProfile?.dietaryRestrictions || [],
+    cardioSport: currentProfile?.cardioSport,
   } as UserProfile;
 
   const newProgram = generateProgram(updatedProfile);

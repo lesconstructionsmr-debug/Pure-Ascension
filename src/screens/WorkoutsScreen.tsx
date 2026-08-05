@@ -7,6 +7,7 @@ import { Badge }    from '../components/Badge';
 import { Button }   from '../components/Button';
 import { Card }     from '../components/Card';
 import { Progress } from '../components/Progress';
+import { ExerciseDetailModal } from '../components/ExerciseDetailModal';
 import { type Exercise } from '../data';
 import Svg, { Path, Line, Circle, Rect } from 'react-native-svg';
 import { EmptyState } from '../components/EmptyState';
@@ -170,32 +171,47 @@ const Hero: React.FC = () => (
   </View>
 );
 
-const ExRow: React.FC<{ex:Exercise; onToggle:(id:string)=>void}> = ({ex, onToggle}) => {
+const ExRow: React.FC<{
+  ex: Exercise;
+  onToggle: (id: string) => void;
+  onOpenDetail: (ex: Exercise) => void;
+}> = ({ ex, onToggle, onOpenDetail }) => {
   const group = getMuscleGroup(ex.name, ex.reps);
 
   return (
-    <Pressable 
+    <Pressable
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onToggle(ex.id);
-      }} 
-      accessibilityRole="checkbox" 
-      accessibilityState={{checked:ex.done}}
+        onOpenDetail(ex);
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={`Détail de ${ex.name}`}
       style={s.exRow}
     >
-      <View style={[s.exCheckbox, ex.done && s.exCheckboxDone]}>
+      <Pressable
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onToggle(ex.id);
+        }}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: ex.done }}
+        hitSlop={8}
+        style={[s.exCheckbox, ex.done && s.exCheckboxDone]}
+      >
         {ex.done && <Check size={12} color={colors.white} strokeWidth={2.5} />}
-      </View>
+      </Pressable>
       <ExerciseImage name={ex.name} size={44} />
-      <View style={{ flex:1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <Text style={[s.exName, ex.done && s.exNameDone]}>
+      <View style={s.exMid}>
+        <View style={s.exTitleRow}>
+          <Text style={[s.exName, ex.done && s.exNameDone]} numberOfLines={1}>
             {ex.name}
           </Text>
-          <Badge label={group.label} variant="solid" />
+          <View style={s.exBadgeWrap}>
+            <Badge label={group.label} variant="solid" />
+          </View>
         </View>
-        <Text style={{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.ink[500] }}>
-          🎯 {group.objective} · Contrôlé
+        <Text style={s.exObjective} numberOfLines={1}>
+          🎯 {group.objective}
         </Text>
       </View>
       <Text style={s.exReps}>{ex.sets}×{ex.reps}</Text>
@@ -208,6 +224,7 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
   const isPremium        = useProgramStore(s => s.isPremium);
   const setActiveSession = useProgramStore(s => s.setActiveSession);
   const { completeWorkout } = useDailyProgress();
+  const [detailExercise, setDetailExercise] = useState<Exercise | null>(null);
   
   const today   = program ? getTodaySession(program) : null;
   const session = today?.session ?? null;
@@ -397,7 +414,11 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
             <Card elevation="sm" padding={0} style={{ overflow:'hidden' }}>
               {exercises.map((ex, idx, arr) => (
                 <View key={ex.id}>
-                  <ExRow ex={ex} onToggle={toggle} />
+                  <ExRow
+                    ex={ex}
+                    onToggle={toggle}
+                    onOpenDetail={setDetailExercise}
+                  />
                   {idx < arr.length - 1 && <View style={{ height:1, backgroundColor:colors.ink[200], marginHorizontal:spacing[4] }} />}
                 </View>
               ))}
@@ -446,6 +467,12 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
           <View style={{ height:spacing[10] }} />
         </View>
       </ScrollView>
+      <ExerciseDetailModal
+        visible={!!detailExercise}
+        exercise={detailExercise}
+        objectiveLabel={detailExercise ? getMuscleGroup(detailExercise.name, detailExercise.reps).objective : undefined}
+        onClose={() => setDetailExercise(null)}
+      />
     </SafeAreaView>
   );
 };
@@ -576,21 +603,44 @@ const s = StyleSheet.create({
     backgroundColor:colors.sage[500],
     borderColor:colors.sage[500],
   },
+  exMid: {
+    flex: 1,
+    minWidth: 0,
+    overflow: 'hidden',
+  },
+  exTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+    minWidth: 0,
+  },
+  exBadgeWrap: {
+    flexShrink: 0,
+  },
   exName: {
-    fontFamily:fontFamily.hanken.medium,
-    fontSize:fontSize.base,
-    color:colors.ink[900],
+    fontFamily: fontFamily.hanken.medium,
+    fontSize: fontSize.base,
+    color: colors.ink[900],
+    flexShrink: 1,
+    minWidth: 0,
   },
   exNameDone: {
-    color:colors.ink[400],
-    textDecorationLine:'line-through',
+    color: colors.ink[400],
+    textDecorationLine: 'line-through',
+  },
+  exObjective: {
+    fontFamily: fontFamily.hanken.regular,
+    fontSize: fontSize.xs,
+    color: colors.ink[500],
   },
   exReps: {
-    fontFamily:fontFamily.hanken.semiBold,
-    fontSize:fontSize.sm,
-    color:colors.ink[600],
-    minWidth:52,
-    textAlign:'right',
+    fontFamily: fontFamily.hanken.semiBold,
+    fontSize: fontSize.sm,
+    color: colors.ink[600],
+    minWidth: 52,
+    flexShrink: 0,
+    textAlign: 'right',
   },
 
   /* Bouton CTA principal Terre Cuite */

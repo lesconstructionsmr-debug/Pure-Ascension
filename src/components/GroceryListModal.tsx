@@ -165,6 +165,41 @@ const CATEGORIES: RayonCategory[] = [
   'Boissons & Électrolytes',
 ];
 
+/** Aligne les catégories groceryService (Légumes / Épicerie / Épices) sur les rayons du modal. */
+function normalizeCategory(raw: unknown): RayonCategory {
+  const value = String(raw ?? '');
+  switch (value) {
+    case 'Protéines':
+      return 'Protéines';
+    case 'Légumes':
+    case 'Légumes & Fruits':
+      return 'Légumes & Fruits';
+    case 'Épicerie':
+    case 'Épices':
+    case 'Épicerie & Oléagineux':
+      return 'Épicerie & Oléagineux';
+    case 'Boissons & Électrolytes':
+      return 'Boissons & Électrolytes';
+    default:
+      return 'Épicerie & Oléagineux';
+  }
+}
+
+function normalizeGroceryItems(parsed: any[]): GroceryItem[] {
+  return parsed.map((item, index) => {
+    const name = String(item?.name ?? '').trim() || `Article ${index + 1}`;
+    const qty = item?.quantity ? String(item.quantity).trim() : '';
+    const displayName = qty && !name.includes(qty) ? `${name} — ${qty}` : name;
+    return {
+      id: String(item?.id ?? `item-${index}-${Date.now()}`),
+      name: displayName,
+      category: normalizeCategory(item?.category),
+      checked: Boolean(item?.checked),
+      isCustom: Boolean(item?.isCustom) || Boolean(item?.sourceMeal),
+    };
+  });
+}
+
 interface GroceryListModalProps {
   visible: boolean;
   onClose: () => void;
@@ -189,7 +224,10 @@ export const GroceryListModal: React.FC<GroceryListModalProps> = ({ visible, onC
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setItems(parsed);
+          const normalized = normalizeGroceryItems(parsed);
+          setItems(normalized);
+          // Réécrit les catégories normalisées pour les prochains opens
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
         }
       }
     } catch (err) {
@@ -547,6 +585,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.sand[50],
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    height: '92%',
     maxHeight: '92%',
     paddingTop: spacing[4],
   },

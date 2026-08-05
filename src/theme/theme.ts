@@ -30,6 +30,7 @@ export const colors = {
     100: '#F4EEE3',
     200: '#EAE0CF',
     300: '#DCCDB4',
+    400: '#C8B9A0',
   },
   ink: {
     900: '#1E2A22',
@@ -130,6 +131,7 @@ export const radius = {
   xl:    20,
   card:  28,
   pill:  999,
+  full:  999,
 } as const;
 
 export const shadows = {

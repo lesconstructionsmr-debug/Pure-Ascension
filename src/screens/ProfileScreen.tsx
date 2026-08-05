@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Pressable, SafeAreaView, ScrollView, StyleSheet,
-  Text, View, Linking, ActivityIndicator, TextInput, Modal, Platform
+  Text, View, Linking, ActivityIndicator, TextInput, Modal, Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { showAlert } from '../utils/alert';
 import {
@@ -15,6 +16,8 @@ import { Avatar }          from '../components/Avatar';
 import { Card }            from '../components/Card';
 import { ReferralModal }   from '../components/ReferralModal';
 import { AscensionCardModal } from '../components/AscensionCardModal';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { useLanguage } from '../context/LanguageContext';
 import { useDailyProgress } from '../context/DailyProgressContext';
 import { useProgramStore } from '../store/useProgramStore';
 import { useWorkoutHistoryStore } from '../store/useWorkoutHistoryStore';
@@ -249,8 +252,13 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
     return Math.max(count, streakDays, storeStreak, 1);
   })();
 
-  const displayWeight = profile?.currentWeightKg 
-    ? `${profile.currentWeightKg} lbs` 
+  const KG_TO_LB = 2.20462262;
+  const LB_TO_KG = 0.45359237;
+  const weightLbs = profile?.currentWeightKg
+    ? Math.round(Number(profile.currentWeightKg) * KG_TO_LB * 10) / 10
+    : null;
+  const displayWeight = weightLbs != null
+    ? `${weightLbs} lbs`
     : weightEvolution !== '—lb' ? weightEvolution : '— lbs';
 
   /* Weight Modal State */
@@ -259,38 +267,39 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
   const [savingWeight, setSavingWeight] = useState(false);
 
   const handleSaveWeight = async () => {
-    const num = parseFloat(inputWeight.replace(',', '.'));
-    if (isNaN(num) || num <= 0 || num > 350) {
-      showAlert('Poids invalide', 'Veuillez saisir une valeur de poids valide (ex: 74.5).');
+    const lbs = parseFloat(inputWeight.replace(/[^0-9.,]/g, '').replace(',', '.'));
+    if (isNaN(lbs) || lbs < 60 || lbs > 450) {
+      showAlert('Poids invalide', 'Veuillez saisir un poids valide en lbs (ex: 165).');
       return;
     }
+    const weightKg = Math.round(lbs * LB_TO_KG * 10) / 10;
 
     setSavingWeight(true);
     try {
       const updatedProfile = {
         ...(profile || {}),
-        currentWeightKg: num,
+        currentWeightKg: weightKg,
       };
 
       useProgramStore.getState().setProfile(updatedProfile as any);
-      setWeightEvolution(`${num.toFixed(1)} lbs`);
+      setWeightEvolution(`${lbs.toFixed(1)} lbs`);
 
       const uid = auth.currentUser?.uid;
       if (uid) {
-        // 1. Mise à jour du document profil utilisateur Firestore
+        // 1. Mise à jour du document profil utilisateur Firestore (stockage en kg)
         await updateDoc(doc(db, 'users', uid), {
-          currentWeightKg: num,
-          weight: num,
+          currentWeightKg: weightKg,
+          weight: weightKg,
           updatedAt: serverTimestamp(),
         }).catch(async () => {
-          await setDoc(doc(db, 'users', uid), { currentWeightKg: num, weight: num }, { merge: true });
+          await setDoc(doc(db, 'users', uid), { currentWeightKg: weightKg, weight: weightKg }, { merge: true });
         });
 
         // 2. Journalisation dans l'historique de progression
         const todayISO = new Date().toISOString().split('T')[0];
         await addDoc(collection(db, 'users', uid, 'progress'), {
           date: todayISO,
-          weight: num,
+          weight: weightKg,
           createdAt: serverTimestamp(),
         }).catch(() => {});
       }
@@ -470,7 +479,7 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              const currentVal = profile?.currentWeightKg ? String(profile.currentWeightKg) : '';
+              const currentVal = weightLbs != null ? String(weightLbs) : '';
               setInputWeight(currentVal);
               setShowWeightModal(true);
             }}
@@ -498,6 +507,19 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
           onDisconnect={handleDisconnectStrava}
           onRefresh={handleRefreshStrava}
         />
+
+        {/* ── Section 'PARAMÈTRES & LANGUE' ── */}
+        <View style={s.sectionBlock}>
+          <Text style={s.sectionEyebrow}>PARAMÈTRES & LANGUE / SETTINGS & LANGUAGE</Text>
+          <Card elevation="sm" padding={spacing[4]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[3] }}>
+              <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[900] }}>
+                Langue de l'application / App Language
+              </Text>
+            </View>
+            <LanguageSwitcher variant="full" />
+          </Card>
+        </View>
 
         {/* ── Section 'COMMUNAUTÉ & PARTAGE' ── */}
         <View style={s.sectionBlock}>
@@ -707,7 +729,7 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
                       await AsyncStorage.multiRemove([
                         '@active_workout_state',
                         '@calorie_data',
-                        'pure_ascension_grocery_list_v1'
+                        '@pure_ascension_grocery_list_v1',
                       ]).catch(() => {});
                       await logOut();
                       if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -936,7 +958,11 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
         transparent
         onRequestClose={() => setShowWeightModal(false)}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+        >
           <View style={{
             backgroundColor: '#fbf8f3',
             borderTopLeftRadius: radius['2xl'],
@@ -955,7 +981,7 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
                     Mettre à jour ton poids
                   </Text>
                   <Text style={{ fontFamily: fontFamily.hanken.regular, fontSize: fontSize.xs, color: colors.ink[600] }}>
-                    Suivi dynamique de ta métamorphose
+                    Saisie en lbs · enregistré correctement pour ton programme
                   </Text>
                 </View>
               </View>
@@ -990,11 +1016,12 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
                     color: colors.ink[900],
                   }}
                   value={inputWeight}
-                  onChangeText={setInputWeight}
-                  keyboardType="decimal-pad"
+                  onChangeText={(t) => setInputWeight(t.replace(/[^0-9.,]/g, ''))}
+                  keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
                   placeholder="ex: 165"
                   placeholderTextColor={colors.ink[400]}
                   autoFocus
+                  returnKeyType="done"
                 />
                 <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.base, color: colors.clay[500] }}>
                   lbs
@@ -1024,7 +1051,7 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
               )}
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
