@@ -47,3 +47,8 @@ yarn-error.*
 # Firebase admin SDK secret
 pure-ascension-*.json
 netlify/functions/serviceAccountKey.json
+
+# Scripts containing live secrets
+scripts/create-coupon-live.js
+scripts/*-live.js
+
