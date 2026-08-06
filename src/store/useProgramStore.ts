@@ -67,6 +67,12 @@ export const useProgramStore = create<ProgramStore>()(
     {
       name: 'pure-ascension-program-store-v1',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.warn('Erreur réhydratation AsyncStorage useProgramStore:', error);
+          state?.clear();
+        }
+      },
     }
   )
 );

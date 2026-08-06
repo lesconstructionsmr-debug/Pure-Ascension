@@ -76,7 +76,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-function App() {
+function AppContent() {
   const [fontsLoaded, fontError] = useFonts({
     HankenGrotesk_400Regular,
     HankenGrotesk_500Medium,
@@ -97,21 +97,27 @@ function App() {
   }
 
   return (
+    <LanguageProvider>
+      <NavigationContainer
+        documentTitle={{
+          formatter: (options, route) => {
+            const title = options?.title ?? route?.name;
+            if (title && title !== 'undefined') return `${title} | Pure Ascension`;
+            return 'Pure Ascension';
+          }
+        }}
+      >
+        <StatusBar style="auto" />
+        <RootNavigator />
+      </NavigationContainer>
+    </LanguageProvider>
+  );
+}
+
+function App() {
+  return (
     <ErrorBoundary>
-      <LanguageProvider>
-        <NavigationContainer
-          documentTitle={{
-            formatter: (options, route) => {
-              const title = options?.title ?? route?.name;
-              if (title && title !== 'undefined') return `${title} | Pure Ascension`;
-              return 'Pure Ascension';
-            }
-          }}
-        >
-          <StatusBar style="auto" />
-          <RootNavigator />
-        </NavigationContainer>
-      </LanguageProvider>
+      <AppContent />
     </ErrorBoundary>
   );
 }
