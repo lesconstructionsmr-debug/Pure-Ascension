@@ -91,7 +91,12 @@ export const handler: Handler = async (event) => {
     const token = event.queryStringParameters?.['hub.verify_token'];
     const challenge = event.queryStringParameters?.['hub.challenge'];
 
-    const verifyToken = process.env.STRAVA_VERIFY_TOKEN || 'pure_ascension_secret';
+    const verifyToken = process.env.STRAVA_VERIFY_TOKEN;
+
+    if (!verifyToken) {
+      console.error('STRAVA_VERIFY_TOKEN est manquant dans les variables d\'environnement.');
+      return { statusCode: 500, body: JSON.stringify({ error: 'Configuration serveur incomplète.' }) };
+    }
 
     if (mode === 'subscribe' && token === verifyToken) {
       console.log('Webhook Strava validé avec succès !');

@@ -108,14 +108,15 @@ export const ProfileGoalsScreen: React.FC<Props> = ({ onBack, isNewUser = false 
             if (g.id === 'workout' && currentProfile?.frequency) {
               return { ...g, target: currentProfile.frequency };
             }
-            if (g.id === 'weight' && currentProfile?.targetWeightKg) {
-              const kgToLb = (kg: number) => Math.round(Number(kg) * 2.20462262 * 10) / 10;
+            if (g.id === 'weight' && currentProfile) {
+              const unit = currentProfile.unitSystem === 'imperial' ? 'lbs' : 'kg';
+              const cur = currentProfile.currentWeightKg ?? g.current;
+              const tgt = currentProfile.targetWeightKg ?? g.target;
               return {
                 ...g,
-                current: currentProfile.currentWeightKg
-                  ? kgToLb(currentProfile.currentWeightKg)
-                  : g.current,
-                target: kgToLb(currentProfile.targetWeightKg),
+                unit,
+                current: Number(cur),
+                target: Number(tgt),
               };
             }
             return g;
@@ -127,14 +128,14 @@ export const ProfileGoalsScreen: React.FC<Props> = ({ onBack, isNewUser = false 
       }
 
       if (currentProfile) {
-        const kgToLb = (kg: number) => Math.round(Number(kg) * 2.20462262 * 10) / 10;
+        const unit = currentProfile.unitSystem === 'imperial' ? 'lbs' : 'kg';
         const profileGoals: GoalItem[] = [
           {
             id: 'weight',
             label: 'Objectif de poids',
-            current: currentProfile.currentWeightKg ? kgToLb(currentProfile.currentWeightKg) : 150,
-            target: currentProfile.targetWeightKg ? kgToLb(currentProfile.targetWeightKg) : 140,
-            unit: 'lbs',
+            current: currentProfile.currentWeightKg ? Number(currentProfile.currentWeightKg) : 70,
+            target: currentProfile.targetWeightKg ? Number(currentProfile.targetWeightKg) : 68,
+            unit,
             color: colors.clay[500],
             iconName: 'target',
           },
@@ -473,7 +474,8 @@ export const ProfileGoalsScreen: React.FC<Props> = ({ onBack, isNewUser = false 
                           </Pressable>
                           <TextInput
                             style={s.stepInput}
-                            keyboardType="numeric"
+                            keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
+                            selectTextOnFocus={true}
                             value={String(g.current)}
                             onChangeText={(txt) => handleDirectInput(g.id, 'current', txt)}
                           />
@@ -493,7 +495,8 @@ export const ProfileGoalsScreen: React.FC<Props> = ({ onBack, isNewUser = false 
                           </Pressable>
                           <TextInput
                             style={s.stepInput}
-                            keyboardType="numeric"
+                            keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
+                            selectTextOnFocus={true}
                             value={String(g.target)}
                             onChangeText={(txt) => handleDirectInput(g.id, 'target', txt)}
                           />

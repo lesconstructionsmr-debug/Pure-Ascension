@@ -855,7 +855,7 @@ const s = StyleSheet.create({
 
   // Exercise section
   exerciseSection: { margin:spacing[5], gap:spacing[4] },
-  exHeader: { flexDirection:'row', alignItems:'center', justifyContent:'space-between' },
+  exHeader: { flexDirection:'row', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:spacing[2] },
   exCounter:{ fontFamily:fontFamily.hanken.regular, fontSize:fontSize.xs, color:colors.ink[500], textTransform:'uppercase', letterSpacing:0.8 },
   phaseBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill },
   phaseBadgeText: { fontFamily: fontFamily.hanken.bold, fontSize: 9 },

@@ -46,3 +46,10 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v56.0.0/ before 
 - **Workout Actif** : `useActiveWorkoutStore` avec `AsyncStorage`.
 - **Double Filet de Sécurité (Cloud Sync)** : `AppState` React Native sync instantanée vers Firestore sous `users/{uid}/activeWorkout/current`.
 - **Firestore Rules** : Seul le webhook Netlify a les droits d'écriture sur les statuts d'abonnement Stripe.
+
+## 🌐 6. Intégrité du Build Web (Expo SDK 56 & React Native Web)
+- **Importation React Stricte** : `import React from 'react';` doit OBLIGATOIREMENT être conservé en haut de `App.tsx` et de tous les fichiers `.tsx` qui utilisent `React.Component`, `React.useState` ou `React.useEffect`. Ne jamais le supprimer lors des modifications.
+- **Gabarit HTML Source (`public/index.html`)** : `public/index.html` est le modèle source unique pour `npx expo export -p web`. Il doit OBLIGATOIREMENT inclure :
+  `html, body, #root, #root > div { width: 100%; height: 100%; min-height: 100vh; display: flex; flex-direction: column; flex: 1; background-color: #FBF8F3; }`
+  pour garantir un étirement plein écran sans écran vert effondré.
+

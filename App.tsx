@@ -1,3 +1,4 @@
+import React from 'react';
 import { ActivityIndicator, View, Text, Pressable } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';

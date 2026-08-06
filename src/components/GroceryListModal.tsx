@@ -221,12 +221,11 @@ export const GroceryListModal: React.FC<GroceryListModalProps> = ({ visible, onC
   const loadSavedItems = async () => {
     try {
       const saved = await AsyncStorage.getItem(STORAGE_KEY);
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           const normalized = normalizeGroceryItems(parsed);
           setItems(normalized);
-          // Réécrit les catégories normalisées pour les prochains opens
           await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
         }
       }

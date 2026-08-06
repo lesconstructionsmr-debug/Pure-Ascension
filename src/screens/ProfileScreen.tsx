@@ -305,7 +305,7 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showAlert('Poids mis à jour !', `Votre nouveau poids (${num} lbs) a été enregistré.`);
+      showAlert('Poids mis à jour !', `Votre nouveau poids (${lbs} lbs) a été enregistré.`);
       setShowWeightModal(false);
     } catch (err) {
       console.error('Erreur enregistrement poids:', err);
