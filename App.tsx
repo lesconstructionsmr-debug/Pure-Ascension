@@ -73,7 +73,7 @@ function AppContent() {
     Spectral_500Medium_Italic,
   });
 
-  if (!fontsLoaded && !fontError) {
+  if (Platform.OS !== 'ios' && !fontsLoaded && !fontError) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.sand[50], alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={colors.sage[500]} size="large" />

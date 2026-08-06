@@ -67,16 +67,16 @@ import { Platform } from 'react-native';
 
 export const fontFamily = {
   spectral: {
-    regular:       Platform.OS === 'web' ? 'Spectral_400Regular' : 'Spectral_400Regular',
-    medium:        Platform.OS === 'web' ? 'Spectral_500Medium' : 'Spectral_500Medium',
-    regularItalic: Platform.OS === 'web' ? 'Spectral_400Regular_Italic' : 'Spectral_400Regular_Italic',
-    mediumItalic:  Platform.OS === 'web' ? 'Spectral_500Medium_Italic' : 'Spectral_500Medium_Italic',
+    regular:       Platform.OS === 'ios' ? 'Georgia' : 'Spectral_400Regular',
+    medium:        Platform.OS === 'ios' ? 'Georgia-Bold' : 'Spectral_500Medium',
+    regularItalic: Platform.OS === 'ios' ? 'Georgia-Italic' : 'Spectral_400Regular_Italic',
+    mediumItalic:  Platform.OS === 'ios' ? 'Georgia-BoldItalic' : 'Spectral_500Medium_Italic',
   },
   hanken: {
-    regular: Platform.OS === 'web' ? 'HankenGrotesk_400Regular' : 'HankenGrotesk_400Regular',
-    medium:  Platform.OS === 'web' ? 'HankenGrotesk_500Medium' : 'HankenGrotesk_500Medium',
-    semiBold:Platform.OS === 'web' ? 'HankenGrotesk_600SemiBold' : 'HankenGrotesk_600SemiBold',
-    bold:    Platform.OS === 'web' ? 'HankenGrotesk_700Bold' : 'HankenGrotesk_700Bold',
+    regular: Platform.OS === 'ios' ? 'System' : 'HankenGrotesk_400Regular',
+    medium:  Platform.OS === 'ios' ? 'System' : 'HankenGrotesk_500Medium',
+    semiBold:Platform.OS === 'ios' ? 'System' : 'HankenGrotesk_600SemiBold',
+    bold:    Platform.OS === 'ios' ? 'System' : 'HankenGrotesk_700Bold',
   },
 } as const;
 
