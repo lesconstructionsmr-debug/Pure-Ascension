@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, View, Text, Pressable, Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -98,18 +99,20 @@ function AppContent() {
 
   return (
     <LanguageProvider>
-      <NavigationContainer
-        documentTitle={{
-          formatter: (options, route) => {
-            const title = options?.title ?? route?.name;
-            if (title && title !== 'undefined') return `${title} | Pure Ascension`;
-            return 'Pure Ascension';
-          }
-        }}
-      >
-        <StatusBar style="auto" />
-        <RootNavigator />
-      </NavigationContainer>
+      <SafeAreaProvider>
+        <NavigationContainer
+          documentTitle={{
+            formatter: (options, route) => {
+              const title = options?.title ?? route?.name;
+              if (title && title !== 'undefined') return `${title} | Pure Ascension`;
+              return 'Pure Ascension';
+            }
+          }}
+        >
+          <StatusBar style="auto" />
+          <RootNavigator />
+        </NavigationContainer>
+      </SafeAreaProvider>
     </LanguageProvider>
   );
 }
