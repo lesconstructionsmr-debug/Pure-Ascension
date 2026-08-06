@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, View, Text, Pressable } from 'react-native';
+import { ActivityIndicator, View, Text, Pressable, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -18,7 +18,6 @@ import {
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { colors } from './src/theme/theme';
 
-import { Platform } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 
 if (Platform.OS !== 'web') {
@@ -60,7 +59,13 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
           </Text>
           <Pressable
             style={{ backgroundColor: '#C87D55', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8 }}
-            onPress={() => { if (typeof window !== 'undefined') window.location.reload(); }}
+            onPress={() => {
+              if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                window.location.reload();
+              } else {
+                this.setState({ hasError: false, error: null });
+              }
+            }}
           >
             <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>Recharger l'Application</Text>
           </Pressable>
@@ -72,7 +77,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 }
 
 function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     HankenGrotesk_400Regular,
     HankenGrotesk_500Medium,
     HankenGrotesk_600SemiBold,
@@ -83,19 +88,10 @@ function App() {
     Spectral_500Medium_Italic,
   });
 
-  const [forceReady, setForceReady] = React.useState(false);
-
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setForceReady(true);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!fontsLoaded && !forceReady) {
+  if (!fontsLoaded && !fontError) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.sand[50], alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={colors.sage[500]} />
+        <ActivityIndicator color={colors.sage[500]} size="large" />
       </View>
     );
   }
