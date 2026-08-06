@@ -18,22 +18,6 @@ import {
 } from '@expo-google-fonts/spectral';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { colors } from './src/theme/theme';
-
-import * as Sentry from '@sentry/react-native';
-
-if (Platform.OS !== 'web') {
-  const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN || 'https://e6a3b35ebc70f4613d3a05d6a418e044@o4511616564002816.ingest.de.sentry.io/4511616583532624';
-  try {
-    Sentry.init({
-      dsn: sentryDsn,
-      debug: false,
-      tracesSampleRate: 0.2,
-    });
-  } catch (err) {
-    console.warn('Initialisation Sentry:', err);
-  }
-}
-
 import { LanguageProvider } from './src/context/LanguageContext';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
