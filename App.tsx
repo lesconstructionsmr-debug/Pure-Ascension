@@ -62,6 +62,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 }
 
 function AppContent() {
+  const [forceReady, setForceReady] = React.useState(false);
   const [fontsLoaded, fontError] = useFonts({
     HankenGrotesk_400Regular,
     HankenGrotesk_500Medium,
@@ -73,9 +74,17 @@ function AppContent() {
     Spectral_500Medium_Italic,
   });
 
-  if (Platform.OS !== 'ios' && !fontsLoaded && !fontError) {
+  React.useEffect(() => {
+    const timer = setTimeout(() => setForceReady(true), 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!fontsLoaded && !fontError && !forceReady) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.sand[50], alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: colors.sand[50], alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <Text style={{ fontSize: 24, fontWeight: '700', color: colors.ink[900], fontFamily: fontFamily.spectral.bold, marginBottom: 16 }}>
+          Pure Ascension
+        </Text>
         <ActivityIndicator color={colors.sage[500]} size="large" />
       </View>
     );

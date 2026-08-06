@@ -331,16 +331,15 @@ export const RootNavigator: React.FC = () => {
       setAuthReady(true);
     });
 
-    // Filet de sécurité anti-page blanche : débloque l'UI au bout de 2.5s même si le réseau est lent
+    // Filet de sécurité anti-page blanche : débloque l'UI au bout de 2s même si Firebase/Firestore est lent sur iOS
     const fallbackTimer = setTimeout(() => {
       setAuthReady(true);
-      const currentStore = useProgramStore.getState();
-      if (currentStore.profile && currentStore.program) {
-        setHasProfile(true);
-      } else if (hasProfile === null) {
-        setHasProfile(false);
-      }
-    }, 2500);
+      setHasProfile(prev => {
+        if (prev !== null) return prev;
+        const currentStore = useProgramStore.getState();
+        return !!(currentStore.profile && currentStore.program);
+      });
+    }, 2000);
 
     return () => {
       unsub();
@@ -401,10 +400,13 @@ export const RootNavigator: React.FC = () => {
     };
   }, []);
 
-  // Indicateur de chargement fluide pendant l'initialisation Firebase (évite l'écran vert vide)
+  // Indicateur de chargement fluide pendant l'initialisation Firebase (évite l'écran blanc vide)
   if (!authReady || (authed && hasProfile === null)) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.sand[50], justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: colors.sand[50], justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ fontSize: 24, fontWeight: '700', color: colors.ink[900], fontFamily: fontFamily.spectral.bold, marginBottom: 16 }}>
+          Pure Ascension
+        </Text>
         <ActivityIndicator size="large" color={colors.sage[500]} />
       </View>
     );
