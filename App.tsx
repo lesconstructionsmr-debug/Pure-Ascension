@@ -17,7 +17,6 @@ import {
   Spectral_500Medium_Italic,
 } from '@expo-google-fonts/spectral';
 import { RootNavigator } from './src/navigation/RootNavigator';
-import { colors } from './src/theme/theme';
 import { LanguageProvider } from './src/context/LanguageContext';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
@@ -61,6 +60,18 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
+/** Écran boot sans polices custom — évite crash iOS (fontFamily non chargé / clé inexistante). */
+function BootSplash() {
+  return (
+    <View style={{ flex: 1, backgroundColor: '#FBF8F3', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <Text style={{ fontSize: 24, fontWeight: '700', color: '#2D3A2E', marginBottom: 16 }}>
+        Pure Ascension
+      </Text>
+      <ActivityIndicator color="#6B7F5E" size="large" />
+    </View>
+  );
+}
+
 function AppContent() {
   const [forceReady, setForceReady] = React.useState(false);
   const [fontsLoaded, fontError] = useFonts({
@@ -75,19 +86,13 @@ function AppContent() {
   });
 
   React.useEffect(() => {
-    const timer = setTimeout(() => setForceReady(true), 1500);
+    // iOS release : ne jamais rester bloqué sur le chargement des polices
+    const timer = setTimeout(() => setForceReady(true), 800);
     return () => clearTimeout(timer);
   }, []);
 
   if (!fontsLoaded && !fontError && !forceReady) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.sand[50], alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <Text style={{ fontSize: 24, fontWeight: '700', color: colors.ink[900], fontFamily: fontFamily.spectral.bold, marginBottom: 16 }}>
-          Pure Ascension
-        </Text>
-        <ActivityIndicator color={colors.sage[500]} size="large" />
-      </View>
-    );
+    return <BootSplash />;
   }
 
   return (

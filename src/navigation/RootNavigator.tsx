@@ -9,7 +9,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, Text, Linking, ActivityIndicator }   from 'react-native';
 import { BlurView }         from 'expo-blur';
 import { Home, UtensilsCrossed, Dumbbell, User } from 'lucide-react-native';
-import { colors, fontFamily }    from '../theme/theme';
+import { colors } from '../theme/theme';
 import { BottomNav }             from '../components/BottomNav';
 
 // Screens
@@ -331,15 +331,21 @@ export const RootNavigator: React.FC = () => {
       setAuthReady(true);
     });
 
-    // Filet de sécurité anti-page blanche : débloque l'UI au bout de 2s même si Firebase/Firestore est lent sur iOS
+    // Filet anti-page blanche iOS : débloque TOUJOURS l'UI (ne laisse jamais hasProfile à null)
     const fallbackTimer = setTimeout(() => {
       setAuthReady(true);
+      // Si Firebase a déjà une session mais le listener n'a pas fini, aligne authed
+      if (auth.currentUser) {
+        setAuthed(true);
+        setFirebaseUid(prev => prev ?? auth.currentUser!.uid);
+      }
       setHasProfile(prev => {
         if (prev !== null) return prev;
         const currentStore = useProgramStore.getState();
+        // false (pas null) → onboarding / splash, jamais l'écran d'attente infini
         return !!(currentStore.profile && currentStore.program);
       });
-    }, 2000);
+    }, 1500);
 
     return () => {
       unsub();
@@ -400,14 +406,17 @@ export const RootNavigator: React.FC = () => {
     };
   }, []);
 
-  // Indicateur de chargement fluide pendant l'initialisation Firebase (évite l'écran blanc vide)
+  // Attente auth — polices système uniquement (pas de fontFamily.spectral.bold inexistant)
   if (!authReady || (authed && hasProfile === null)) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.sand[50], justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-        <Text style={{ fontSize: 24, fontWeight: '700', color: colors.ink[900], fontFamily: fontFamily.spectral.bold, marginBottom: 16 }}>
+      <View style={{ flex: 1, backgroundColor: '#FBF8F3', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ fontSize: 24, fontWeight: '700', color: '#2D3A2E', marginBottom: 16 }}>
           Pure Ascension
         </Text>
         <ActivityIndicator size="large" color={colors.sage[500]} />
+        <Text style={{ marginTop: 12, fontSize: 13, color: '#6B7F5E', textAlign: 'center' }}>
+          Chargement de ton espace…
+        </Text>
       </View>
     );
   }

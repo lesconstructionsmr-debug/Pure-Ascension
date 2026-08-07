@@ -69,6 +69,8 @@ export const fontFamily = {
   spectral: {
     regular:       Platform.OS === 'ios' ? 'Georgia' : 'Spectral_400Regular',
     medium:        Platform.OS === 'ios' ? 'Georgia-Bold' : 'Spectral_500Medium',
+    /** Alias — plusieurs écrans utilisaient .bold inexistant → undefined sur iOS */
+    bold:          Platform.OS === 'ios' ? 'Georgia-Bold' : 'Spectral_500Medium',
     regularItalic: Platform.OS === 'ios' ? 'Georgia-Italic' : 'Spectral_400Regular_Italic',
     mediumItalic:  Platform.OS === 'ios' ? 'Georgia-BoldItalic' : 'Spectral_500Medium_Italic',
   },

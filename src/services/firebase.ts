@@ -15,25 +15,32 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '1:1052601934988:web:75f560e90c64df192931a1',
 };
 
-const app  = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-let authInstance;
-try {
+function createAuth() {
   if (Platform.OS === 'web') {
-    authInstance = getAuth(app);
-  } else {
-    try {
-      const { getReactNativePersistence } = require('firebase/auth/react-native');
-      authInstance = initializeAuth(app, {
+    return getAuth(app);
+  }
+
+  // Metro résout firebase/auth → build RN qui expose getReactNativePersistence
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getReactNativePersistence } = require('firebase/auth');
+    if (typeof getReactNativePersistence === 'function') {
+      return initializeAuth(app, {
         persistence: getReactNativePersistence(AsyncStorage),
       });
-    } catch {
-      authInstance = getAuth(app);
     }
+  } catch {
+    // Auth déjà initialisé ou export absent
   }
-} catch {
-  authInstance = getAuth(app);
+
+  try {
+    return getAuth(app);
+  } catch {
+    return getAuth(app);
+  }
 }
 
-export const auth = authInstance;
-export const db   = getFirestore(app);
+export const auth = createAuth();
+export const db = getFirestore(app);
