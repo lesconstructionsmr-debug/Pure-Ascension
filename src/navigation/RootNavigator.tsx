@@ -334,7 +334,6 @@ export const RootNavigator: React.FC = () => {
     // Filet anti-page blanche iOS : débloque TOUJOURS l'UI (ne laisse jamais hasProfile à null)
     const fallbackTimer = setTimeout(() => {
       setAuthReady(true);
-      // Si Firebase a déjà une session mais le listener n'a pas fini, aligne authed
       if (auth.currentUser) {
         setAuthed(true);
         setFirebaseUid(prev => prev ?? auth.currentUser!.uid);
@@ -342,7 +341,6 @@ export const RootNavigator: React.FC = () => {
       setHasProfile(prev => {
         if (prev !== null) return prev;
         const currentStore = useProgramStore.getState();
-        // false (pas null) → onboarding / splash, jamais l'écran d'attente infini
         return !!(currentStore.profile && currentStore.program);
       });
     }, 1500);
@@ -353,6 +351,30 @@ export const RootNavigator: React.FC = () => {
       if (unsubDb) unsubDb();
     };
   }, []);
+
+  // Re-armé à chaque fois qu'on est bloqué sur authed + hasProfile null (signup/login/Firestore lent)
+  React.useEffect(() => {
+    if (!authed || hasProfile !== null) return;
+    const t = setTimeout(() => {
+      setHasProfile(prev => {
+        if (prev !== null) return prev;
+        const store = useProgramStore.getState();
+        return !!(store.profile && store.program);
+      });
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [authed, hasProfile]);
+
+  // Si le plan Firestore ne revient jamais, passer en free pour débloquer l'UI
+  React.useEffect(() => {
+    if (!authed || !hasProfile) return;
+    if (stripeStatus !== null || planLevel !== null) return;
+    const t = setTimeout(() => {
+      setPlanLevel(prev => prev ?? 'free');
+      setStripeStatus(prev => prev ?? 'inactive');
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [authed, hasProfile, stripeStatus, planLevel]);
 
   // ── Écouteur d'actions de connexion depuis la Landing Page Web ──
   React.useEffect(() => {
@@ -406,15 +428,15 @@ export const RootNavigator: React.FC = () => {
     };
   }, []);
 
-  // Attente auth — polices système uniquement (pas de fontFamily.spectral.bold inexistant)
+  // Attente auth — fond vert marque (plus jamais crème/blanc qui paraît "cassé")
   if (!authReady || (authed && hasProfile === null)) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#FBF8F3', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-        <Text style={{ fontSize: 24, fontWeight: '700', color: '#2D3A2E', marginBottom: 16 }}>
+      <View style={{ flex: 1, backgroundColor: '#2D4029', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ fontSize: 24, fontWeight: '700', color: '#FFFFFF', marginBottom: 16 }}>
           Pure Ascension
         </Text>
-        <ActivityIndicator size="large" color={colors.sage[500]} />
-        <Text style={{ marginTop: 12, fontSize: 13, color: '#6B7F5E', textAlign: 'center' }}>
+        <ActivityIndicator size="large" color="#C5D4B8" />
+        <Text style={{ marginTop: 12, fontSize: 13, color: '#9BB08A', textAlign: 'center' }}>
           Chargement de ton espace…
         </Text>
       </View>
@@ -491,17 +513,42 @@ export const RootNavigator: React.FC = () => {
     );
   }
 
-  // ── Utilisateur connecté avec profil, mais aucun abonnement actif ni plan gratuit choisi ──
-  const hasAccess = stripeStatus === 'active' || stripeStatus === 'trialing' || planLevel === 'free' || planLevel === 'standard' || planLevel === 'premium';
-  
+  // Plan encore inconnu (Firestore lent) ≠ "pas d'accès" — sinon faux paywall / crash uid null
+  const planStillLoading = stripeStatus === null && planLevel === null;
+  const hasAccess =
+    stripeStatus === 'active' ||
+    stripeStatus === 'trialing' ||
+    planLevel === 'free' ||
+    planLevel === 'standard' ||
+    planLevel === 'premium';
+
+  if (authed && hasProfile && planStillLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#2D4029', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ fontSize: 24, fontWeight: '700', color: '#FFFFFF', marginBottom: 16 }}>Pure Ascension</Text>
+        <ActivityIndicator size="large" color="#C5D4B8" />
+        <Text style={{ marginTop: 12, fontSize: 13, color: '#9BB08A' }}>Préparation de ton accès…</Text>
+      </View>
+    );
+  }
+
   if (authed && hasProfile && !hasAccess) {
+    if (!firebaseUid) {
+      return (
+        <View style={{ flex: 1, backgroundColor: '#2D4029', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#FFFFFF', marginBottom: 12 }}>Session incomplète</Text>
+          <Text style={{ fontSize: 13, color: '#9BB08A', textAlign: 'center' }}>Reconnecte-toi pour continuer.</Text>
+        </View>
+      );
+    }
     return (
       <SubscriptionScreen
-        uid={firebaseUid!}
+        uid={firebaseUid}
         email={userEmail}
         onFree={async () => {
           try {
-            await setUserPlan(firebaseUid!, 'free');
+            await setUserPlan(firebaseUid, 'free');
+            setPlanLevel('free');
           } catch (error) {
             console.error('Erreur lors du choix du plan gratuit :', error);
           }
@@ -547,6 +594,8 @@ export const RootNavigator: React.FC = () => {
           onSuccess={(name, email) => {
             setUserName(name);
             setUserEmail(email);
+            // Nouveau compte : pas de profil encore → quiz, pas l'écran d'attente infini
+            setHasProfile(false);
             setAuthed(true);
           }}
         />
@@ -558,11 +607,13 @@ export const RootNavigator: React.FC = () => {
         <LoginScreen
           onBack={() => setScreen('splash')}
           onSuccess={() => {
-            setAuthed(true);
-            const p = useProgramStore.getState().program;
-            if (p) {
+            const store = useProgramStore.getState();
+            // Si le store local a déjà profil+programme, débloque immédiatement
+            if (store.profile && store.program) {
               setHasProfile(true);
             }
+            // sinon hasProfile reste null → le useEffect timeout le débloque en 2s
+            setAuthed(true);
           }}
         />
       );

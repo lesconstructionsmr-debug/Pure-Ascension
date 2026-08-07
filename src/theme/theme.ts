@@ -67,18 +67,19 @@ import { Platform } from 'react-native';
 
 export const fontFamily = {
   spectral: {
+    // iOS: Georgia (système). Éviter 'System' (n'existe pas → texte invisible).
     regular:       Platform.OS === 'ios' ? 'Georgia' : 'Spectral_400Regular',
     medium:        Platform.OS === 'ios' ? 'Georgia-Bold' : 'Spectral_500Medium',
-    /** Alias — plusieurs écrans utilisaient .bold inexistant → undefined sur iOS */
     bold:          Platform.OS === 'ios' ? 'Georgia-Bold' : 'Spectral_500Medium',
     regularItalic: Platform.OS === 'ios' ? 'Georgia-Italic' : 'Spectral_400Regular_Italic',
     mediumItalic:  Platform.OS === 'ios' ? 'Georgia-BoldItalic' : 'Spectral_500Medium_Italic',
   },
   hanken: {
-    regular: Platform.OS === 'ios' ? 'System' : 'HankenGrotesk_400Regular',
-    medium:  Platform.OS === 'ios' ? 'System' : 'HankenGrotesk_500Medium',
-    semiBold:Platform.OS === 'ios' ? 'System' : 'HankenGrotesk_600SemiBold',
-    bold:    Platform.OS === 'ios' ? 'System' : 'HankenGrotesk_700Bold',
+    // iOS: omettre une famille inventée — laisser le défaut SF via undefined casté en string vide côté style si besoin
+    regular: Platform.OS === 'ios' ? 'Helvetica Neue' : 'HankenGrotesk_400Regular',
+    medium:  Platform.OS === 'ios' ? 'Helvetica Neue' : 'HankenGrotesk_500Medium',
+    semiBold:Platform.OS === 'ios' ? 'Helvetica Neue' : 'HankenGrotesk_600SemiBold',
+    bold:    Platform.OS === 'ios' ? 'Helvetica Neue' : 'HankenGrotesk_700Bold',
   },
 } as const;
 

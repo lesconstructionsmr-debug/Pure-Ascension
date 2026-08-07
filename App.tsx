@@ -19,7 +19,10 @@ import {
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { LanguageProvider } from './src/context/LanguageContext';
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: any }
+> {
   constructor(props: any) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -35,23 +38,25 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
   render() {
     if (this.state.hasError) {
+      const msg = this.state.error?.message
+        ? String(this.state.error.message).slice(0, 180)
+        : 'Erreur au démarrage';
       return (
-        <View style={{ flex: 1, backgroundColor: '#fbf8f3', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2D3A2E', marginBottom: 10 }}>Pure Ascension</Text>
-          <Text style={{ fontSize: 14, color: '#6B7F5E', textAlign: 'center', marginBottom: 20 }}>
-            Session réinitialisée avec succès. Veuillez cliquer ci-dessous pour continuer.
+        <View style={{ flex: 1, backgroundColor: '#2D4029', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ fontSize: 22, fontWeight: '700', color: '#FFFFFF', marginBottom: 10 }}>
+            Pure Ascension
+          </Text>
+          <Text style={{ fontSize: 14, color: '#C5D4B8', textAlign: 'center', marginBottom: 12 }}>
+            Impossible d'ouvrir l'écran principal.
+          </Text>
+          <Text style={{ fontSize: 12, color: '#9BB08A', textAlign: 'center', marginBottom: 20 }}>
+            {msg}
           </Text>
           <Pressable
             style={{ backgroundColor: '#C87D55', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8 }}
-            onPress={() => {
-              if (Platform.OS === 'web' && typeof window !== 'undefined') {
-                window.location.reload();
-              } else {
-                this.setState({ hasError: false, error: null });
-              }
-            }}
+            onPress={() => this.setState({ hasError: false, error: null })}
           >
-            <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>Recharger l'Application</Text>
+            <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>Réessayer</Text>
           </Pressable>
         </View>
       );
@@ -60,20 +65,26 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-/** Écran boot sans polices custom — évite crash iOS (fontFamily non chargé / clé inexistante). */
-function BootSplash() {
+function BootSplash({ label }: { label?: string }) {
   return (
-    <View style={{ flex: 1, backgroundColor: '#FBF8F3', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <Text style={{ fontSize: 24, fontWeight: '700', color: '#2D3A2E', marginBottom: 16 }}>
+    <View style={{ flex: 1, backgroundColor: '#2D4029', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <Text style={{ fontSize: 24, fontWeight: '700', color: '#FFFFFF', marginBottom: 16 }}>
         Pure Ascension
       </Text>
-      <ActivityIndicator color="#6B7F5E" size="large" />
+      <ActivityIndicator color="#C5D4B8" size="large" />
+      {!!label && (
+        <Text style={{ marginTop: 12, fontSize: 13, color: '#9BB08A', textAlign: 'center' }}>
+          {label}
+        </Text>
+      )}
     </View>
   );
 }
 
 function AppContent() {
-  const [forceReady, setForceReady] = React.useState(false);
+  // iOS: ne JAMAIS bloquer le rendu sur les polices Google (cause fréquente d'écran vide)
+  const skipFontGate = Platform.OS === 'ios';
+  const [forceReady, setForceReady] = React.useState(skipFontGate);
   const [fontsLoaded, fontError] = useFonts({
     HankenGrotesk_400Regular,
     HankenGrotesk_500Medium,
@@ -86,28 +97,20 @@ function AppContent() {
   });
 
   React.useEffect(() => {
-    // iOS release : ne jamais rester bloqué sur le chargement des polices
+    if (skipFontGate) return;
     const timer = setTimeout(() => setForceReady(true), 800);
     return () => clearTimeout(timer);
-  }, []);
+  }, [skipFontGate]);
 
-  if (!fontsLoaded && !fontError && !forceReady) {
-    return <BootSplash />;
+  if (!skipFontGate && !fontsLoaded && !fontError && !forceReady) {
+    return <BootSplash label="Chargement…" />;
   }
 
   return (
     <LanguageProvider>
       <SafeAreaProvider>
-        <NavigationContainer
-          documentTitle={{
-            formatter: (options, route) => {
-              const title = options?.title ?? route?.name;
-              if (title && title !== 'undefined') return `${title} | Pure Ascension`;
-              return 'Pure Ascension';
-            }
-          }}
-        >
-          <StatusBar style="auto" />
+        <NavigationContainer>
+          <StatusBar style="light" />
           <RootNavigator />
         </NavigationContainer>
       </SafeAreaProvider>
@@ -124,4 +127,3 @@ function App() {
 }
 
 export default App;
-

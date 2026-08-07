@@ -7,6 +7,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "pureascension",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2D4029"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pureascension.app",
