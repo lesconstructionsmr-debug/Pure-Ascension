@@ -7,10 +7,9 @@ import { Platform } from 'react-native';
 declare var process: any;
 
 /**
- * Config Web (Netlify) — app Firebase `pure-ascension-web`
- * Config iOS — depuis GoogleService-Info.plist (app `Pure Ascension iOS`)
- *
- * Sur iOS on DOIT utiliser l'appId / apiKey iOS du même projet Firebase.
+ * Projet Firebase réel : pure-ascension / 311570100137
+ * Web  → app `pure-ascension-web`
+ * iOS  → app `Pure Ascension iOS` (GoogleService-Info.plist)
  */
 const webConfig = {
   apiKey:
@@ -23,15 +22,14 @@ const webConfig = {
     process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'pure-ascension',
   storageBucket:
     process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ||
-    'pure-ascension.appspot.com',
+    'pure-ascension.firebasestorage.app',
   messagingSenderId:
-    process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '1052601934988',
+    process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '311570100137',
   appId:
     process.env.EXPO_PUBLIC_FIREBASE_APP_ID ||
-    '1:1052601934988:web:75f560e90c64df192931a1',
+    '1:311570100137:web:1bb06bca9e1b4683e45eb8',
 };
 
-/** Valeurs lues depuis GoogleService-Info.plist (app iOS enregistrée). */
 const iosConfig = {
   apiKey:
     process.env.EXPO_PUBLIC_FIREBASE_IOS_API_KEY ||
