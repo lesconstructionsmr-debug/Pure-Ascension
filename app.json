@@ -15,12 +15,21 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pureascension.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Pure Ascension utilise l'appareil photo pour scanner et analyser vos repas avec l'IA.",
         "NSPhotoLibraryUsageDescription": "Pure Ascension utilise la bibliothèque de photos pour analyser la nutrition de vos plats.",
         "NSHealthShareUsageDescription": "Pure Ascension utilise Apple HealthKit pour lire vos pas, votre pouls et vos calories d'entraînement.",
-        "NSHealthUpdateUsageDescription": "Pure Ascension enregistre vos séances et calories dépensées dans Apple HealthKit."
+        "NSHealthUpdateUsageDescription": "Pure Ascension enregistre vos séances et calories dépensées dans Apple HealthKit.",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "pureascension",
+              "com.googleusercontent.apps.311570100137-pjpquighl9af0p4hf8hi22095ras59fv"
+            ]
+          }
+        ]
       }
     },
     "plugins": [
