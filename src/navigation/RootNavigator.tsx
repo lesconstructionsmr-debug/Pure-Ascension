@@ -7,7 +7,6 @@ import { StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, Text, Linking, ActivityIndicator }   from 'react-native';
-import { BlurView }         from 'expo-blur';
 import { Home, UtensilsCrossed, Dumbbell, User } from 'lucide-react-native';
 import { colors } from '../theme/theme';
 import { BottomNav }             from '../components/BottomNav';

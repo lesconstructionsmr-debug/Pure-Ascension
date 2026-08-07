@@ -15,11 +15,11 @@ interface Props {
 }
 
 export const SplashScreen: React.FC<Props> = ({ onStart, onLogin }) => {
-  const fade  = useRef(new Animated.Value(0)).current;
+  // opacity 1 dès le 1er frame — éviter écran "vide" pendant le fade-in
+  const fade  = useRef(new Animated.Value(1)).current;
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.timing(fade, { toValue: 1, duration: 700, useNativeDriver: true }).start();
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1.08, duration: 1400, useNativeDriver: true }),
