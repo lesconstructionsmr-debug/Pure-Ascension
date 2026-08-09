@@ -534,41 +534,121 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
               </View>
             )}
 
-            {/* Sets grid */}
-            <View style={s.setsGrid}>
-              {Array.from({ length: exercise.sets }, (_, i) => {
-                const done = completedSets.has(setKey(activeWorkout.currentExerciseIdx, i));
-                const isCurrent = i === activeWorkout.currentSetIdx && !activeWorkout.isResting;
-                return (
-                  <Pressable
-                    key={i}
-                    style={[s.setChip, done && s.setChipDone, isCurrent && s.setChipCurrent]}
-                    onPress={() => {
-                      if (!done) { activeWorkout.setCurrentSetIdx(i); }
-                    }}
-                    accessibilityRole="button"
-                  >
-                    {done
-                      ? <Check size={14} color="#fff" strokeWidth={2.5} />
-                      : <Text style={[s.setChipText, isCurrent && s.setChipTextActive]}>
-                          Série {i + 1}
-                        </Text>
-                    }
-                  </Pressable>
-                );
-              })}
-            </View>
+            {/* ── PRÉSENTATION DES SÉRIES ── */}
+            {Platform.OS === 'web' ? (
+              /* --- EXCLUSIF WEB APP : TABLEAU INTERACTIF STYLE STRONGER --- */
+              <View style={webStyles.tableCard}>
+                <View style={webStyles.tableHeader}>
+                  <Text style={[webStyles.th, { width: 50 }]}>SÉRIE</Text>
+                  <Text style={[webStyles.th, { flex: 1 }]}>PRÉCÉDENT</Text>
+                  <Text style={[webStyles.th, { width: 110, textAlign: 'center' }]}>CHARGE (KG)</Text>
+                  <Text style={[webStyles.th, { width: 110, textAlign: 'center' }]}>REPS</Text>
+                  <Text style={[webStyles.th, { width: 65, textAlign: 'center' }]}>VALIDER</Text>
+                </View>
 
-            {/* CTA Validation de Série */}
-            {!activeWorkout.isResting && (
-              <Button
-                variant="accent"
-                size="lg"
-                label={`Valider Série ${activeWorkout.currentSetIdx + 1} ✓`}
-                fullWidth
-                onPress={completeSet}
-                disabled={completedSets.has(setKey(activeWorkout.currentExerciseIdx, activeWorkout.currentSetIdx))}
-              />
+                {Array.from({ length: exercise.sets }, (_, i) => {
+                  const done = completedSets.has(setKey(activeWorkout.currentExerciseIdx, i));
+                  const isCurrent = i === activeWorkout.currentSetIdx && !activeWorkout.isResting;
+                  const prevData = `${Math.round(40 + i * 5)} kg × ${exercise.reps}`;
+
+                  return (
+                    <View key={i} style={[webStyles.tr, done && webStyles.trDone, isCurrent && webStyles.trCurrent]}>
+                      {/* Numéro de série */}
+                      <View style={{ width: 50, alignItems: 'center' }}>
+                        <View style={[webStyles.setBadge, done && webStyles.setBadgeDone, isCurrent && webStyles.setBadgeCurrent]}>
+                          <Text style={[webStyles.setNumText, (done || isCurrent) && { color: '#fff' }]}>{i + 1}</Text>
+                        </View>
+                      </View>
+
+                      {/* Performance précédente */}
+                      <Text style={[webStyles.td, { flex: 1, color: colors.ink[600] }]}>{prevData}</Text>
+
+                      {/* Charge (KG) */}
+                      <View style={{ width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[900] }}>
+                          {Math.round(20 + i * 2.5)} kg
+                        </Text>
+                      </View>
+
+                      {/* Reps */}
+                      <View style={{ width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[900] }}>
+                          {exercise.reps} reps
+                        </Text>
+                      </View>
+
+                      {/* Bouton Check 1-Tap */}
+                      <View style={{ width: 65, alignItems: 'center' }}>
+                        <Pressable
+                          style={[webStyles.checkBtn, done && webStyles.checkBtnDone, isCurrent && webStyles.checkBtnCurrent]}
+                          onPress={() => {
+                            if (!done) {
+                              activeWorkout.setCurrentSetIdx(i);
+                              completeSet();
+                            }
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Valider la série ${i + 1}`}
+                        >
+                          <Check size={16} color={done ? '#fff' : isCurrent ? colors.clay[500] : colors.sage[600]} strokeWidth={2.5} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  );
+                })}
+
+                {/* Footer du tableau : Bouton de validation rapide & repos */}
+                {!activeWorkout.isResting && (
+                  <View style={{ marginTop: spacing[3], paddingTop: spacing[3], borderTopWidth: 1, borderTopColor: colors.sand[200] }}>
+                    <Button
+                      variant="accent"
+                      size="lg"
+                      label={`Valider Série ${activeWorkout.currentSetIdx + 1} ✓`}
+                      fullWidth
+                      onPress={completeSet}
+                      disabled={completedSets.has(setKey(activeWorkout.currentExerciseIdx, activeWorkout.currentSetIdx))}
+                    />
+                  </View>
+                )}
+              </View>
+            ) : (
+              /* --- MOBILE NATIVE (iOS / ANDROID) : PRESENTATION STANDARD COMPACTE --- */
+              <>
+                <View style={s.setsGrid}>
+                  {Array.from({ length: exercise.sets }, (_, i) => {
+                    const done = completedSets.has(setKey(activeWorkout.currentExerciseIdx, i));
+                    const isCurrent = i === activeWorkout.currentSetIdx && !activeWorkout.isResting;
+                    return (
+                      <Pressable
+                        key={i}
+                        style={[s.setChip, done && s.setChipDone, isCurrent && s.setChipCurrent]}
+                        onPress={() => {
+                          if (!done) { activeWorkout.setCurrentSetIdx(i); }
+                        }}
+                        accessibilityRole="button"
+                      >
+                        {done
+                          ? <Check size={14} color="#fff" strokeWidth={2.5} />
+                          : <Text style={[s.setChipText, isCurrent && s.setChipTextActive]}>
+                              Série {i + 1}
+                            </Text>
+                        }
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {!activeWorkout.isResting && (
+                  <Button
+                    variant="accent"
+                    size="lg"
+                    label={`Valider Série ${activeWorkout.currentSetIdx + 1} ✓`}
+                    fullWidth
+                    onPress={completeSet}
+                    disabled={completedSets.has(setKey(activeWorkout.currentExerciseIdx, activeWorkout.currentSetIdx))}
+                  />
+                )}
+              </>
             )}
           </View>
         )}
@@ -1005,6 +1085,96 @@ const s = StyleSheet.create({
     width:'100%', alignItems:'center', marginTop: spacing[2],
   },
   celebBtnText: { fontFamily: fontFamily.hanken.semiBold, fontSize: fontSize.base, color:'#fff' },
+});
+
+const webStyles = StyleSheet.create({
+  tableCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: radius.lg,
+    padding: spacing[4],
+    borderWidth: 1,
+    borderColor: colors.sand[300],
+    ...shadows.sm,
+    marginBottom: spacing[3],
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: spacing[2.5],
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.sand[300],
+    marginBottom: spacing[2],
+  },
+  th: {
+    fontFamily: fontFamily.hanken.bold,
+    fontSize: 11,
+    color: colors.ink[500],
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  tr: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing[3],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.sand[100],
+    borderRadius: radius.md,
+    marginVertical: 1,
+  },
+  trDone: {
+    backgroundColor: colors.sage[50],
+    borderBottomColor: colors.sage[200],
+  },
+  trCurrent: {
+    backgroundColor: colors.sand[50],
+    borderLeftWidth: 3,
+    borderLeftColor: colors.clay[500],
+  },
+  td: {
+    fontFamily: fontFamily.hanken.medium,
+    fontSize: fontSize.sm,
+    color: colors.ink[800],
+  },
+  setBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.sand[200],
+    alignItems: 'center',
+    justify: 'center',
+    alignContent: 'center',
+  },
+  setBadgeDone: {
+    backgroundColor: colors.sage[500],
+  },
+  setBadgeCurrent: {
+    backgroundColor: colors.clay[500],
+  },
+  setNumText: {
+    fontFamily: fontFamily.hanken.bold,
+    fontSize: 12,
+    color: colors.ink[700],
+    textAlign: 'center',
+    marginTop: 3,
+  },
+  checkBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.sand[200],
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.sand[300],
+  },
+  checkBtnDone: {
+    backgroundColor: colors.sage[500],
+    borderColor: colors.sage[500],
+  },
+  checkBtnCurrent: {
+    backgroundColor: colors.clay[50],
+    borderColor: colors.clay[400],
+  },
 });
 
 export default ActiveWorkoutScreen;
