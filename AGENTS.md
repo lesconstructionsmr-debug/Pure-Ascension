@@ -53,3 +53,22 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v56.0.0/ before 
   `html, body, #root, #root > div { width: 100%; height: 100%; min-height: 100vh; display: flex; flex-direction: column; flex: 1; background-color: #FBF8F3; }`
   pour garantir un étirement plein écran sans écran vert effondré.
 
+## Cursor Cloud specific instructions
+
+Project layout note: the application code lives on the `master` branch (the `main`/base branch only contains a placeholder `README.md`). Do your work from `master`.
+
+Stack: Expo SDK 56 managed workflow (React Native 0.85, React 19, TypeScript, Hermes, New Architecture enabled). Standard scripts live in `package.json` (`start`, `android`, `ios`, `web`, `build:web`, `compliance`, `test:*`). Netlify Functions under `netlify/functions/` back the API. `.npmrc` pins `legacy-peer-deps=true`, so plain `npm install` is correct.
+
+Web / general run (fast, no native toolchain needed):
+- `npx expo start --web` serves the app via React Native Web at `http://localhost:8081` (first request triggers Metro bundling; give it 30–90s). This is the quickest way to visually exercise the UI/onboarding flow.
+- Client env vars must be prefixed `EXPO_PUBLIC_`. For a local run, create a git-ignored `.env` with the public Firebase values from `eas.json` (the `EXPO_PUBLIC_FIREBASE_*` block) so the auth boot gate initializes instead of white-screening.
+- Type check: `npx tsc --noEmit`. Compliance gate (required before commits/deploys): `npm run compliance`.
+
+Android native build (non-obvious — read before building):
+- Requires the Android SDK + a JDK 17 toolchain. Both are pre-installed in the VM snapshot: SDK at `$HOME/android-sdk` (with `platform-tools`, `platforms;android-36`, `build-tools;36.0.0`, `ndk;27.1.12297006`, `cmake;3.22.1`) and JDK 17 at `/usr/lib/jvm/java-17-openjdk-amd64`. `~/.bashrc` exports `ANDROID_HOME`/`ANDROID_SDK_ROOT`/`PATH` for interactive shells.
+- Generate the native project first: `npx expo prebuild --platform android` (the `android/` folder is git-ignored and regenerated).
+- Build: `cd android && ./gradlew :app:assembleDebug`. The debug APK lands at `android/app/build/outputs/apk/debug/app-debug.apk`.
+- GOTCHA: the pinned Gradle 9.3.1 ships a `foojay-resolver` that references the removed `JvmVendorSpec.IBM_SEMERU`. If Gradle tries to auto-download a Java toolchain it crashes with `NoSuchFieldError ... IBM_SEMERU`. Prevent this by making Gradle use the local JDKs and never auto-download, e.g. append these Gradle flags (or set the same keys in `android/gradle.properties`): `-Porg.gradle.java.installations.auto-download=false -Porg.gradle.java.installations.paths=/usr/lib/jvm/java-17-openjdk-amd64,/usr/lib/jvm/java-21-openjdk-amd64`. The default JDK is 21; only the toolchain must resolve to JDK 17.
+- The first native build compiles C++ for all ABIs (New Architecture) and takes ~13 min; subsequent builds are cached and much faster.
+- No `/dev/kvm` in this VM, so a hardware-accelerated Android emulator is not available; validate the JS side with `npx expo export --platform android` and use the web target for interactive UI checks.
+
