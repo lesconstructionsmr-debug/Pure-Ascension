@@ -6,6 +6,7 @@ import { X, Target, Timer, Activity, Lightbulb } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 import { getExerciseBiomechanics } from '../utils/biomechanics';
+import { ExerciseImageCard } from './ExerciseImageCard';
 import type { Exercise } from '../data';
 
 interface Props {
@@ -47,6 +48,11 @@ export const ExerciseDetailModal: React.FC<Props> = ({
           </View>
 
           <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+            {/* Illustration Graphique Réelle de l'Exercice */}
+            <View style={{ marginBottom: spacing[3] }}>
+              <ExerciseImageCard exerciseName={exercise.name} height={180} />
+            </View>
+
             <View style={s.statsRow}>
               <View style={s.statChip}>
                 <Activity size={14} color={colors.sage[600]} />

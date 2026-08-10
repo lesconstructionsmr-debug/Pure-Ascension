@@ -18,6 +18,7 @@ import { getTodaySession, saveProgram } from '../services/programService';
 import { auth } from '../services/firebase';
 import { useDailyProgress } from '../context/DailyProgressContext';
 import { MuscleHeatmap } from '../components/MuscleHeatmap';
+import { ExerciseImageCard } from '../components/ExerciseImageCard';
 
 export function getMuscleGroup(name: string, reps?: string | number): { label: string; icon: string; bg: string; color: string; objective: string } {
   const n = name.toLowerCase();
@@ -430,6 +431,11 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
                   const group = getMuscleGroup(ex.name, ex.reps);
                   return (
                     <Card key={ex.id} elevation="sm" padding={spacing[4]} style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: colors.sand[300] }}>
+                      {/* Image Réelle de l'Exercice (Haute Définition) */}
+                      <View style={{ marginBottom: spacing[3] }}>
+                        <ExerciseImageCard exerciseName={ex.name} height={140} showDetails={true} />
+                      </View>
+
                       {/* Header de l'exercice */}
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginBottom: spacing[3], paddingBottom: spacing[3], borderBottomWidth: 1, borderBottomColor: colors.sand[200] }}>
                         <ExerciseImage name={ex.name} size={48} />
