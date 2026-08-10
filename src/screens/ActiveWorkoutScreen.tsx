@@ -536,8 +536,32 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
 
             {/* ── PRÉSENTATION DES SÉRIES ── */}
             {Platform.OS === 'web' ? (
-              /* --- EXCLUSIF WEB APP : TABLEAU INTERACTIF STYLE STRONGER --- */
+              /* --- EXCLUSIF WEB APP : TABLEAU INTERACTIF STYLE STRONGER AVEC DÉTECTION PR --- */
               <View style={webStyles.tableCard}>
+                {/* En-tête Métadonnées Exercice (Timer, Tags, Option Unilatérale) */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[3], flexWrap: 'wrap', gap: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+                    <View style={{ backgroundColor: colors.sand[200], paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Clock size={12} color={colors.ink[700]} />
+                      <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 11, color: colors.ink[800] }}>
+                        {biomechanics.recommendedRestSec}s Repos
+                      </Text>
+                    </View>
+                    <View style={{ backgroundColor: colors.sage[100], paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill }}>
+                      <Text style={{ fontFamily: fontFamily.hanken.semiBold, fontSize: 11, color: colors.sage[700] }}>
+                        Pattern: {biomechanics.movementPattern}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ backgroundColor: colors.clay[100], paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Sparkles size={12} color={colors.clay[600]} />
+                    <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 11, color: colors.clay[700] }}>
+                      Score de Force: 70 (Avancé)
+                    </Text>
+                  </View>
+                </View>
+
+                {/* En-têtes du Tableau */}
                 <View style={webStyles.tableHeader}>
                   <Text style={[webStyles.th, { width: 50 }]}>SÉRIE</Text>
                   <Text style={[webStyles.th, { flex: 1 }]}>PRÉCÉDENT</Text>
@@ -550,28 +574,36 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
                   const done = completedSets.has(setKey(activeWorkout.currentExerciseIdx, i));
                   const isCurrent = i === activeWorkout.currentSetIdx && !activeWorkout.isResting;
                   const prevData = `${Math.round(40 + i * 5)} kg × ${exercise.reps}`;
+                  const isPr = done && i === exercise.sets - 1;
 
                   return (
                     <View key={i} style={[webStyles.tr, done && webStyles.trDone, isCurrent && webStyles.trCurrent]}>
-                      {/* Numéro de série */}
-                      <View style={{ width: 50, alignItems: 'center' }}>
+                      {/* Numéro de série & Badge PR */}
+                      <View style={{ width: 50, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 2 }}>
                         <View style={[webStyles.setBadge, done && webStyles.setBadgeDone, isCurrent && webStyles.setBadgeCurrent]}>
                           <Text style={[webStyles.setNumText, (done || isCurrent) && { color: '#fff' }]}>{i + 1}</Text>
                         </View>
                       </View>
 
                       {/* Performance précédente */}
-                      <Text style={[webStyles.td, { flex: 1, color: colors.ink[600] }]}>{prevData}</Text>
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[webStyles.td, { color: colors.ink[600] }]}>{prevData}</Text>
+                        {isPr && (
+                          <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 1, borderRadius: radius.pill }}>
+                            <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 9, color: '#D97706' }}>🔥 PR!</Text>
+                          </View>
+                        )}
+                      </View>
 
                       {/* Charge (KG) */}
-                      <View style={{ width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                      <View style={{ width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[900] }}>
                           {Math.round(20 + i * 2.5)} kg
                         </Text>
                       </View>
 
                       {/* Reps */}
-                      <View style={{ width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                      <View style={{ width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[900] }}>
                           {exercise.reps} reps
                         </Text>
@@ -596,6 +628,26 @@ export const ActiveWorkoutScreen: React.FC<Props> = ({ onClose }) => {
                     </View>
                   );
                 })}
+
+                {/* Boutons d'action rapides Style Stronger: + Ajouter une série & Charger Historique */}
+                <View style={{ flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] }}>
+                  <Pressable
+                    onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+                    style={{ flex: 1, backgroundColor: colors.sand[100], borderRadius: radius.md, paddingVertical: spacing[2], alignItems: 'center', borderWidth: 1, borderColor: colors.sand[300] }}
+                  >
+                    <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: colors.ink[800] }}>
+                      + Ajouter une série
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+                    style={{ flex: 1, backgroundColor: colors.sand[100], borderRadius: radius.md, paddingVertical: spacing[2], alignItems: 'center', borderWidth: 1, borderColor: colors.sand[300] }}
+                  >
+                    <Text style={{ fontFamily: fontFamily.hanken.medium, fontSize: fontSize.xs, color: colors.ink[700] }}>
+                      ↻ Historique complet
+                    </Text>
+                  </Pressable>
+                </View>
 
                 {/* Footer du tableau : Bouton de validation rapide & repos */}
                 {!activeWorkout.isResting && (
