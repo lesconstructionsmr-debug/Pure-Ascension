@@ -19,6 +19,7 @@ import { auth } from '../services/firebase';
 import { useDailyProgress } from '../context/DailyProgressContext';
 import { MuscleHeatmap } from '../components/MuscleHeatmap';
 import { ExerciseImageCard } from '../components/ExerciseImageCard';
+import { computeUserStrengthScore } from '../services/strengthScoreService';
 
 export function getMuscleGroup(name: string, reps?: string | number): { label: string; icon: string; bg: string; color: string; objective: string } {
   const n = name.toLowerCase();
@@ -391,8 +392,23 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
             </Text>
           </View>
 
-          {/* Score de Force & Carte Musculaire Anatomique */}
-          <MuscleHeatmap score={68} />
+          {/* Score de Force & Carte Musculaire Anatomique Personnalisés */}
+          {(() => {
+            const strengthData = computeUserStrengthScore(profile, completedWorkoutsCount);
+            return (
+              <MuscleHeatmap
+                score={strengthData.score}
+                activations={{
+                  chest: strengthData.chestScore,
+                  back: strengthData.backScore,
+                  shoulders: strengthData.shouldersScore,
+                  legs: strengthData.legsScore,
+                  arms: strengthData.armsScore,
+                  core: Math.round(strengthData.score * 0.9),
+                }}
+              />
+            );
+          })()}
 
           {/* Card de progression */}
           <Card elevation="sm" padding={spacing[4]}>

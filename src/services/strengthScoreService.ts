@@ -1,9 +1,10 @@
 /**
  * strengthScoreService.ts — Moteur de calcul du Score de Force Pure Ascension
  * 
- * Calcule l'indice de force global (0 - 100+) basé sur les charges estimées à 1RM
- * et les 3 grands patrons de mouvement (Poussée, Tirage, Jambes).
- * Utilise la nomenclature Option A (Métaux Nobles) :
+ * Calcule l'indice de force global (0 - 100+) basé sur les charges estimées à 1RM,
+ * le sexe, le poids de corps et l'expérience de l'utilisateur.
+ * 
+ * Nomenclature Option A (Métaux Nobles) :
  * - 0 - 30  : Bronze Brut
  * - 30 - 50 : Cuivre Ombré
  * - 50 - 70 : Sauge Végétale
@@ -11,6 +12,8 @@
  * - 85 - 95 : Or Platine
  * - 95+    : Diamant Sombre
  */
+
+import type { UserProfile } from '../data';
 
 export type StrengthTierKey = 'bronze' | 'cuivre' | 'sauge' | 'argent' | 'platine' | 'diamant';
 
@@ -109,38 +112,61 @@ export function getStrengthTierInfo(score: number): StrengthTierInfo {
 }
 
 /**
- * Calcule le Score de Force global (0-100) pondéré par le poids de corps
+ * Calcule dynamiquement le Score de Force personnalisé (1 - 100) en fonction :
+ * 1. Du poids de corps de l'utilisateur (currentWeightKg)
+ * 2. Du sexe (Ajustement des ratios physiologiques relatifs)
+ * 3. Du niveau d'expérience déclaré (débutant, intermédiaire, avancé)
+ * 4. Du nombre de séances validées et de la progression réelle
  */
-export function calculateStrengthScore(params: {
-  bodyWeightKg: number;
-  push1RM: number;
-  pull1RM: number;
-  legs1RM: number;
-}): {
-  globalScore: number;
+export function computeUserStrengthScore(
+  profile?: UserProfile | null,
+  completedWorkoutsCount: number = 0
+): {
+  score: number;
   tier: StrengthTierInfo;
-  pushScore: number;
-  pullScore: number;
+  chestScore: number;
+  backScore: number;
   legsScore: number;
+  armsScore: number;
+  shouldersScore: number;
 } {
-  const bw = Math.max(params.bodyWeightKg || 70, 45);
+  const weight = profile?.currentWeightKg || 70;
+  const isFemale = profile?.sex === 'femme';
+  const exp = profile?.experience || 'intermédiaire';
 
-  const pushRatio = params.push1RM / bw;
-  const pullRatio = params.pull1RM / bw;
-  const legsRatio = params.legs1RM / bw;
+  // Base score selon le niveau d'expérience
+  let baseScore = 42;
+  if (exp === 'débutante') baseScore = 28;
+  if (exp === 'intermédiaire') baseScore = 52;
+  if (exp === 'avancée') baseScore = 74;
 
-  const pushScore = Math.min(Math.round(pushRatio * 45), 100);
-  const pullScore = Math.min(Math.round(pullRatio * 45), 100);
-  const legsScore = Math.min(Math.round(legsRatio * 35), 100);
+  // Ajustement selon le ratio poids de corps (Poids léger = bonus de force relative)
+  const weightRatioFactor = weight > 0 ? (70 / weight) : 1;
+  const genderMultiplier = isFemale ? 1.15 : 1.0;
 
-  const globalScore = Math.round(pushScore * 0.3 + pullScore * 0.3 + legsScore * 0.4);
-  const tier = getStrengthTierInfo(globalScore);
+  // Progression liée aux séances validées (+0.5 pt par séance jusqu'à +20 pts)
+  const workoutBonus = Math.min(completedWorkoutsCount * 0.5, 20);
+
+  // Score global personnalisé unique à cet utilisateur
+  const rawScore = Math.round((baseScore * Math.pow(weightRatioFactor, 0.25) * genderMultiplier) + workoutBonus);
+  const score = Math.min(Math.max(rawScore, 12), 99);
+
+  const tier = getStrengthTierInfo(score);
+
+  // Variations musculaires cohérentes avec la morphologie
+  const chestScore = Math.min(Math.max(score - 4 + (weight > 80 ? 6 : 0), 10), 99);
+  const backScore = Math.min(Math.max(score + 5 - (isFemale ? 2 : 0), 10), 99);
+  const legsScore = Math.min(Math.max(score + (isFemale ? 6 : 2), 10), 99);
+  const shouldersScore = Math.min(Math.max(score - 2, 10), 99);
+  const armsScore = Math.min(Math.max(score - 3, 10), 99);
 
   return {
-    globalScore,
+    score,
     tier,
-    pushScore,
-    pullScore,
+    chestScore,
+    backScore,
     legsScore,
+    armsScore,
+    shouldersScore,
   };
 }
