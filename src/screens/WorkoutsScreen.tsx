@@ -410,19 +410,119 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
 
           {/* Liste des exercices */}
           <View style={{ gap:spacing[3] }}>
-            <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.md, color:colors.ink[900] }}>Exercices de la séance</Text>
-            <Card elevation="sm" padding={0} style={{ overflow:'hidden' }}>
-              {exercises.map((ex, idx, arr) => (
-                <View key={ex.id}>
-                  <ExRow
-                    ex={ex}
-                    onToggle={toggle}
-                    onOpenDetail={setDetailExercise}
-                  />
-                  {idx < arr.length - 1 && <View style={{ height:1, backgroundColor:colors.ink[200], marginHorizontal:spacing[4] }} />}
-                </View>
-              ))}
-            </Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontFamily:fontFamily.hanken.semiBold, fontSize:fontSize.md, color:colors.ink[900] }}>Exercices de la séance</Text>
+              {Platform.OS === 'web' && (
+                <Text style={{ fontFamily: fontFamily.hanken.medium, fontSize: fontSize.xs, color: colors.sage[700] }}>
+                  Mode Interactif Web Active
+                </Text>
+              )}
+            </View>
+
+            {Platform.OS === 'web' ? (
+              /* --- EXCLUSIF WEB APP : SÉRIE DE TABLEAUX DES EXERCICES STYLE STRONGER --- */
+              <View style={{ gap: spacing[4] }}>
+                {exercises.map((ex) => {
+                  const group = getMuscleGroup(ex.name, ex.reps);
+                  return (
+                    <Card key={ex.id} elevation="sm" padding={spacing[4]} style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: colors.sand[300] }}>
+                      {/* Header de l'exercice */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginBottom: spacing[3], paddingBottom: spacing[3], borderBottomWidth: 1, borderBottomColor: colors.sand[200] }}>
+                        <ExerciseImage name={ex.name} size={48} />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: 2 }}>
+                            <Badge label={group.label} variant="solid" />
+                            <Text style={{ fontFamily: fontFamily.hanken.medium, fontSize: fontSize.xs, color: colors.ink[600] }}>
+                              🎯 {group.objective}
+                            </Text>
+                          </View>
+                          <Text style={{ fontFamily: fontFamily.spectral.bold, fontSize: fontSize.lg, color: colors.ink[900] }}>
+                            {ex.name}
+                          </Text>
+                        </View>
+                        <Pressable
+                          onPress={() => toggle(ex.id)}
+                          style={{
+                            backgroundColor: ex.done ? colors.sage[500] : colors.sand[200],
+                            paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
+                            borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 6
+                          }}
+                        >
+                          <Check size={14} color={ex.done ? '#fff' : colors.ink[700]} strokeWidth={2.5} />
+                          <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.xs, color: ex.done ? '#fff' : colors.ink[800] }}>
+                            {ex.done ? 'Séance Terminée ✓' : 'Tout Valider'}
+                          </Text>
+                        </Pressable>
+                      </View>
+
+                      {/* Tableau Interactif des Séries Style Stronger */}
+                      <View style={{ backgroundColor: colors.sand[50], borderRadius: radius.md, padding: spacing[3], borderWidth: 1, borderColor: colors.sand[200] }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', paddingBottom: spacing[2], borderBottomWidth: 1.5, borderBottomColor: colors.sand[300], marginBottom: spacing[2] }}>
+                          <Text style={{ width: 50, fontFamily: fontFamily.hanken.bold, fontSize: 11, color: colors.ink[500], letterSpacing: 0.8 }}>SÉRIE</Text>
+                          <Text style={{ flex: 1, fontFamily: fontFamily.hanken.bold, fontSize: 11, color: colors.ink[500], letterSpacing: 0.8 }}>PRÉCÉDENT</Text>
+                          <Text style={{ width: 110, fontFamily: fontFamily.hanken.bold, fontSize: 11, color: colors.ink[500], letterSpacing: 0.8, textAlign: 'center' }}>CHARGE (KG)</Text>
+                          <Text style={{ width: 110, fontFamily: fontFamily.hanken.bold, fontSize: 11, color: colors.ink[500], letterSpacing: 0.8, textAlign: 'center' }}>RÉPÉTITIONS</Text>
+                          <Text style={{ width: 70, fontFamily: fontFamily.hanken.bold, fontSize: 11, color: colors.ink[500], letterSpacing: 0.8, textAlign: 'center' }}>VALIDATION</Text>
+                        </View>
+
+                        {Array.from({ length: ex.sets }, (_, i) => {
+                          const prevWeight = Math.round(30 + i * 5);
+                          return (
+                            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[2.5], borderBottomWidth: i < ex.sets - 1 ? 1 : 0, borderBottomColor: colors.sand[200] }}>
+                              <View style={{ width: 50, alignItems: 'center' }}>
+                                <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: ex.done ? colors.sage[500] : colors.clay[500], alignItems: 'center', justifyContent: 'center' }}>
+                                  <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: 11, color: '#fff' }}>{i + 1}</Text>
+                                </View>
+                              </View>
+                              <Text style={{ flex: 1, fontFamily: fontFamily.hanken.medium, fontSize: fontSize.xs, color: colors.ink[600] }}>
+                                {prevWeight} kg × {ex.reps}
+                              </Text>
+                              <View style={{ width: 110, alignItems: 'center' }}>
+                                <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[900] }}>
+                                  {prevWeight + 5} kg
+                                </Text>
+                              </View>
+                              <View style={{ width: 110, alignItems: 'center' }}>
+                                <Text style={{ fontFamily: fontFamily.hanken.bold, fontSize: fontSize.sm, color: colors.ink[900] }}>
+                                  {ex.reps} reps
+                                </Text>
+                              </View>
+                              <View style={{ width: 70, alignItems: 'center' }}>
+                                <Pressable
+                                  onPress={() => toggle(ex.id)}
+                                  style={{
+                                    width: 32, height: 32, borderRadius: 16,
+                                    backgroundColor: ex.done ? colors.sage[500] : colors.sand[200],
+                                    alignItems: 'center', justifyContent: 'center',
+                                    borderWidth: 1, borderColor: ex.done ? colors.sage[500] : colors.sand[300]
+                                  }}
+                                >
+                                  <Check size={16} color={ex.done ? '#fff' : colors.sage[600]} strokeWidth={2.5} />
+                                </Pressable>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </Card>
+                  );
+                })}
+              </View>
+            ) : (
+              /* --- MOBILE NATIVE (iOS / ANDROID) : LISTE STANDARD COMPACTE --- */
+              <Card elevation="sm" padding={0} style={{ overflow:'hidden' }}>
+                {exercises.map((ex, idx, arr) => (
+                  <View key={ex.id}>
+                    <ExRow
+                      ex={ex}
+                      onToggle={toggle}
+                      onOpenDetail={setDetailExercise}
+                    />
+                    {idx < arr.length - 1 && <View style={{ height:1, backgroundColor:colors.ink[200], marginHorizontal:spacing[4] }} />}
+                  </View>
+                ))}
+              </Card>
+            )}
           </View>
           
           {/* Boutons CTA principaux Terre Cuite & Validation directe Apple Watch */}
