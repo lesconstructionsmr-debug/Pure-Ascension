@@ -17,6 +17,7 @@ import { useWorkoutHistoryStore, workoutDateKey } from '../store/useWorkoutHisto
 import { getTodaySession, saveProgram } from '../services/programService';
 import { auth } from '../services/firebase';
 import { useDailyProgress } from '../context/DailyProgressContext';
+import { MuscleHeatmap } from '../components/MuscleHeatmap';
 
 export function getMuscleGroup(name: string, reps?: string | number): { label: string; icon: string; bg: string; color: string; objective: string } {
   const n = name.toLowerCase();
@@ -388,6 +389,9 @@ export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
               {activeSession?.title || 'Circuit training'}
             </Text>
           </View>
+
+          {/* Score de Force & Carte Musculaire Anatomique */}
+          <MuscleHeatmap score={68} />
 
           {/* Card de progression */}
           <Card elevation="sm" padding={spacing[4]}>
