@@ -4,6 +4,7 @@
  * Persiste localement via AsyncStorage et se synchronise avec Firestore.
  */
 import React, { createContext, useCallback, useContext, useState, useEffect, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../services/firebase';
 import { saveDailyCalories, getTodayProgress } from '../services/dbService';
@@ -59,12 +60,17 @@ export const CalorieProvider: React.FC<{ children: React.ReactNode; initialGoal?
   const goalKcalRef = useRef<number>(goalKcal);
   goalKcalRef.current = goalKcal;
 
+  const loadedDateRef = useRef<string>(todayKey());
+
   // Charger les calories du jour au démarrage et à la connexion
   useEffect(() => {
     let isMounted = true;
 
     const loadCaloriesForUser = async (uid: string | null) => {
-      const storageKey = `daily_calories_${todayKey()}`;
+      const key = todayKey();
+      loadedDateRef.current = key;
+      const storageKey = `daily_calories_${key}`;
+
       try {
         // 1. Charger d'abord localement pour affichage immédiat
         const local = await AsyncStorage.getItem(storageKey);
@@ -76,11 +82,16 @@ export const CalorieProvider: React.FC<{ children: React.ReactNode; initialGoal?
           if (Array.isArray(parsed.entries)) {
             setEntries(parsed.entries);
             currentLocalEntries = parsed.entries;
+          } else {
+            setEntries([]);
           }
           if (parsed.goalKcal !== undefined) {
             setGoalKcal(parsed.goalKcal);
             currentLocalGoal = parsed.goalKcal;
           }
+        } else if (isMounted) {
+          // Nouveau jour (00h00) : Réinitialiser la liste de repas à vide
+          setEntries([]);
         }
 
         // 2. Si connecté, synchroniser avec Firestore sans écraser les données locales
@@ -113,15 +124,38 @@ export const CalorieProvider: React.FC<{ children: React.ReactNode; initialGoal?
       }
     };
 
+    loadCaloriesForUser(auth.currentUser?.uid ?? null);
+
     const unsubscribe = auth.onAuthStateChanged((user) => {
       loadCaloriesForUser(user ? user.uid : null);
     });
 
+    const onAppState = (state: AppStateStatus) => {
+      if (state !== 'active') return;
+      const key = todayKey();
+      if (key !== loadedDateRef.current) {
+        setEntries([]);
+        loadCaloriesForUser(auth.currentUser?.uid ?? null);
+      }
+    };
+    const sub = AppState.addEventListener('change', onAppState);
+
+    // Vérification automatique à minuit (00h00 pile)
+    const interval = setInterval(() => {
+      const key = todayKey();
+      if (key !== loadedDateRef.current) {
+        setEntries([]);
+        loadCaloriesForUser(auth.currentUser?.uid ?? null);
+      }
+    }, 10_000);
+
     return () => {
       isMounted = false;
       unsubscribe();
+      sub.remove();
+      clearInterval(interval);
     };
-  }, []);
+  }, [initialGoal]);
 
   const persistState = useCallback(async (newEntries: FoodEntry[], newGoal: number) => {
     const storageKey = `daily_calories_${todayKey()}`;
