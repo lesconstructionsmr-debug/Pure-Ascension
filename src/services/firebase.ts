@@ -11,9 +11,12 @@ declare var process: any;
  * Web  → app `pure-ascension-web`
  * iOS  → app `Pure Ascension iOS` (GoogleService-Info.plist)
  */
+// Clés client Firebase = publiques par design. Env prioritaire ; fallbacks = éviter écran blanc
+// si EAS/Netlify oublie EXPO_PUBLIC_FIREBASE_*_API_KEY (Build 54 regression).
 const webConfig = {
-  // Clés client Firebase : via env uniquement (jamais hardcodées — scan Netlify / AGENTS.md).
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
+  apiKey:
+    process.env.EXPO_PUBLIC_FIREBASE_API_KEY ||
+    'AIzaSyDeycItIcKPO5aGxcxjXa6wwEYoFK4Qa68',
   authDomain:
     process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ||
     'pure-ascension.firebaseapp.com',
@@ -24,11 +27,16 @@ const webConfig = {
     'pure-ascension.firebasestorage.app',
   messagingSenderId:
     process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '311570100137',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '',
+  appId:
+    process.env.EXPO_PUBLIC_FIREBASE_APP_ID ||
+    '1:311570100137:web:1bb06bca9e1b4683e45eb8',
 };
 
 const iosConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_IOS_API_KEY || '',
+  // Aligné GoogleService-Info.plist
+  apiKey:
+    process.env.EXPO_PUBLIC_FIREBASE_IOS_API_KEY ||
+    'AIzaSyBJacqAfNf7MqVMCsDT7YgA9s2Sb-rcqtE',
   authDomain:
     process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ||
     'pure-ascension.firebaseapp.com',
@@ -39,7 +47,9 @@ const iosConfig = {
     'pure-ascension.firebasestorage.app',
   messagingSenderId:
     process.env.EXPO_PUBLIC_FIREBASE_IOS_MESSAGING_SENDER_ID || '311570100137',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_IOS_APP_ID || '',
+  appId:
+    process.env.EXPO_PUBLIC_FIREBASE_IOS_APP_ID ||
+    '1:311570100137:ios:ba0a6e3f3f80fdd8e45eb8',
 };
 
 const firebaseConfig = Platform.OS === 'ios' ? iosConfig : webConfig;
