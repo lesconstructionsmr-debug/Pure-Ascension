@@ -97,6 +97,18 @@ function AppContent() {
   });
 
   React.useEffect(() => {
+    if (Platform.OS === 'web') return;
+    (async () => {
+      try {
+        const { configureRevenueCat } = await import('./src/services/revenueCatService');
+        await configureRevenueCat();
+      } catch (err) {
+        console.warn('RevenueCat init:', err);
+      }
+    })();
+  }, []);
+
+  React.useEffect(() => {
     if (skipFontGate) return;
     const timer = setTimeout(() => setForceReady(true), 800);
     return () => clearTimeout(timer);

@@ -44,6 +44,12 @@ export async function resetPassword(email: string): Promise<void> {
 }
 
 export async function logOut(): Promise<void> {
+  try {
+    const { logoutRevenueCat } = await import('./revenueCatService');
+    await logoutRevenueCat();
+  } catch {
+    // ignore si RevenueCat non chargé (web)
+  }
   await signOut(auth);
 }
 

@@ -8,6 +8,7 @@ import { AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../services/firebase';
 import { saveDailyCalories, getTodayProgress } from '../services/dbService';
+import { localTodayKey } from '../utils/dateKeys';
 
 export interface FoodEntry {
   id:        string;
@@ -37,11 +38,7 @@ interface CalorieCtx {
 const Ctx = createContext<CalorieCtx | null>(null);
 
 function todayKey(): string {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return localTodayKey();
 }
 
 function nowHHMM(): string {
@@ -97,7 +94,8 @@ export const CalorieProvider: React.FC<{ children: React.ReactNode; initialGoal?
         // 2. Si connecté, synchroniser avec Firestore sans écraser les données locales
         if (uid && uid !== 'local_user' && auth.currentUser) {
           const remote = await getTodayProgress(uid);
-          if (remote && isMounted) {
+          // Ignorer un document remote d'un autre jour (évite score collé post-minuit)
+          if (remote && isMounted && (!remote.date || remote.date === key)) {
             let finalEntries = currentLocalEntries;
             if (Array.isArray(remote.foodEntries)) {
               const localMap = new Map(currentLocalEntries.map(e => [e.id, e]));

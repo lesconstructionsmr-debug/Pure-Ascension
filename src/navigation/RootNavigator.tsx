@@ -241,6 +241,27 @@ export const RootNavigator: React.FC = () => {
         setUserEmail(user.email ?? '');
         useProgramStore.getState().setUserData(userName || user.displayName || '', user.email ?? '');
 
+        // Lier l'achat StoreKit / RevenueCat au UID Firebase
+        if (Platform.OS !== 'web') {
+          try {
+            const {
+              configureRevenueCat,
+              loginRevenueCat,
+              hasPremiumEntitlement,
+            } = await import('../services/revenueCatService');
+            await configureRevenueCat();
+            const info = await loginRevenueCat(user.uid);
+            if (hasPremiumEntitlement(info)) {
+              setPlanLevel('premium');
+              setStripeStatus('active');
+              useProgramStore.getState().setPremium(true);
+              useProgramStore.getState().setShowPaywall(false);
+            }
+          } catch (err) {
+            console.warn('RevenueCat login:', err);
+          }
+        }
+
         unsubDb = listenToUserData(user.uid, (data, isError) => {
           const currentStore = useProgramStore.getState();
 
@@ -256,11 +277,16 @@ export const RootNavigator: React.FC = () => {
 
           if (data) {
             const status = data.stripe_subscription_status ?? 'inactive';
+            const rcStatus = data.revenuecat_subscription_status ?? 'inactive';
             const level = data.planLevel ?? 'none';
-            setStripeStatus(status);
+            setStripeStatus(status === 'active' || status === 'trialing' ? status : rcStatus);
             setPlanLevel(level);
             
-            const isPrem = status === 'active' || status === 'trialing' || level === 'premium';
+            const isPrem =
+              status === 'active' ||
+              status === 'trialing' ||
+              rcStatus === 'active' ||
+              level === 'premium';
             useProgramStore.getState().setPremium(isPrem);
 
             let nameToSet = userName;

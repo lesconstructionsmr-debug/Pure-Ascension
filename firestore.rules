@@ -29,7 +29,12 @@ service cloud.firestore {
           'stripeSubscriptionStatus',
           'stripeSubscriptionId',
           'stripeCustomerId',
-          'isPremium'
+          'isPremium',
+          'revenuecat_subscription_status',
+          'revenuecat_product_id',
+          'revenuecat_store',
+          'revenuecat_environment',
+          'revenuecat_updated_at'
         ])
         // planLevel : le client peut seulement choisir / rester en "free" (pas s'auto-promouvoir)
         && (

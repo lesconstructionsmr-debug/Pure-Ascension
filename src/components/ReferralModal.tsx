@@ -112,7 +112,16 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ visible, onClose }
         setApplyStatus({ type: 'success', message: 'Code parrain appliqué avec succès !' });
         try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch (e) {}
       } else {
-        setApplyStatus({ type: 'error', message: data.error || 'Erreur lors de l\'application du code' });
+        setApplyStatus({
+          type: 'error',
+          message:
+            data.message ||
+            (data.error === 'AUTH_REQUIRED'
+              ? 'Connecte-toi pour appliquer un code.'
+              : data.error === 'AUTH_INVALID'
+                ? 'Session expirée. Reconnecte-toi.'
+                : data.error || 'Erreur lors de l\'application du code'),
+        });
         try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch (e) {}
       }
     } catch (error) {

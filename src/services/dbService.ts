@@ -3,6 +3,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { UserProfile } from '../data';
+import { localTodayKey } from '../utils/dateKeys';
 
 export function cleanObject(obj: any): any {
   if (obj === null || obj === undefined) return null;
@@ -186,7 +187,8 @@ export async function getReferralsByReferrer(referrerUid: string) {
 
 /* ── Daily progress ───────────────────────────────────────────────────────── */
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  // Calendrier local — jamais toISOString (UTC) sinon décalage Québec / FR
+  return localTodayKey();
 }
 
 export async function saveDailyProgress(uid: string, data: {

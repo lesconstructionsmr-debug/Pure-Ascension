@@ -13,16 +13,13 @@ import { useProgramStore } from '../store/useProgramStore';
 import { useWorkoutHistoryStore } from '../store/useWorkoutHistoryStore';
 import { useCalorie } from './CalorieContext';
 import { calculateAndUpdateStreak } from '../hooks/useStreak';
+import { localTodayKey } from '../utils/dateKeys';
 
 const TOTAL_MEALS   = 3;
 const TOTAL_WATER   = 8; // verres
 
 function todayKey(): string {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return localTodayKey();
 }
 
 const EMPTY_DAY = {
@@ -341,10 +338,10 @@ export const DailyProgressProvider: React.FC<{ children: React.ReactNode }> = ({
   const hasWorkoutToday = history.some(w => w.dateKey === todayKey());
   const isWorkoutDone = workoutCompleted || hasWorkoutToday;
 
+  // Repas : plafonner au objectif du jour (3) — 11 logs ≠ objectif à 11
   const totalLoggedMeals = Math.max(checkedMealIds.size, calorieEntriesCount);
   const mealsCount = totalLoggedMeals;
-  const targetMealsCount = Math.max(TOTAL_MEALS, mealsCount);
-  const mealsPct   = Math.min(100, Math.round((mealsCount / targetMealsCount) * 100));
+  const mealsPct   = Math.min(100, Math.round((Math.min(mealsCount, TOTAL_MEALS) / TOTAL_MEALS) * 100));
   const workoutPct = isWorkoutDone ? 100 : 0;
   const waterPct   = Math.min(100, Math.round((waterGlasses / TOTAL_WATER) * 100));
   const sleepPct   = Math.round((sleepScore / 5) * 100);

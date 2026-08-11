@@ -307,7 +307,7 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
                     </Text>
                   </View>
                   <Text style={{ fontFamily:fontFamily.hanken.medium, fontSize:fontSize.xs, color:colors.sage[700] }}>
-                    ({mealsCount}/3 repas · {waterGlasses}/8 verres · {totalKcal} kcal)
+                    ({Math.min(mealsCount, 3)}/3 repas · {waterGlasses}/8 verres · {totalKcal} kcal)
                   </Text>
                 </View>
                 <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginTop:spacing[2] }}>

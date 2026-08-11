@@ -1,13 +1,15 @@
 /**
  * SubscriptionScreen
- * Paywall avec 2 options : Accès Libre (Gratuit) et Formule Ascension (19.99$/mois).
- * Gère l'initiation de Stripe Checkout via la Netlify Function.
+ * Paywall : Accès Libre + Formule Ascension.
+ * - iOS/Android : RevenueCat / StoreKit (IAP)
+ * - Web : Stripe Checkout
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Pressable, SafeAreaView, ScrollView,
-  StyleSheet, Text, View, ActivityIndicator, Platform, Linking
+  StyleSheet, Text, View, ActivityIndicator, Platform
 } from 'react-native';
+import type { PurchasesPackage } from 'react-native-purchases';
 import {
   Check, X, ChevronLeft, Sparkles, Lock,
   UtensilsCrossed, Dumbbell, BarChart2,
@@ -18,6 +20,18 @@ import { Button } from '../components/Button';
 import { logOut } from '../services/authService';
 import { getNetlifyAuthHeaders } from '../services/netlifyAuth';
 import { auth } from '../services/firebase';
+import {
+  configureRevenueCat,
+  getCurrentOfferingPackages,
+  hasPremiumEntitlement,
+  isNativeIapPlatform,
+  isRevenueCatConfigured,
+  packageLabel,
+  purchasePackage,
+  restorePurchases,
+} from '../services/revenueCatService';
+import { useProgramStore } from '../store/useProgramStore';
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 
 /* ─── Props ──────────────────────────────────────────────────────────────── */
 interface Props {
@@ -42,6 +56,36 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
   const [selected, setSelected] = useState<'free' | 'ascension'>('ascension');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [iapPackages, setIapPackages] = useState<PurchasesPackage[]>([]);
+  const [selectedPkgId, setSelectedPkgId] = useState<string | null>(null);
+  const useIap = isNativeIapPlatform();
+
+  useEffect(() => {
+    if (!useIap) return;
+    (async () => {
+      try {
+        await configureRevenueCat();
+        if (!isRevenueCatConfigured()) {
+          setError('Abonnement iOS en configuration (clé RevenueCat manquante).');
+          return;
+        }
+        const pkgs = await getCurrentOfferingPackages();
+        setIapPackages(pkgs);
+        const Purchases = (await import('react-native-purchases')).default;
+        const monthly =
+          pkgs.find((p) => p.packageType === Purchases.PACKAGE_TYPE.MONTHLY) || pkgs[0];
+        if (monthly) setSelectedPkgId(monthly.identifier);
+      } catch (err: any) {
+        console.warn(err);
+        setError(err?.message || 'Impossible de charger les offres App Store.');
+      }
+    })();
+  }, [useIap]);
+
+  const markPremiumLocal = () => {
+    useProgramStore.getState().setPremium(true);
+    useProgramStore.getState().setShowPaywall(false);
+  };
 
   const handleSubscribe = async () => {
     if (selected === 'free') {
@@ -57,36 +101,78 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
         throw new Error('Connecte-toi pour souscrire à la Formule Ascension.');
       }
 
-      const checkoutEndpoint = Platform.OS === 'web'
-        ? '/.netlify/functions/create-checkout-session'
-        : 'https://pure-ascension.netlify.app/.netlify/functions/create-checkout-session';
+      // ── Native : StoreKit via RevenueCat uniquement (jamais Stripe) ──
+      if (Platform.OS !== 'web') {
+        if (!isRevenueCatConfigured()) {
+          throw new Error(
+            'Abonnement iOS bientôt disponible via l’App Store. En attendant, utilise la version web ou Continuer en Accès Libre.'
+          );
+        }
+        const pkg =
+          iapPackages.find((p) => p.identifier === selectedPkgId) || iapPackages[0];
+        if (!pkg) {
+          throw new Error(
+            'Aucune offre App Store disponible pour le moment. Réessaie plus tard ou restaure tes achats.'
+          );
+        }
+        const { customerInfo, userCancelled } = await purchasePackage(pkg);
+        if (userCancelled) {
+          setLoading(false);
+          return;
+        }
+        if (hasPremiumEntitlement(customerInfo)) {
+          markPremiumLocal();
+        } else {
+          throw new Error('Achat terminé, accès premium introuvable. Essaie « Restaurer mes achats ».');
+        }
+        setLoading(false);
+        return;
+      }
+
+      // ── Web : Stripe Checkout ──
+      const checkoutEndpoint = '/.netlify/functions/create-checkout-session';
 
       const response = await fetch(checkoutEndpoint, {
         method: 'POST',
-        headers: await getNetlifyAuthHeaders(),
+        headers: await getNetlifyAuthHeaders({ forceRefresh: true }),
         body: JSON.stringify({
           uid,
           email,
           plan: 'ascension',
-          isNativeApp: Platform.OS !== 'web',
+          isNativeApp: false,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok || !data.url) {
-        throw new Error(data.error || 'Impossible d\'initier le paiement Stripe.');
+        throw new Error(
+          apiErrorMessage(data, 'Impossible d\'initier le paiement sécurisé.')
+        );
       }
 
-      if (Platform.OS === 'web') {
-        window.location.href = data.url;
-      } else {
-        await Linking.openURL(data.url);
-        setLoading(false);
-      }
+      window.location.href = data.url;
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Une erreur de réseau est survenue.');
+      setLoading(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await configureRevenueCat();
+      const info = await restorePurchases();
+      if (hasPremiumEntitlement(info)) {
+        markPremiumLocal();
+      } else {
+        setError('Aucun abonnement actif à restaurer pour ce compte Apple.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Restauration impossible.');
+    } finally {
       setLoading(false);
     }
   };
@@ -142,7 +228,7 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
             </View>
           </Pressable>
 
-          {/* Ascension plan (Formule unique à 19.99$/mois) */}
+          {/* Ascension plan */}
           <Pressable
             style={[
               st.planCard, 
@@ -163,10 +249,32 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
                 <Text style={[st.planPriceSub, { color: colors.sage[200] }]}>Accès complet : Entraînement, Nutrition & IA 24/7</Text>
               </View>
               <View style={st.priceRow}>
-                <Text style={[st.planPrice, { color: '#fff' }]}>Formule Complet</Text>
+                <Text style={[st.planPrice, { color: '#fff' }]}>
+                  {useIap && iapPackages[0]
+                    ? packageLabel(iapPackages.find((p) => p.identifier === selectedPkgId) || iapPackages[0])
+                    : 'Formule Complet'}
+                </Text>
               </View>
             </View>
           </Pressable>
+
+          {useIap && iapPackages.length > 1 && selected === 'ascension' && (
+            <View style={{ gap: 8, marginTop: 4 }}>
+              {iapPackages.map((pkg) => (
+                <Pressable
+                  key={pkg.identifier}
+                  onPress={() => setSelectedPkgId(pkg.identifier)}
+                  style={[
+                    st.planCard,
+                    selectedPkgId === pkg.identifier && st.planCardSelected,
+                  ]}
+                >
+                  <Text style={st.planName}>{pkg.product.title || pkg.identifier}</Text>
+                  <Text style={st.planPriceSub}>{packageLabel(pkg)}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
         </View>
 
@@ -214,7 +322,11 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
           {loading ? (
             <View style={st.loaderContainer}>
               <ActivityIndicator size="large" color={colors.sage[600]} />
-              <Text style={st.loaderText}>Redirection vers la passerelle sécurisée Stripe...</Text>
+              <Text style={st.loaderText}>
+                {useIap
+                  ? 'Connexion à l’App Store…'
+                  : 'Redirection vers la passerelle sécurisée Stripe…'}
+              </Text>
             </View>
           ) : (
             <Button
@@ -229,16 +341,21 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
 
           {selected !== 'free' && (
             <Text style={st.ctaLegal}>
-              Abonnement mensuel sans engagement. Annulation en 2 clics.
+              {useIap
+                ? 'Paiement via l’App Store. Gère ou annule dans Réglages → Abonnements.'
+                : 'Abonnement sans engagement. Annulation en quelques clics.'}
             </Text>
           )}
         </View>
 
         {/* Actions de secours */}
         <View style={st.fallbackActions}>
-          <Pressable onPress={() => { setLoading(true); setTimeout(() => setLoading(false), 2000); }} style={st.fallbackBtn}>
+          <Pressable
+            onPress={useIap ? handleRestore : () => { setLoading(true); setTimeout(() => setLoading(false), 2000); }}
+            style={st.fallbackBtn}
+          >
             <RefreshCw size={14} color={colors.ink[500]} />
-            <Text style={st.fallbackText}>J'ai déjà payé</Text>
+            <Text style={st.fallbackText}>{useIap ? 'Restaurer mes achats' : "J'ai déjà payé"}</Text>
           </Pressable>
           <View style={st.fallbackDivider} />
           <Pressable onPress={async () => { try { await logOut(); } catch(e){} }} style={st.fallbackBtn}>
@@ -251,7 +368,9 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
         <View style={st.reassuranceRow}>
           <Lock size={14} color={colors.ink[500]} strokeWidth={1.5} />
           <Text style={st.reassuranceText}>
-            Paiement sécurisé via Stripe · Pas de frais cachés
+            {useIap
+              ? 'Paiement sécurisé via Apple · Pas de frais cachés'
+              : 'Paiement sécurisé via Stripe · Pas de frais cachés'}
           </Text>
         </View>
 
