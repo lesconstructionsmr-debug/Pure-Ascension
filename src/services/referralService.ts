@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { getUserData, getUserByReferralCode, updateUserReferralInfo, getReferralsByReferrer } from './dbService';
+import { getNetlifyAuthHeaders } from './netlifyAuth';
 
 export interface ReferralStats {
   referralCode: string;
@@ -115,9 +116,7 @@ export async function applyReferralCode(
 
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: await getNetlifyAuthHeaders(),
       body: JSON.stringify({
         refereeUid,
         referralCode: referralCode.trim().toUpperCase(),

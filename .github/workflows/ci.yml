@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  compliance-and-types:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compliance check
+        run: npm run compliance
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Meal scanner tests
+        run: npm run test:meal-scanner
+
+      - name: Scan pipeline tests
+        run: npm run test:scan-pipeline

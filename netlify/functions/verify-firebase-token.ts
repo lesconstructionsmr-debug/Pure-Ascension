@@ -102,3 +102,46 @@ export async function verifyFirebaseIdToken(
     return null;
   }
 }
+
+export type AuthFailure = {
+  statusCode: 401;
+  body: string;
+};
+
+/**
+ * Exige un Bearer Firebase ID token valide.
+ * Retourne l'utilisateur ou un objet d'échec 401 (à merger avec les headers CORS).
+ */
+export async function requireFirebaseAuth(
+  headers: Record<string, string | undefined> | undefined
+): Promise<VerifiedFirebaseUser | AuthFailure> {
+  const token = extractBearerToken(headers);
+  if (!token) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({
+        error: 'AUTH_REQUIRED',
+        message: 'Connecte-toi à ton compte Pure Ascension pour continuer.',
+      }),
+    };
+  }
+
+  const user = await verifyFirebaseIdToken(token);
+  if (!user) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({
+        error: 'AUTH_INVALID',
+        message: 'Ta session a expiré. Reconnecte-toi puis réessaie.',
+      }),
+    };
+  }
+
+  return user;
+}
+
+export function isAuthFailure(
+  value: VerifiedFirebaseUser | AuthFailure
+): value is AuthFailure {
+  return (value as AuthFailure).statusCode === 401;
+}

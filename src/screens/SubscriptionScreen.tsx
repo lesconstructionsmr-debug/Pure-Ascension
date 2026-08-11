@@ -16,6 +16,8 @@ import {
 import { colors, fontFamily, fontSize, lineHeight, spacing, radius, shadows } from '../theme/theme';
 import { Button } from '../components/Button';
 import { logOut } from '../services/authService';
+import { getNetlifyAuthHeaders } from '../services/netlifyAuth';
+import { auth } from '../services/firebase';
 
 /* ─── Props ──────────────────────────────────────────────────────────────── */
 interface Props {
@@ -51,15 +53,17 @@ export const SubscriptionScreen: React.FC<Props> = ({ uid, email, onBack, onFree
     setError('');
 
     try {
+      if (!auth.currentUser) {
+        throw new Error('Connecte-toi pour souscrire à la Formule Ascension.');
+      }
+
       const checkoutEndpoint = Platform.OS === 'web'
         ? '/.netlify/functions/create-checkout-session'
         : 'https://pure-ascension.netlify.app/.netlify/functions/create-checkout-session';
 
       const response = await fetch(checkoutEndpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: await getNetlifyAuthHeaders(),
         body: JSON.stringify({
           uid,
           email,

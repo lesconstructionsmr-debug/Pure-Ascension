@@ -1,11 +1,8 @@
 import { Handler } from '@netlify/functions';
+import { buildCorsHeaders } from './cors';
 
 export const handler: Handler = async (event) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  };
+  const headers = buildCorsHeaders(event.headers as Record<string, string | undefined>);
 
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };

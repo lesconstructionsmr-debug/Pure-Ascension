@@ -17,6 +17,7 @@ import { colors, fontFamily, fontSize, letterSpacing, radius, shadows, spacing }
 import { Card } from './Card';
 import { useProgramStore } from '../store/useProgramStore';
 import { auth } from '../services/firebase';
+import { getNetlifyAuthHeaders } from '../services/netlifyAuth';
 
 interface ReferralModalProps {
   visible: boolean;
@@ -86,15 +87,20 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ visible, onClose }
     setApplyStatus({ type: null, message: '' });
 
     try {
+      if (!auth.currentUser) {
+        setApplyStatus({ type: 'error', message: 'Connecte-toi pour appliquer un code.' });
+        return;
+      }
+
       const applyEndpoint = Platform.OS === 'web'
         ? '/.netlify/functions/apply-referral'
         : 'https://pure-ascension.netlify.app/.netlify/functions/apply-referral';
 
       const response = await fetch(applyEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getNetlifyAuthHeaders(),
         body: JSON.stringify({
-          refereeUid: auth.currentUser?.uid,
+          refereeUid: auth.currentUser.uid,
           referralCode: codeInput.trim().toUpperCase(),
           stripeCustomerId: userData?.stripe_customer_id || null
         })

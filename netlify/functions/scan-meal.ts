@@ -9,6 +9,7 @@ import {
   type ScanMealSuccessResponse,
 } from './meal-scan-core';
 import { extractBearerToken, verifyFirebaseIdToken } from './verify-firebase-token';
+import { buildCorsHeaders } from './cors';
 
 export type { IdentifiedFoodItem, MealOutput, ScanMealSuccessResponse };
 
@@ -16,7 +17,10 @@ export type { IdentifiedFoodItem, MealOutput, ScanMealSuccessResponse };
 const AUTH_REQUIRED = process.env.SCAN_REQUIRE_AUTH !== 'false';
 
 export const handler: Handler = async (event) => {
-  const headers = CORS_HEADERS;
+  const headers = {
+    ...CORS_HEADERS,
+    ...buildCorsHeaders(event.headers as Record<string, string | undefined>),
+  };
 
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };

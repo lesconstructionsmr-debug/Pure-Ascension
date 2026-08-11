@@ -1,7 +1,7 @@
 ﻿# 📖 Charte Éditoriale & Guide de Style — Pure Ascension 🛡️
 
 > **Document de référence officiel** — Toute contribution au projet Pure Ascension doit impérativement respecter les règles définies dans ce guide.
-> **Version** : 1.1.0 — **Dernière mise à jour** : 2026-07-26
+> **Version** : 1.1.1 — **Dernière mise à jour** : 2026-08-10
 > **Statut** : ✅ Document de conformité contraignant (Obligatoire pour tous les contributeurs)
 
 ---
@@ -39,19 +39,21 @@ Chaque terme interdit possède un ou plusieurs équivalents réglementaires appr
 
 | Terme Proscrit ❌ | Formulation Autorisée ✅ | Exemple d'Usage Correct |
 |:---|:---|:---|
-| `naturopathie` | **bilan de vitalité** / **hygiène de vie** / **bilan métabolique** | *"Découvrez votre bilan de vitalité personnalisé"* |
-| `naturopathe` | **coach bien-être** / **accompagnateur de vitalité** | *"Votre coach bien-être vous guide"* |
-| `diagnostic` | **bilan de vitalité** / **analyse de forme** / **évaluation de votre hygiène de vie** | *"Commencez votre analyse de forme"* |
+| `naturopathie` | **hygiène de vie** / **coaching bien-être** / **rituel quotidien** | *"Découvrez votre programme d'hygiène de vie"* |
+| `naturopathe` | **coach bien-être** / **accompagnateur bien-être** | *"Votre coach bien-être vous guide"* |
+| `diagnostic` | **analyse de forme** / **évaluation de votre hygiène de vie** / **profil de performance** | *"Commencez votre analyse de forme"* |
 | `ordonnance` / `prescription` | **recommandations personnalisées** / **programme d'hygiène de vie** | *"Vos recommandations personnalisées sont prêtes"* |
 | `traitement` | **accompagnement** / **programme personnalisable** / **routine bien-être** | *"Votre routine bien-être sur-mesure"* |
 | `soin` / `soins` | **conseils personnalisés** / **programme d'optimisation** | *"Vos conseils personnalisés du jour"* |
-| `guérison` / `guérir` | **renforcement de la vitalité** / **épanouissement** / **optimisation de la forme** | *"Optimisez votre vitalité au quotidien"* |
+| `guérison` / `guérir` | **optimisation de la forme** / **épanouissement** / **énergie au quotidien** | *"Optimisez votre forme au quotidien"* |
 | `thérapie` | **démarche globale** / **discipline de vie** / **coaching bien-être** | *"Une démarche globale pour votre bien-être"* |
 | `patient` | **utilisateur** / **membre** / **client** | *"Bienvenue, membre Pure Ascension"* |
-| `remède` | **conseil de vitalité** / **recommandation bien-être** | *"Votre conseil de vitalité du jour"* |
-| `maladie` | *Éviter tout contexte* / **déséquilibre de vitalité** (avec prudence) | *Ne pas mentionner les maladies* |
+| `remède` | **recommandation bien-être** / **conseil d'hygiène de vie** | *"Votre conseil bien-être du jour"* |
+| `maladie` | *Éviter tout contexte* | *Ne pas mentionner les maladies* |
 | Prix fixes | **Formule Standard** / **Formule Premium** / **Accès Libre** | *"Découvrez la Formule Premium"* |
-| `prévention maladies` | **maintien de votre vitalité** / **équilibre de vie durable** | *"Pour maintenir votre vitalité au quotidien"* |
+| `prévention maladies` | **maintien de votre forme** / **équilibre de vie durable** | *"Pour maintenir votre équilibre au quotidien"* |
+
+> **Alignement `npm run compliance` :** ne pas utiliser non plus `bilan de vitalité`, `bilan métabolique`, `holistique`, ni les formulations « métabolique / hépatique / inflammation » listées dans `scripts/compliance-check.js`. Le script et cette table doivent rester synchronisés.
 
 ### 🗣️ Ton de Voix Officiel
 
@@ -174,7 +176,7 @@ Politique de confidentialité | Conditions Générales d'Utilisation
 
 | Formule | Désignation Officielle | Description Autorisée |
 |:---:|:---|:---|
-| 🆓 | **Accès Libre** | Accès aux fonctionnalités de découverte et au bilan de vitalité de base |
+| 🆓 | **Accès Libre** | Accès aux fonctionnalités de découverte et à l'analyse de forme de base |
 | ⭐ | **Formule Standard** | Accès complet aux routines quotidiennes et au suivi de l'hygiène de vie |
 | 👑 | **Formule Premium** | Accès étendu avec accompagnement avancé et fonctionnalités exclusives |
 

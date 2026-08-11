@@ -1,46 +1,11 @@
 import { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
-import * as admin from 'firebase-admin';
+import { admin, getFirestoreDb } from './firebase-admin-init';
 
 // Initialiser Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2023-10-16' as any,
 });
-
-// Fonction d'initialisation de Firebase Admin via variables d'environnement
-function getFirestoreDb(): admin.firestore.Firestore {
-  if (!admin.apps.length) {
-    let serviceAccountObj: Record<string, string> | undefined;
-    try {
-      serviceAccountObj = require('./serviceAccountKey.json');
-    } catch {
-      serviceAccountObj = undefined;
-    }
-
-    const projectId = process.env.FIREBASE_PROJECT_ID || serviceAccountObj?.project_id || 'pure-ascension';
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || serviceAccountObj?.client_email || '';
-    let privateKey = (process.env.FIREBASE_PRIVATE_KEY || serviceAccountObj?.private_key || '').trim();
-
-    privateKey = privateKey.replace(/\\n/g, '\n');
-
-    if (clientEmail && privateKey) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
-      });
-    } else {
-      admin.initializeApp({
-        projectId,
-      });
-    }
-    console.log('✓ Firebase Admin initialisé avec succès.');
-  }
-
-  return admin.firestore();
-}
 
 /**
  * Recherche l'utilisateur dans Firestore par stripeSubscriptionId ou stripeCustomerId

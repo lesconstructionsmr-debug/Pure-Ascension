@@ -1,6 +1,15 @@
 [build]
   functions = "netlify/functions"
   publish = "dist"
+  command = "npm run build:web"
+
+# Firebase client API keys (AIza…) are public by design and end up in the web bundle.
+# Keep normal secret scanning for marked secrets; disable only smart detection of AIza patterns.
+[build.environment]
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+  SECRETS_SCAN_OMIT_KEYS = "EXPO_PUBLIC_FIREBASE_API_KEY,EXPO_PUBLIC_FIREBASE_IOS_API_KEY"
+  SECRETS_SCAN_OMIT_PATHS = "eas.json,GoogleService-Info.plist,scratch/**"
+  NODE_VERSION = "20"
 
 [functions]
   node_bundler = "esbuild"
@@ -28,11 +37,11 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(self), microphone=(), geolocation=()"
 
-# CORS & Cache Control for Serverless Netlify Functions
+# CORS for Serverless Netlify Functions — origin reflected by each function (allowlist).
+# Do NOT set Access-Control-Allow-Origin: * here.
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
-    Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Headers = "Content-Type, Authorization, stripe-signature"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Cache-Control = "no-store, no-cache, must-revalidate, proxy-revalidate"

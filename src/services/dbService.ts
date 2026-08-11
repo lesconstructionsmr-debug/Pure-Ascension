@@ -285,10 +285,15 @@ export async function updateStreak(uid: string, streakDays: number) {
   }
 }
 
+/** Client : uniquement le plan gratuit. Premium/standard = webhook Stripe (Admin SDK). */
 export async function setUserPlan(uid: string, planLevel: 'free' | 'standard' | 'premium') {
   if (!uid || uid === 'local_user' || !auth.currentUser) return;
+  if (planLevel !== 'free') {
+    console.warn('setUserPlan: upgrade ignoré côté client — attendre le webhook Stripe');
+    return;
+  }
   try {
-    await updateDoc(doc(db, 'users', uid), { planLevel, updatedAt: serverTimestamp() });
+    await updateDoc(doc(db, 'users', uid), { planLevel: 'free', updatedAt: serverTimestamp() });
   } catch (err: any) {
     if (err?.code !== 'permission-denied') {
       console.warn('setUserPlan: envoi différé ou hors-ligne Firestore', err);

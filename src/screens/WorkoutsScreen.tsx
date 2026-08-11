@@ -223,9 +223,11 @@ const ExRow: React.FC<{
 };
 
 export const WorkoutsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
-  const program          = useProgramStore(s => s.program);
-  const isPremium        = useProgramStore(s => s.isPremium);
-  const setActiveSession = useProgramStore(s => s.setActiveSession);
+  const program                 = useProgramStore(s => s.program);
+  const isPremium               = useProgramStore(s => s.isPremium);
+  const setActiveSession        = useProgramStore(s => s.setActiveSession);
+  const profile                 = useProgramStore(s => s.profile);
+  const completedWorkoutsCount  = useProgramStore(s => s.completedWorkoutsCount);
   const { completeWorkout } = useDailyProgress();
   const [detailExercise, setDetailExercise] = useState<Exercise | null>(null);
   

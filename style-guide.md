@@ -12,13 +12,15 @@ Pour prémunir Pure Ascension contre tout risque juridique (exercice illégal de
 
 | Terme Proscrit ❌ | Équivalent Réglémentaire Autorisé ✅ | Contexte d'Utilisation & Directive Rédactionnelle |
 | :--- | :--- | :--- |
-| `naturopathie`, `naturopathe` | **bilan de vitalité**, **hygiène de vie**, **bilan métabolique** | Décrire l'approche globale et les fonctionnalités d'évaluation du bien-être. |
-| `diagnostic` | **bilan de vitalité**, **analyse de forme**, **évaluation métabolique** | Évaluer l'état actuel de l'utilisateur sans poser d'acte médical. |
+| `naturopathie`, `naturopathe` | **hygiène de vie**, **coaching bien-être**, **rituel quotidien** | Décrire l'approche globale et les fonctionnalités d'évaluation du bien-être. |
+| `diagnostic` | **analyse de forme**, **évaluation de votre hygiène de vie**, **profil de performance** | Évaluer l'état actuel de l'utilisateur sans poser d'acte médical. |
 | `ordonnance`, `prescription` | **recommandations d'hygiène de vie**, **programme personnalisé** | Suggérer des routines d'hygiène de vie, de nutrition et de mouvement. |
-| `traitement`, `remède`, `soin` | **accompagnement**, **routine bien-être**, **conseils personnalisés** | Désigner les modules et programmes d'optimisation de la vitalité. |
+| `traitement`, `remède`, `soin` | **accompagnement**, **routine bien-être**, **conseils personnalisés** | Désigner les modules et programmes d'optimisation. |
 | `patient`, `malade` | **utilisateur**, **membre**, **client** | Nommer les personnes inscrites sur la plateforme. |
-| `guérison`, `soigner`, `gérer la maladie` | **renforcement de la vitalité**, **optimisation de la forme**, **épanouissement** | Exprimer la valeur ajoutée et les bénéfices d'accompagnement. |
+| `guérison`, `soigner`, `gérer la maladie` | **optimisation de la forme**, **épanouissement**, **énergie au quotidien** | Exprimer la valeur ajoutée et les bénéfices d'accompagnement. |
 | `thérapie`, `thérapeutique` | **démarche globale**, **discipline de vie**, **coaching bien-être** | Caractériser la méthodologie d'accompagnement. |
+
+> Aligné avec `STYLE_GUIDE.md` et `npm run compliance` (2026-08-10).
 
 ---
 
@@ -28,7 +30,7 @@ Afin de prévenir toute incohérence tarifaire et d'assurer une gestion fluide v
 
 ### 🎯 Formules d'Abonnement Officielles
 - **Accès Libre** : Offre découverte ou fonctionnalités de base gratuites.
-- **Formule Standard** : Accès complet aux routines quotidiennes et au suivi métabolique.
+- **Formule Standard** : Accès complet aux routines quotidiennes et au suivi de forme.
 - **Formule Premium** : Accès étendu avec accompagnement avancé et fonctionnalités exclusives.
 
 ### 📝 Exemples d'Adaptation Rédactionnelle (Avant / Après)
@@ -37,7 +39,7 @@ Afin de prévenir toute incohérence tarifaire et d'assurer une gestion fluide v
 > *"Abonnez-vous à notre suivi naturopathique pour seulement 29€/mois et guérissez vos maux grâce à nos soins."*
 
 #### ✅ Correct (Conforme & Standard) :
-> *"Accédez à votre bilan de vitalité sur-mesure et optimisez votre hygiène de vie au quotidien. Découvrez nos offres Formule Standard et Formule Premium via notre paiement sécurisé."*
+> *"Accédez à votre analyse de forme sur-mesure et optimisez votre hygiène de vie au quotidien. Découvrez nos offres Formule Standard et Formule Premium via notre paiement sécurisé."*
 
 ---
 

@@ -10,6 +10,7 @@ import { useProgramStore } from '../store/useProgramStore';
 import { auth } from '../services/firebase';
 import { getDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { getNetlifyAuthHeaders } from '../services/netlifyAuth';
 
 /* ─── Types ────────────────────────────────────────────────────────────────── */
 interface Message {
@@ -178,6 +179,16 @@ export const AICoachScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
 
     try {
       const uid = auth.currentUser?.uid;
+      if (!uid) {
+        setMessages(prev => [...prev, {
+          id: `e-${Date.now()}`,
+          role: 'assistant',
+          content: 'Connecte-toi pour discuter avec le Coach IA.',
+          timestamp: new Date(),
+        }]);
+        return;
+      }
+
       const historyToSend = messages
         .filter(m => m.id !== 'welcome')
         .map(m => ({ role: m.role, content: m.content }));
@@ -189,13 +200,23 @@ export const AICoachScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
 
       const response = await fetch(chatEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getNetlifyAuthHeaders(),
         body: JSON.stringify({
           messages: historyToSend,
-          uid: uid || null,
+          uid,
           userProfile: inferredProfile,
         }),
       });
+
+      if (response.status === 401) {
+        setMessages(prev => [...prev, {
+          id: `e-${Date.now()}`,
+          role: 'assistant',
+          content: 'Ta session a expiré. Reconnecte-toi pour continuer avec le Coach IA.',
+          timestamp: new Date(),
+        }]);
+        return;
+      }
 
       // Crédits épuisés → basculer en mode questions intelligentes
       if (response.status === 429) {

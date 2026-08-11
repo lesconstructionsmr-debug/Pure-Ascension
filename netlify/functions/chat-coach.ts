@@ -1,4 +1,6 @@
 import { Handler } from '@netlify/functions';
+import { buildCorsHeaders } from './cors';
+import { isAuthFailure, requireFirebaseAuth } from './verify-firebase-token';
 
 /** Netlify env vars may include stray quotes or whitespace. */
 function sanitizeApiKey(raw: string): string {
@@ -50,7 +52,13 @@ const SYSTEM_PROMPT = `Tu es le Coach Expert IA de Pure Ascension. Tu maîtrises
 ## Règles de Style :
 - Sois motivant, précis, professionnel et direct.
 - Rédige en français clair sans jargon inutile.
-- Fournis des réponses structurées avec des sous-titres et des listes à puces.`;
+- Fournis des réponses structurées avec des sous-titres et des listes à puces.
+
+## Conformité (OBLIGATOIRE) :
+Pure Ascension est un coaching bien-être / fitness, PAS un service médical.
+Respecte STRICTEMENT le STYLE_GUIDE Pure Ascension : aucune formulation médicale, curative ou réglementée.
+Utilise : analyse de forme, hygiène de vie, recommandations, routine, énergie, performance.
+Ne promets aucun résultat médical. Nuance les bénéfices (« peut contribuer à… »).`;
 
 // ─── Générateur de Réponses Expert (Fallback Dynamique) ─────────────────────
 function getSmartFallbackResponse(query: string, userProfile?: any): string {
@@ -119,18 +127,22 @@ Quelle est ta priorité pour ta prochaine séance ou ton prochain repas ?`;
 
 // ─── Handler Principal ───────────────────────────────────────────────────────
 export const handler: Handler = async (event) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json',
-  };
+  const headers = buildCorsHeaders(event.headers as Record<string, string | undefined>);
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
-  if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Méthode non autorisée' }) };
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Méthode non autorisée' }) };
+  }
+
+  const authResult = await requireFirebaseAuth(
+    event.headers as Record<string, string | undefined>
+  );
+  if (isAuthFailure(authResult)) {
+    return { ...authResult, headers };
+  }
 
   try {
-    const { messages, userProfile, uid } = JSON.parse(event.body || '{}');
+    const { messages, userProfile } = JSON.parse(event.body || '{}');
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Le champ "messages" est requis.' }) };
@@ -146,7 +158,8 @@ export const handler: Handler = async (event) => {
       if (userProfile) {
         userContext = `\n\n## Profil Utilisateur :
 - Objectif : ${userProfile.mainGoal || 'général'}
-- Expérience : ${userProfile.experience || 'intermédiaire'}`;
+- Expérience : ${userProfile.experience || 'intermédiaire'}
+- Compte : ${authResult.uid}`;
       }
 
       const systemInstruction = SYSTEM_PROMPT + userContext;

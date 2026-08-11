@@ -13,11 +13,14 @@ Le mot **"naturopathie"** et tous ses dérivés sont **strictement proscrits** d
 
 | Terme Proscrit ❌ | Équivalent Réglementaire Autorisé ✅ | Rationale / Domaine d'application |
 | :--- | :--- | :--- |
-| `naturopathie`, `naturopathe` | **bilan de vitalité**, **hygiène de vie**, **bilan métabolique** | Qualification de la démarche et des fonctionnalités |
+| `naturopathie`, `naturopathe` | **hygiène de vie**, **coaching bien-être**, **rituel quotidien** | Qualification de la démarche et des fonctionnalités |
 | `traitement`, `remède`, `soin médical` | **accompagnement**, **conseils d'hygiène de vie**, **programme personnalisable** | Élimination de toute connotation thérapeutique |
-| `diagnostic`, `ordonnance` | **bilan de vitalité**, **recommandations d'hygiène de vie** | Remplacement des actes réservés aux professions médicales |
+| `diagnostic`, `ordonnance` | **analyse de forme**, **recommandations d'hygiène de vie** | Remplacement des actes réservés aux professions médicales |
 | `patient`, `malade` | **utilisateur**, **membre**, **client** | Désignation des usagers de l'application |
-| `thérapie`, `guérison` | **optimisation du bien-être**, **renforcement de la vitalité** | Objectifs orientés bien-être et prévention globale |
+| `thérapie`, `guérison` | **optimisation du bien-être**, **optimisation de la forme** | Objectifs orientés bien-être et hygiène de vie |
+
+> Source de vérité : `STYLE_GUIDE.md` + `npm run compliance` (`scripts/compliance-check.js`).  
+> Ne pas utiliser `bilan de vitalité` / `bilan métabolique` (interdits par le script).
 
 ### 💳 Tarification Dynamique (Interdiction des Prix Fixes en Dur)
 - **Ne jamais coder de prix chiffrés fixes en dur** dans les composants UI, les pages marketing ou la documentation client (ex: pas de `29€/mois` ou `99€`).

@@ -19,8 +19,10 @@ interface MuscleHeatmapProps {
 }
 
 export const MuscleHeatmap: React.FC<MuscleHeatmapProps> = ({
-  score = 68,
-  activations = { chest: 65, back: 80, shoulders: 60, legs: 75, arms: 50, core: 55 },
+  // Pas de score magique fixe : le parent doit injecter le score dynamique.
+  // Fallback neutre (milieu de palier Cuivre) si oubli de props — évite le 68 Sauge pour tous.
+  score = 40,
+  activations = { chest: 40, back: 40, shoulders: 40, legs: 40, arms: 40, core: 40 },
 }) => {
   const tier = getStrengthTierInfo(score);
 

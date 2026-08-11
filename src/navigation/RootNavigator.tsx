@@ -203,18 +203,11 @@ export const RootNavigator: React.FC = () => {
       if (!event.url) return;
       console.log('Deep link reçu dans RootNavigator:', event.url);
       if (event.url.includes('payment=success')) {
-        const uid = firebaseUid || auth.currentUser?.uid;
-        if (uid) {
-          try {
-            await setUserPlan(uid, 'premium');
-            setPlanLevel('premium');
-            setStripeStatus('active');
-            useProgramStore.getState().setPremium(true);
-            useProgramStore.getState().setShowPaywall(false);
-          } catch (err) {
-            console.error('Erreur mise à jour plan après paiement:', err);
-          }
-        }
+        // Optimistic UI only — planLevel/premium vient du webhook Stripe (Admin), pas du client
+        setPlanLevel('premium');
+        setStripeStatus('active');
+        useProgramStore.getState().setPremium(true);
+        useProgramStore.getState().setShowPaywall(false);
       }
     };
 
@@ -229,15 +222,11 @@ export const RootNavigator: React.FC = () => {
   // Écoute la redirection Web (?payment=success)
   React.useEffect(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.search.includes('payment=success')) {
-      const uid = firebaseUid || auth.currentUser?.uid;
-      if (uid) {
-        setUserPlan(uid, 'premium').then(() => {
-          setPlanLevel('premium');
-          setStripeStatus('active');
-          useProgramStore.getState().setPremium(true);
-          useProgramStore.getState().setShowPaywall(false);
-        }).catch(console.error);
-      }
+      // Optimistic UI only — le webhook Stripe confirme le plan en Firestore
+      setPlanLevel('premium');
+      setStripeStatus('active');
+      useProgramStore.getState().setPremium(true);
+      useProgramStore.getState().setShowPaywall(false);
     }
   }, [firebaseUid]);
 

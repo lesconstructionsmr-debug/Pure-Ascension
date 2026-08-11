@@ -1,7 +1,11 @@
 /**
  * Script de vérification automatisée de conformité réglementaire et médicale.
  * Ce script échoue immédiatement (exit code 1) si l'un des termes strictement interdits est détecté
- * dans le code source (src/, netlify/, assets/, public/).
+ * dans le code source (src/, netlify/, public/).
+ *
+ * Source de vérité lexicale : STYLE_GUIDE.md §1–2 (aligné 2026-08-10).
+ * Les formulations « bilan de vitalité / bilan métabolique » restent INTERDITES ici
+ * (même si d’anciens docs les recommandaient).
  */
 
 const fs = require('fs');

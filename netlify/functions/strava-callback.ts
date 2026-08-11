@@ -1,40 +1,13 @@
 import { Handler } from '@netlify/functions';
-import * as admin from 'firebase-admin';
+import { admin, getFirestoreDb } from './firebase-admin-init';
 
-// Initialiser Firebase Admin avec le fichier serviceAccountKey.json pour éviter les erreurs d'env vars 4KB
-function getFirestoreDb(): admin.firestore.Firestore | null {
-  if (admin.apps.length) {
-    return admin.firestore();
-  }
-
+function getDb() {
   try {
-    const serviceAccount = require('./serviceAccountKey.json');
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    console.log('Firebase Admin initialisé avec succès dans strava-callback via serviceAccountKey.json.');
-    return admin.firestore();
+    return getFirestoreDb();
   } catch (err: any) {
-    console.error('Erreur chargement serviceAccountKey dans strava-callback :', err.message);
-
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    let privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').trim();
-
-    if (projectId && clientEmail && privateKey) {
-      try {
-        privateKey = privateKey.replace(/\\n/g, '\n');
-        admin.initializeApp({
-          credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-        });
-        return admin.firestore();
-      } catch (e: any) {
-        console.error('Erreur fallback env vars strava-callback :', e.message);
-      }
-    }
+    console.error('Firebase Admin indisponible dans strava-callback :', err.message);
+    return null;
   }
-
-  return null;
 }
 
 export const handler: Handler = async (event) => {
@@ -105,7 +78,7 @@ export const handler: Handler = async (event) => {
     const data = await response.json();
     const { access_token, refresh_token, expires_at, athlete } = data;
 
-    const db = getFirestoreDb();
+    const db = getDb();
     if (db) {
       // Sauvegarder les jetons d'accès Strava dans Firestore
       await db.collection('users').doc(uid).set({

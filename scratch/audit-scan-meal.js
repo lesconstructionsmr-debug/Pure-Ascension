@@ -39,7 +39,7 @@ function loadEnv() {
 }
 loadEnv();
 
-const WEB_API_KEY = process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyDeycItIcKPO5aGxcxjXa6wwEYoFK4Qa68';
+const WEB_API_KEY = process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '';
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'pure-ascension';
 const BASE_URL = (process.argv[2] || 'https://pure-ascension.netlify.app').replace(/\/$/, '');
 const ENDPOINT = `${BASE_URL}/.netlify/functions/scan-meal`;
@@ -73,18 +73,15 @@ function pemDiagnostics(key) {
 }
 
 async function mintIdToken() {
-  const saPath = path.join(__dirname, '..', 'netlify', 'functions', 'serviceAccountKey.json');
-  let clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  let privateKey = normalizePem(process.env.FIREBASE_PRIVATE_KEY);
+  // Env uniquement — ne jamais charger serviceAccountKey.json
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = normalizePem(process.env.FIREBASE_PRIVATE_KEY);
 
-  if ((!clientEmail || !privateKey) && fs.existsSync(saPath)) {
-    const sa = JSON.parse(fs.readFileSync(saPath, 'utf8'));
-    clientEmail = sa.client_email;
-    privateKey = normalizePem(sa.private_key);
-    line('Source des identifiants', 'serviceAccountKey.json');
+  if (!clientEmail || !privateKey) {
+    line('Source des identifiants', 'MANQUANT — FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY');
+    return null;
   }
-
-  if (!clientEmail || !privateKey) return null;
+  line('Source des identifiants', 'variables d\'environnement');
 
   line('Clé privée après normalisation', 'analyse structurelle :');
   pemDiagnostics(privateKey);

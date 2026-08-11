@@ -1,48 +1,11 @@
 import { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
-import * as admin from 'firebase-admin';
-// Initialiser le SDK Firebase Admin via variables d'environnement
-function getFirestoreDb(): admin.firestore.Firestore {
-  if (!admin.apps.length) {
-    let serviceAccountObj: Record<string, string> | undefined;
-    try {
-      serviceAccountObj = require('./serviceAccountKey.json');
-    } catch {
-      serviceAccountObj = undefined;
-    }
-
-    const projectId = process.env.FIREBASE_PROJECT_ID || serviceAccountObj?.project_id || 'pure-ascension';
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || serviceAccountObj?.client_email || '';
-    let privateKey = (process.env.FIREBASE_PRIVATE_KEY || serviceAccountObj?.private_key || '').trim();
-
-    privateKey = privateKey.replace(/\\n/g, '\n');
-
-    if (clientEmail && privateKey) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
-      });
-    } else {
-      admin.initializeApp({
-        projectId,
-      });
-    }
-    console.log('✓ Firebase Admin initialisé dans apply-referral.');
-  }
-
-  return admin.firestore();
-}
+import { admin, getFirestoreDb } from './firebase-admin-init';
+import { buildCorsHeaders } from './cors';
+import { isAuthFailure, requireFirebaseAuth } from './verify-firebase-token';
 
 export const handler: Handler = async (event) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json',
-  };
+  const headers = buildCorsHeaders(event.headers as Record<string, string | undefined>);
 
   // Pré-vérification CORS
   if (event.httpMethod === 'OPTIONS') {
@@ -57,14 +20,38 @@ export const handler: Handler = async (event) => {
     };
   }
 
-  try {
-    const { refereeUid, referralCode, stripeCustomerId } = JSON.parse(event.body || '{}');
+  const authResult = await requireFirebaseAuth(
+    event.headers as Record<string, string | undefined>
+  );
+  if (isAuthFailure(authResult)) {
+    return { ...authResult, headers };
+  }
 
-    if (!refereeUid || !referralCode) {
+  try {
+    const body = JSON.parse(event.body || '{}') as {
+      refereeUid?: string;
+      referralCode?: string;
+      stripeCustomerId?: string;
+    };
+
+    // Force le filleul = utilisateur authentifié (anti-spoofing)
+    const refereeUid = authResult.uid;
+    if (body.refereeUid && body.refereeUid !== refereeUid) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ error: 'refereeUid ne correspond pas à la session authentifiée.' }),
+      };
+    }
+
+    const referralCode = body.referralCode;
+    const stripeCustomerId = body.stripeCustomerId;
+
+    if (!referralCode) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Paramètres manquants : refereeUid et referralCode sont requis.' }),
+        body: JSON.stringify({ error: 'Paramètres manquants : referralCode est requis.' }),
       };
     }
 
